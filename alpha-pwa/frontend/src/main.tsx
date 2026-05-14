@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AlertTriangle, ArrowRight, BriefcaseBusiness, CalendarClock, CheckCircle2, FileText, Gavel, Loader2, MapPin, Search, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import './styles.css';
@@ -103,8 +103,8 @@ type CaseAnalysis = {
 type TabId = 'timeline' | 'deadlines' | 'facts' | 'questions' | 'brief';
 
 const tabs: Array<{ id: TabId; label: string }> = [
-  { id: 'timeline', label: 'Timeline' },
-  { id: 'deadlines', label: 'Scadenze' },
+  { id: 'timeline', label: 'Cronologia' },
+  { id: 'deadlines', label: 'Agenda' },
   { id: 'facts', label: 'Persone & prove' },
   { id: 'questions', label: 'Da verificare' },
   { id: 'brief', label: 'Promemoria' },
@@ -121,6 +121,11 @@ function markdownToLines(markdown: string): string[] {
 function formatDate(value: string | null): string {
   if (!value) return 'da definire';
   return new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`));
+}
+
+function formatShortDate(value: string | null): string {
+  if (!value) return '—';
+  return new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short' }).format(new Date(`${value}T12:00:00`));
 }
 
 function deadlineTypeLabel(type: ProceduralDeadline['deadline_type']): string {
@@ -181,6 +186,10 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('timeline');
   const [selectedSource, setSelectedSource] = useState<SourceRef | null>(null);
+  const timelineRef = useRef<HTMLElement | null>(null);
+  const deadlinesRef = useRef<HTMLElement | null>(null);
+  const contradictionsRef = useRef<HTMLHeadingElement | null>(null);
+  const materialsRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     fetch('/api/demo-case')
@@ -200,6 +209,33 @@ function App() {
     })[0];
   }, [caseData]);
 
+  const scrollTo = (target: React.RefObject<HTMLElement | HTMLHeadingElement | null>) => {
+    window.setTimeout(() => target.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+  };
+
+  const jumpToTimeline = () => {
+    setActiveTab('timeline');
+    scrollTo(timelineRef);
+  };
+
+  const jumpToDeadlines = () => {
+    setActiveTab('deadlines');
+    scrollTo(deadlinesRef);
+  };
+
+  const jumpToContradictions = () => {
+    setActiveTab('questions');
+    scrollTo(contradictionsRef);
+  };
+
+  const jumpToMaterials = () => {
+    scrollTo(materialsRef);
+  };
+
+  const jumpToBrief = () => {
+    setActiveTab('brief');
+  };
+
   if (error) {
     return (
       <main className="app-shell loading-shell">
@@ -218,42 +254,44 @@ function App() {
       <section className="hero-card">
         <div className="hero-topline">
           <span><Gavel size={15} /> Pocket Legal Triage Alpha</span>
-          <span className="pill"><Sparkles size={14} /> {caseData.usage_estimate.model_route}</span>
+          <button className="pill action-pill" onClick={jumpToBrief}>
+            <Sparkles className="sparkle-pulse" size={14} /> Analisi profonda
+          </button>
         </div>
         <h1>{caseData.case_title}</h1>
         <p>{caseData.case_summary}</p>
         <div className="hero-actions">
-          <button className="primary-button">Processa nuovo materiale <ArrowRight size={16} /></button>
-          <button className="secondary-button">Analisi profonda Pro</button>
+          <button className="primary-button" onClick={jumpToMaterials}>Processa nuovo materiale <ArrowRight size={16} /></button>
+          <button className="secondary-button" onClick={jumpToBrief}>Analisi profonda Pro</button>
         </div>
       </section>
 
       <section className="stats-grid">
-        <article>
+        <button className="stats-card" onClick={jumpToMaterials}>
           <FileText />
           <strong>{caseData.materials.length}</strong>
           <span>materiali</span>
-        </article>
-        <article>
+        </button>
+        <button className="stats-card" onClick={jumpToTimeline}>
           <MapPin />
           <strong>{caseData.timeline.length}</strong>
           <span>eventi</span>
-        </article>
-        <article>
+        </button>
+        <button className="stats-card" onClick={jumpToContradictions}>
           <AlertTriangle />
           <strong>{caseData.contradictions.length}</strong>
           <span>contraddizioni</span>
-        </article>
-        <article>
+        </button>
+        <button className="stats-card" onClick={jumpToDeadlines}>
           <BriefcaseBusiness />
-          <strong>{nextDeadline?.due_time ?? '—'}</strong>
-          <span>prossima</span>
-        </article>
+          <strong>{nextDeadline ? formatShortDate(nextDeadline.due_date) : '—'}</strong>
+          <span>priorità</span>
+        </button>
       </section>
 
       <section className="deadline-card">
         <div>
-          <p className="eyebrow">Prossimo atto</p>
+          <p className="eyebrow">Prossima priorità</p>
           <h2>{nextDeadline?.title}</h2>
           <p>{nextDeadline ? `${formatDate(nextDeadline.due_date)}${nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''} · ${nextDeadline.status === 'confirmed' ? 'confermato' : 'da confermare'}` : 'Nessuna scadenza caricata'}</p>
           <p>{nextDeadline?.description}</p>
@@ -270,7 +308,7 @@ function App() {
       </nav>
 
       {activeTab === 'timeline' && (
-        <section className="panel timeline-panel">
+        <section ref={timelineRef} className="panel timeline-panel">
           {caseData.timeline.map((event) => (
             <article className="timeline-item" key={`${event.date}-${event.time}-${event.title}`}>
               <div className="time-dot" />
@@ -286,8 +324,8 @@ function App() {
       )}
 
       {activeTab === 'deadlines' && (
-        <section className="panel deadline-list-panel">
-          <h2><CalendarClock size={18} /> Scadenze & calendario difensivo</h2>
+        <section ref={deadlinesRef} className="panel deadline-list-panel">
+          <h2><CalendarClock size={18} /> Agenda difensiva</h2>
           <p className="muted">Date estratte dal fascicolo. Le scadenze candidate vanno confermate dal difensore prima di essere trattate come operative.</p>
           {caseData.procedural_deadlines.map((item) => (
             <article className="deadline-item" key={`${item.due_date}-${item.title}`}>
@@ -366,7 +404,7 @@ function App() {
               </div>
             </article>
           ))}
-          <h2>Contraddizioni</h2>
+          <h2 ref={contradictionsRef}>Contraddizioni</h2>
           {caseData.contradictions.map((item) => (
             <article className="question-card contradiction" key={item.title}>
               <h3>{item.title}</h3>
@@ -392,7 +430,7 @@ function App() {
         </section>
       )}
 
-      <section className="materials-panel">
+      <section ref={materialsRef} className="materials-panel">
         <h2>Materiali caricati</h2>
         {caseData.materials.map((material) => (
           <article key={material.id}>
