@@ -1,180 +1,174 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AlertTriangle, ArrowRight, BriefcaseBusiness, CalendarClock, CheckCircle2, FileText, Gavel, Loader2, MapPin, Search, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import {
+  AlertTriangle, ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness,
+  CalendarClock, CheckCircle2, ChevronDown, ChevronRight, FileText, Gavel,
+  Loader2, MapPin, Mic, Plus, Scale, Search, ShieldAlert, ShieldCheck,
+  ShieldOff, Sparkles, Upload, Users, X, Zap,
+} from 'lucide-react';
 import './styles.css';
 
+// ── Types ────────────────────────────────────────────────────────────────────
+
 type SourceRef = {
-  source_name: string;
-  page: number | null;
-  chunk: string | null;
-  quote: string;
-  confidence: number;
+  source_name: string; page: number | null; chunk: string | null;
+  quote: string; confidence: number;
 };
-
-type Material = {
-  id: string;
-  name: string;
-  kind: string;
-  description: string;
-  excerpt: string;
-  content: string;
-};
-
-type TimelineEvent = {
-  date: string | null;
-  time: string | null;
-  title: string;
-  description: string;
-  source_refs: SourceRef[];
-  confidence: number;
-};
-
-type Person = {
-  name: string;
-  role: string;
-  notes: string;
-  source_refs: SourceRef[];
-};
-
-type EvidenceItem = {
-  title: string;
-  status: string;
-  notes: string;
-  source_refs: SourceRef[];
-};
-
-type OpenQuestion = {
-  question: string;
-  why_it_matters: string;
-  source_refs: SourceRef[];
-};
-
-type MissingDocument = {
-  title: string;
-  reason: string;
-  priority: 'alta' | 'media' | 'bassa';
-};
-
-type Contradiction = {
-  title: string;
-  description: string;
-  source_refs: SourceRef[];
-};
-
+type Material = { id: string; name: string; kind: string; description: string; excerpt: string; content: string; };
+type TimelineEvent = { date: string | null; time: string | null; title: string; description: string; source_refs: SourceRef[]; confidence: number; };
+type Person = { name: string; role: string; notes: string; source_refs: SourceRef[]; };
+type EvidenceItem = { title: string; status: string; notes: string; source_refs: SourceRef[]; };
+type OpenQuestion = { question: string; why_it_matters: string; source_refs: SourceRef[]; };
+type MissingDocument = { title: string; reason: string; priority: 'alta' | 'media' | 'bassa'; };
+type Contradiction = { title: string; description: string; source_refs: SourceRef[]; };
 type ProceduralDeadline = {
-  title: string;
-  deadline_type: 'hearing' | 'defense_brief' | 'filing' | 'investigation' | 'other';
-  due_date: string;
-  due_time: string | null;
-  status: 'confirmed' | 'candidate' | 'needs_review';
-  urgency: 'alta' | 'media' | 'bassa';
-  description: string;
-  start_work_date: string | null;
-  internal_target_date: string | null;
-  source_refs: SourceRef[];
-  tasks: string[];
+  title: string; deadline_type: 'hearing' | 'defense_brief' | 'filing' | 'investigation' | 'other';
+  due_date: string; due_time: string | null; status: 'confirmed' | 'candidate' | 'needs_review';
+  urgency: 'alta' | 'media' | 'bassa'; description: string;
+  start_work_date: string | null; internal_target_date: string | null;
+  source_refs: SourceRef[]; tasks: string[];
 };
+type UsageEstimate = { pages: number; audio_minutes: number; flash_input_tokens: number; flash_output_tokens: number; pro_used: boolean; model_route: string; };
 
-type UsageEstimate = {
-  pages: number;
-  audio_minutes: number;
-  flash_input_tokens: number;
-  flash_output_tokens: number;
-  pro_used: boolean;
-  model_route: string;
+type ChargeElement = { element: string; description: string; status: 'proven' | 'disputed' | 'weak' | 'missing'; notes: string; source_refs: SourceRef[]; };
+type ChargeAnalysis = { charge_code: string; charge_name: string; max_sentence: string; elements_required: ChargeElement[]; available_defenses: string[]; prosecution_strength: number; notes: string; source_refs: SourceRef[]; };
+type DefenseStrategy = { title: string; strategy_type: string; priority: 'primary' | 'secondary' | 'fallback'; description: string; strengths: string[]; risks: string[]; required_evidence: string[]; source_refs: SourceRef[]; };
+type ConstitutionalIssue = { title: string; issue_type: string; severity: 'critical' | 'significant' | 'minor'; description: string; legal_basis: string; remedy: string; source_refs: SourceRef[]; };
+type WitnessAssessment = { witness_name: string; role: 'prosecution' | 'defense' | 'neutral' | 'expert'; credibility_score: number; key_testimony: string; strengths: string[]; vulnerabilities: string[]; cross_examination_angles: string[]; source_refs: SourceRef[]; };
+type EvidenceBalance = { prosecution_strength: number; defense_strength: number; key_prosecution_evidence: string[]; key_defense_evidence: string[]; critical_gaps: string[]; overall_assessment: string; };
+type LegalAnalysis = {
+  risk_level: 'low' | 'medium' | 'high' | 'critical'; risk_summary: string; immediate_actions: string[];
+  charges: ChargeAnalysis[]; strategies: DefenseStrategy[]; constitutional_issues: ConstitutionalIssue[];
+  witness_assessments: WitnessAssessment[]; evidence_balance: EvidenceBalance; client_summary: string;
 };
 
 type CaseAnalysis = {
-  case_id: string;
-  case_title: string;
-  language: 'it';
-  case_summary: string;
-  materials: Material[];
-  timeline: TimelineEvent[];
-  people: Person[];
-  evidence: EvidenceItem[];
-  open_questions: OpenQuestion[];
-  missing_documents: MissingDocument[];
-  contradictions: Contradiction[];
-  procedural_deadlines: ProceduralDeadline[];
-  brief_markdown: string;
-  usage_estimate: UsageEstimate;
+  case_id: string; case_title: string; language: string; case_summary: string;
+  materials: Material[]; timeline: TimelineEvent[]; people: Person[];
+  evidence: EvidenceItem[]; open_questions: OpenQuestion[]; missing_documents: MissingDocument[];
+  contradictions: Contradiction[]; procedural_deadlines: ProceduralDeadline[];
+  brief_markdown: string; usage_estimate: UsageEstimate; legal_analysis: LegalAnalysis | null;
 };
 
-type TabId = 'timeline' | 'deadlines' | 'facts' | 'questions' | 'brief';
+type CaseSummary = {
+  case_id: string; case_title: string; client_name: string; case_summary: string;
+  charge_summary: string; next_deadline_date: string | null; next_deadline_title: string | null;
+  contradiction_count: number; material_count: number;
+  risk_level: 'low' | 'medium' | 'high' | 'critical' | null; status: string; created_at: string;
+};
 
-const tabs: Array<{ id: TabId; label: string }> = [
-  { id: 'timeline', label: 'Cronologia' },
-  { id: 'deadlines', label: 'Agenda' },
-  { id: 'facts', label: 'Persone & prove' },
-  { id: 'questions', label: 'Da verificare' },
-  { id: 'brief', label: 'Promemoria' },
-];
+type TabId = 'timeline' | 'deadlines' | 'facts' | 'legal' | 'questions' | 'brief';
 
-function confidence(value: number): string {
-  return `${Math.round(value * 100)}%`;
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function pct(v: number) { return `${Math.round(v * 100)}%`; }
+function formatDate(v: string | null) {
+  if (!v) return 'da definire';
+  return new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${v}T12:00:00`));
+}
+function formatShortDate(v: string | null) {
+  if (!v) return '—';
+  return new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short' }).format(new Date(`${v}T12:00:00`));
+}
+function formatDateFull(v: string | null) {
+  if (!v) return 'da definire';
+  const d = new Date(`${v}T12:00:00`);
+  const days = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+  return `${days[d.getDay()]} ${new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }).format(d)}`;
 }
 
-function markdownToLines(markdown: string): string[] {
-  return markdown.split('\n').filter((line) => line.trim().length > 0);
+function deadlineTypeLabel(t: ProceduralDeadline['deadline_type']) {
+  return ({ hearing: 'udienza', defense_brief: 'memoria difensiva', filing: 'deposito', investigation: 'indagine difensiva', other: 'altro' })[t];
 }
 
-const weekdays = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-
-function formatDate(value: string | null): string {
-  if (!value) return 'da definire';
-  return new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`));
+function riskColor(level: string | null) {
+  return ({ critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e' })[level ?? ''] ?? '#94a3b8';
 }
 
-function formatDateFull(value: string | null): string {
-  if (!value) return 'da definire';
-  const date = new Date(`${value}T12:00:00`);
-  return `${weekdays[date.getDay()]} ${new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)}`;
+function riskLabel(level: string | null) {
+  return ({ critical: 'Critico', high: 'Alto', medium: 'Medio', low: 'Basso' })[level ?? ''] ?? '—';
 }
 
-function formatShortDate(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short' }).format(new Date(`${value}T12:00:00`));
+function riskIcon(level: string | null) {
+  if (level === 'critical' || level === 'high') return <ShieldOff size={16} />;
+  if (level === 'medium') return <ShieldAlert size={16} />;
+  return <ShieldCheck size={16} />;
 }
 
-function deadlineTypeLabel(type: ProceduralDeadline['deadline_type']): string {
-  const labels: Record<ProceduralDeadline['deadline_type'], string> = {
-    hearing: 'udienza',
-    defense_brief: 'memoria difensiva',
-    filing: 'deposito',
-    investigation: 'indagine difensiva',
-    other: 'altro',
-  };
-  return labels[type];
+function elementStatusColor(s: ChargeElement['status']) {
+  return ({ proven: '#ef4444', disputed: '#f97316', weak: '#eab308', missing: '#22c55e' })[s];
+}
+function elementStatusLabel(s: ChargeElement['status']) {
+  return ({ proven: 'provato', disputed: 'contestato', weak: 'debole', missing: 'mancante' })[s];
 }
 
-function SourceBadge({ refItem, onSelect }: { refItem: SourceRef; onSelect: (source: SourceRef) => void }) {
+function witnessRoleLabel(r: WitnessAssessment['role']) {
+  return ({ prosecution: 'accusa', defense: 'difesa', neutral: 'neutro', expert: 'esperto' })[r];
+}
+
+function strategyTypeLabel(t: string) {
+  return ({
+    alibi: 'Alibi', misidentification: 'Misidentificazione', lack_of_intent: 'Assenza dolo',
+    procedural: 'Procedurale', constitutional: 'Costituzionale', affirmative: 'Esimente', negotiation: 'Negoziazione',
+  })[t] ?? t;
+}
+
+function issueTypeLabel(t: string) {
+  return ({
+    illegal_search: 'Perquisizione illegittima', coerced_confession: 'Confessione forzata',
+    right_to_counsel: 'Diritto alla difesa', due_process: 'Giusto processo',
+    speedy_trial: 'Durata ragionevole', procedural_violation: 'Violazione procedurale',
+    evidence_tampering: 'Alterazione prove',
+  })[t] ?? t;
+}
+
+function markdownToLines(md: string) { return md.split('\n').filter(l => l.trim()); }
+
+// ── Small components ─────────────────────────────────────────────────────────
+
+function SourceBadge({ refItem, onSelect }: { refItem: SourceRef; onSelect: (s: SourceRef) => void }) {
   return (
     <button className="source-badge" onClick={() => onSelect(refItem)}>
-      <FileText size={13} />
-      {refItem.source_name} · fonte {confidence(refItem.confidence)}
+      <FileText size={12} /> {refItem.source_name} · {pct(refItem.confidence)}
     </button>
   );
 }
+
+function SourceRow({ refs, onSelect }: { refs: SourceRef[]; onSelect: (s: SourceRef) => void }) {
+  if (!refs?.length) return null;
+  return <div className="source-row">{refs.map(r => <SourceBadge key={r.quote + r.source_name} refItem={r} onSelect={onSelect} />)}</div>;
+}
+
+function StrengthBar({ value, label, color }: { value: number; label: string; color: string }) {
+  return (
+    <div className="strength-bar-wrap">
+      <div className="strength-bar-labels">
+        <span>{label}</span><span>{pct(value)}</span>
+      </div>
+      <div className="strength-bar-track">
+        <div className="strength-bar-fill" style={{ width: `${value * 100}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+// ── Drawers ──────────────────────────────────────────────────────────────────
 
 function SourceDrawer({ source, onClose }: { source: SourceRef | null; onClose: () => void }) {
   if (!source) return null;
   return (
     <div className="drawer-backdrop" onClick={onClose}>
-      <aside className="source-drawer" onClick={(event) => event.stopPropagation()}>
+      <aside className="source-drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div>
-            <p className="eyebrow">Fonte collegata</p>
-            <h2>{source.source_name}</h2>
-          </div>
+          <div><p className="eyebrow">Fonte collegata</p><h2>{source.source_name}</h2></div>
           <button onClick={onClose} className="ghost-button">Chiudi</button>
         </div>
         <blockquote>&ldquo;{source.quote}&rdquo;</blockquote>
         <div className="drawer-meta">
           <span>Pagina {source.page ?? 1}</span>
           <span>Chunk {source.chunk ?? 'demo'}</span>
-          <span>Confidenza {confidence(source.confidence)}</span>
+          <span>Confidenza {pct(source.confidence)}</span>
         </div>
       </aside>
     </div>
@@ -185,18 +179,15 @@ function MaterialDrawer({ material, onClose }: { material: Material | null; onCl
   if (!material) return null;
   return (
     <div className="drawer-backdrop" onClick={onClose}>
-      <aside className="source-drawer material-drawer" onClick={(event) => event.stopPropagation()}>
+      <aside className="source-drawer material-drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div>
-            <p className="eyebrow">Documento</p>
-            <h2>{material.name}</h2>
-          </div>
+          <div><p className="eyebrow">Documento</p><h2>{material.name}</h2></div>
           <button onClick={onClose} className="ghost-button">Chiudi</button>
         </div>
         <div className="material-content">
           {material.content
-            ? material.content.split('\n').map((line, i) => <p key={i}>{line || '\u00A0'}</p>)
+            ? material.content.split('\n').map((l, i) => <p key={i}>{l || ' '}</p>)
             : <p className="muted">Contenuto non disponibile per {material.kind.toUpperCase()}.</p>}
         </div>
       </aside>
@@ -204,264 +195,702 @@ function MaterialDrawer({ material, onClose }: { material: Material | null; onCl
   );
 }
 
-function Skeleton() {
+function UploadDrawer({ onClose, onAnalyze }: { onClose: () => void; onAnalyze: (title: string, text: string, name: string) => void }) {
+  const [title, setTitle] = useState('');
+  const [text, setText] = useState('');
+  const [docName, setDocName] = useState('documento.txt');
+  const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = useCallback(async (file: File) => {
+    setDocName(file.name);
+    if (file.type.startsWith('text/') || file.name.endsWith('.txt')) {
+      setText(await file.text());
+    } else {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        setUploading(true);
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        setText(data.extracted_text ?? '');
+      } finally {
+        setUploading(false);
+      }
+    }
+  }, []);
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  }, [handleFile]);
+
+  const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) handleFile(f);
+  }, [handleFile]);
+
+  const canSubmit = title.trim() && text.trim();
+
   return (
-    <main className="app-shell loading-shell">
-      <Loader2 className="spin" />
-      <p>Carico fascicolo demo italiano…</p>
+    <div className="drawer-backdrop" onClick={onClose}>
+      <aside className="source-drawer upload-drawer" onClick={e => e.stopPropagation()}>
+        <div className="drawer-handle" />
+        <div className="drawer-header">
+          <div><p className="eyebrow">Nuovo materiale</p><h2>Carica documento</h2></div>
+          <button onClick={onClose} className="ghost-button"><X size={18} /></button>
+        </div>
+
+        <div className="upload-field">
+          <label>Titolo del caso</label>
+          <input
+            className="upload-input"
+            placeholder="es. Caso Rossi — Furto aggravato"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+          />
+        </div>
+
+        <div
+          className={`drop-zone${dragging ? ' dragging' : ''}`}
+          onDragOver={e => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={onDrop}
+          onClick={() => fileRef.current?.click()}
+        >
+          {uploading
+            ? <><Loader2 className="spin" size={28} /><p>Estrazione testo…</p></>
+            : <><Upload size={28} /><p>Trascina un file o clicca per selezionarlo</p><small>TXT, PDF, immagini, audio</small></>
+          }
+          <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={onFileChange}
+            accept=".txt,.pdf,.jpg,.jpeg,.png,.mp3,.mp4,.m4a,.wav,.ogg" />
+        </div>
+
+        <div className="upload-field">
+          <label>Oppure incolla il testo</label>
+          <textarea
+            className="upload-textarea"
+            placeholder="Incolla qui il testo del documento…"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            rows={7}
+          />
+        </div>
+
+        <div className="upload-actions">
+          <button className="ghost-button" onClick={onClose}>Annulla</button>
+          <button
+            className="primary-button"
+            disabled={!canSubmit}
+            onClick={() => canSubmit && onAnalyze(title, text, docName)}
+          >
+            <Zap size={15} /> Analizza con AI
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+// ── Case list view ────────────────────────────────────────────────────────────
+
+function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
+  const [cases, setCases] = useState<CaseSummary[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [showUpload, setShowUpload] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/cases')
+      .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<CaseSummary[]>; })
+      .then(setCases)
+      .catch(e => setError(e.message));
+  }, []);
+
+  const handleAnalyze = useCallback(async (title: string, text: string, name: string) => {
+    setShowUpload(false);
+    setAnalyzing(true);
+    try {
+      const res = await fetch('/api/analyze-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ case_title: title, materials: [{ name, kind: 'text', text }], mode: 'flash', language: 'it' }),
+      });
+      if (!res.ok) throw new Error(`Analisi fallita: ${res.status}`);
+      const newCase = await res.json() as CaseAnalysis;
+      // Navigate straight to the new case result (store temporarily)
+      (window as any).__newCase = newCase;
+      onSelect('__new__');
+    } catch (e) {
+      alert(`Errore: ${(e as Error).message}`);
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [onSelect]);
+
+  return (
+    <main className="app-shell">
+      <header className="cases-header">
+        <div className="cases-header-top">
+          <div className="brand-line"><Gavel size={16} /> Pocket Legal Triage</div>
+          <button className="primary-button" onClick={() => setShowUpload(true)}>
+            <Plus size={15} /> Nuovo fascicolo
+          </button>
+        </div>
+        <h1 className="cases-title">I tuoi fascicoli</h1>
+        <p className="cases-subtitle">
+          {cases ? `${cases.length} fascicoli attivi` : 'Carico fascicoli…'}
+        </p>
+      </header>
+
+      {analyzing && (
+        <div className="analyzing-banner">
+          <Loader2 className="spin" size={18} />
+          Analisi AI in corso — attendere…
+        </div>
+      )}
+
+      {error && <div className="error-banner"><AlertTriangle size={16} /> {error}</div>}
+
+      {cases === null && !error && (
+        <div className="cases-loading"><Loader2 className="spin" size={32} /></div>
+      )}
+
+      <div className="cases-grid">
+        {cases?.map(c => (
+          <button key={c.case_id} className="case-card" onClick={() => onSelect(c.case_id)}>
+            <div className="case-card-header">
+              <div className="case-card-risk" style={{ background: riskColor(c.risk_level) + '22', border: `1px solid ${riskColor(c.risk_level)}55` }}>
+                <span style={{ color: riskColor(c.risk_level) }}>{riskIcon(c.risk_level)} {riskLabel(c.risk_level)}</span>
+              </div>
+              <ChevronRight size={18} className="case-card-arrow" />
+            </div>
+            <h3 className="case-card-title">{c.case_title}</h3>
+            <p className="case-card-charges">{c.charge_summary}</p>
+            <p className="case-card-summary">{c.case_summary}</p>
+            <div className="case-card-meta">
+              {c.next_deadline_date && (
+                <span><CalendarClock size={13} /> {formatShortDate(c.next_deadline_date)}</span>
+              )}
+              <span><AlertTriangle size={13} /> {c.contradiction_count} contraddizioni</span>
+              <span><FileText size={13} /> {c.material_count} materiali</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {showUpload && <UploadDrawer onClose={() => setShowUpload(false)} onAnalyze={handleAnalyze} />}
     </main>
   );
 }
 
-function App() {
+// ── Legal analysis tab ────────────────────────────────────────────────────────
+
+function LegalAnalysisTab({ la, onSelectSource }: { la: LegalAnalysis; onSelectSource: (s: SourceRef) => void }) {
+  const [expandedCharge, setExpandedCharge] = useState<number | null>(0);
+  const [expandedStrategy, setExpandedStrategy] = useState<number | null>(0);
+
+  return (
+    <section className="panel legal-panel">
+
+      {/* Risk banner */}
+      <div className="risk-banner" style={{ borderColor: riskColor(la.risk_level) + '66', background: riskColor(la.risk_level) + '11' }}>
+        <div className="risk-banner-label" style={{ color: riskColor(la.risk_level) }}>
+          {riskIcon(la.risk_level)} Rischio {riskLabel(la.risk_level)}
+        </div>
+        <p>{la.risk_summary}</p>
+      </div>
+
+      {/* Immediate actions */}
+      <div className="legal-section">
+        <h2><Zap size={16} /> Azioni immediate</h2>
+        <ul className="action-list">
+          {la.immediate_actions.map((a, i) => (
+            <li key={i} className="action-item"><CheckCircle2 size={14} /><span>{a}</span></li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Charges */}
+      <div className="legal-section">
+        <h2><Scale size={16} /> Analisi delle accuse</h2>
+        {la.charges.map((charge, ci) => (
+          <div key={charge.charge_code} className="charge-card">
+            <button className="charge-card-header" onClick={() => setExpandedCharge(expandedCharge === ci ? null : ci)}>
+              <div className="charge-card-title-row">
+                <span className="charge-code">{charge.charge_code}</span>
+                <span className="charge-name">{charge.charge_name}</span>
+              </div>
+              <div className="charge-card-meta-row">
+                <div className="strength-mini">
+                  <div className="strength-mini-fill" style={{ width: `${charge.prosecution_strength * 100}%`, background: `hsl(${(1 - charge.prosecution_strength) * 120}, 70%, 50%)` }} />
+                </div>
+                <span className="charge-strength-label">Accusa {pct(charge.prosecution_strength)}</span>
+                {expandedCharge === ci ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </div>
+            </button>
+            {expandedCharge === ci && (
+              <div className="charge-card-body">
+                <p className="charge-sentence"><strong>Pena massima:</strong> {charge.max_sentence}</p>
+                <h4>Elementi costitutivi</h4>
+                <div className="elements-table">
+                  {charge.elements_required.map((el, ei) => (
+                    <div key={ei} className="element-row">
+                      <div className="element-status-dot" style={{ background: elementStatusColor(el.status) }} title={elementStatusLabel(el.status)} />
+                      <div className="element-body">
+                        <strong>{el.element}</strong>
+                        <p>{el.description}</p>
+                        <p className="element-notes">{el.notes}</p>
+                        <span className={`element-chip element-${el.status}`}>{elementStatusLabel(el.status)}</span>
+                        <SourceRow refs={el.source_refs} onSelect={onSelectSource} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <h4>Difese disponibili</h4>
+                <ul className="defense-list">
+                  {charge.available_defenses.map((d, di) => <li key={di}>{d}</li>)}
+                </ul>
+                {charge.notes && <p className="charge-notes">{charge.notes}</p>}
+                <SourceRow refs={charge.source_refs} onSelect={onSelectSource} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Defense strategies */}
+      <div className="legal-section">
+        <h2><ShieldCheck size={16} /> Strategie difensive</h2>
+        {la.strategies.map((s, si) => (
+          <div key={si} className={`strategy-card strategy-${s.priority}`}>
+            <button className="strategy-header" onClick={() => setExpandedStrategy(expandedStrategy === si ? null : si)}>
+              <div className="strategy-title-row">
+                <span className={`priority-badge priority-${s.priority}`}>{s.priority === 'primary' ? 'Primaria' : s.priority === 'secondary' ? 'Secondaria' : 'Fallback'}</span>
+                <span className="strategy-type-badge">{strategyTypeLabel(s.strategy_type)}</span>
+              </div>
+              <div className="strategy-title">{s.title}</div>
+              <div className="strategy-expand">{expandedStrategy === si ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</div>
+            </button>
+            {expandedStrategy === si && (
+              <div className="strategy-body">
+                <p>{s.description}</p>
+                <div className="strategy-cols">
+                  <div className="strategy-col">
+                    <h4>Punti di forza</h4>
+                    <ul>{s.strengths.map((p, i) => <li key={i} className="pro-item">{p}</li>)}</ul>
+                  </div>
+                  <div className="strategy-col">
+                    <h4>Rischi</h4>
+                    <ul>{s.risks.map((r, i) => <li key={i} className="risk-item">{r}</li>)}</ul>
+                  </div>
+                </div>
+                {s.required_evidence.length > 0 && (
+                  <>
+                    <h4>Prove necessarie</h4>
+                    <ul className="evidence-needed">{s.required_evidence.map((e, i) => <li key={i}><Search size={12} />{e}</li>)}</ul>
+                  </>
+                )}
+                <SourceRow refs={s.source_refs} onSelect={onSelectSource} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Constitutional issues */}
+      {la.constitutional_issues.length > 0 && (
+        <div className="legal-section">
+          <h2><ShieldAlert size={16} /> Problemi costituzionali / procedurali</h2>
+          {la.constitutional_issues.map((issue, ii) => (
+            <div key={ii} className={`issue-card issue-${issue.severity}`}>
+              <div className="issue-header">
+                <span className={`severity-badge severity-${issue.severity}`}>{issue.severity === 'critical' ? 'Critico' : issue.severity === 'significant' ? 'Significativo' : 'Minore'}</span>
+                <span className="issue-type">{issueTypeLabel(issue.issue_type)}</span>
+              </div>
+              <h3>{issue.title}</h3>
+              <p>{issue.description}</p>
+              <div className="issue-law"><BookOpen size={13} /> <em>{issue.legal_basis}</em></div>
+              <div className="issue-remedy"><ShieldCheck size={13} /><span>{issue.remedy}</span></div>
+              <SourceRow refs={issue.source_refs} onSelect={onSelectSource} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Witness assessments */}
+      {la.witness_assessments.length > 0 && (
+        <div className="legal-section">
+          <h2><Users size={16} /> Valutazione testimoni</h2>
+          {la.witness_assessments.map((w, wi) => (
+            <div key={wi} className={`witness-card witness-${w.role}`}>
+              <div className="witness-header">
+                <div>
+                  <strong>{w.witness_name}</strong>
+                  <span className={`witness-role-badge role-${w.role}`}>{witnessRoleLabel(w.role)}</span>
+                </div>
+                <div className="credibility-score" style={{ color: w.credibility_score >= 0.7 ? '#ef4444' : w.credibility_score >= 0.5 ? '#f97316' : '#22c55e' }}>
+                  {pct(w.credibility_score)} cred.
+                </div>
+              </div>
+              <StrengthBar value={w.credibility_score} label="Credibilità percepita" color={`hsl(${(1 - w.credibility_score) * 30}, 80%, 55%)`} />
+              <p className="witness-testimony">&ldquo;{w.key_testimony}&rdquo;</p>
+              <div className="witness-cols">
+                {w.strengths.length > 0 && (
+                  <div>
+                    <h4>Punti forti</h4>
+                    <ul>{w.strengths.map((s, i) => <li key={i} className="pro-item">{s}</li>)}</ul>
+                  </div>
+                )}
+                {w.vulnerabilities.length > 0 && (
+                  <div>
+                    <h4>Vulnerabilità</h4>
+                    <ul>{w.vulnerabilities.map((v, i) => <li key={i} className="risk-item">{v}</li>)}</ul>
+                  </div>
+                )}
+              </div>
+              {w.cross_examination_angles.length > 0 && (
+                <>
+                  <h4>Domande cross-examination</h4>
+                  <ul className="cross-list">{w.cross_examination_angles.map((q, i) => <li key={i}><ArrowRight size={12} />{q}</li>)}</ul>
+                </>
+              )}
+              <SourceRow refs={w.source_refs} onSelect={onSelectSource} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Evidence balance */}
+      <div className="legal-section">
+        <h2><Scale size={16} /> Equilibrio probatorio</h2>
+        <div className="balance-card">
+          <div className="balance-bars">
+            <StrengthBar value={la.evidence_balance.prosecution_strength} label="Forza accusa" color="#ef4444" />
+            <StrengthBar value={la.evidence_balance.defense_strength} label="Forza difesa" color="#22c55e" />
+          </div>
+          <div className="balance-cols">
+            <div>
+              <h4>Prove accusa</h4>
+              <ul>{la.evidence_balance.key_prosecution_evidence.map((e, i) => <li key={i} className="risk-item">{e}</li>)}</ul>
+            </div>
+            <div>
+              <h4>Prove difesa</h4>
+              <ul>{la.evidence_balance.key_defense_evidence.map((e, i) => <li key={i} className="pro-item">{e}</li>)}</ul>
+            </div>
+          </div>
+          {la.evidence_balance.critical_gaps.length > 0 && (
+            <div className="balance-gaps">
+              <h4><Search size={13} /> Lacune critiche</h4>
+              <ul>{la.evidence_balance.critical_gaps.map((g, i) => <li key={i}>{g}</li>)}</ul>
+            </div>
+          )}
+          <p className="balance-assessment">{la.evidence_balance.overall_assessment}</p>
+        </div>
+      </div>
+
+      {/* Client summary */}
+      <div className="client-summary-box">
+        <h2><Users size={16} /> Sintesi per il cliente</h2>
+        <p>{la.client_summary}</p>
+      </div>
+    </section>
+  );
+}
+
+// ── Case detail view ──────────────────────────────────────────────────────────
+
+const tabs: Array<{ id: TabId; label: string }> = [
+  { id: 'timeline', label: 'Cronologia' },
+  { id: 'deadlines', label: 'Agenda' },
+  { id: 'facts', label: 'Persone & prove' },
+  { id: 'legal', label: 'Analisi legale' },
+  { id: 'questions', label: 'Da verificare' },
+  { id: 'brief', label: 'Promemoria' },
+];
+
+function CaseDetailView({ caseId, onBack }: { caseId: string; onBack: () => void }) {
   const [caseData, setCaseData] = useState<CaseAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('timeline');
   const [selectedSource, setSelectedSource] = useState<SourceRef | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const [showUpload, setShowUpload] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+
   const timelineRef = useRef<HTMLElement | null>(null);
   const deadlinesRef = useRef<HTMLElement | null>(null);
   const contradictionsRef = useRef<HTMLHeadingElement | null>(null);
   const materialsRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    fetch('/api/demo-case')
-      .then((response) => {
-        if (!response.ok) throw new Error(`Errore backend: ${response.status}`);
-        return response.json() as Promise<CaseAnalysis>;
-      })
+    if (caseId === '__new__') {
+      const nc = (window as any).__newCase as CaseAnalysis | undefined;
+      if (nc) { setCaseData(nc); return; }
+    }
+    fetch(`/api/cases/${caseId}`)
+      .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<CaseAnalysis>; })
       .then(setCaseData)
-      .catch((err: Error) => setError(err.message));
-  }, []);
+      .catch(e => setError(e.message));
+  }, [caseId]);
 
   const nextDeadline = useMemo(() => {
     return [...(caseData?.procedural_deadlines ?? [])].sort((a, b) => {
-      const aStamp = `${a.due_date}T${a.due_time ?? '23:59'}`;
-      const bStamp = `${b.due_date}T${b.due_time ?? '23:59'}`;
-      return aStamp.localeCompare(bStamp);
+      const as_ = `${a.due_date}T${a.due_time ?? '23:59'}`;
+      const bs = `${b.due_date}T${b.due_time ?? '23:59'}`;
+      return as_.localeCompare(bs);
     })[0];
   }, [caseData]);
 
-  const scrollTo = (target: React.RefObject<HTMLElement | HTMLHeadingElement | null>) => {
-    window.setTimeout(() => target.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+  const scrollTo = (ref: React.RefObject<HTMLElement | HTMLHeadingElement | null>) => {
+    setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
   };
 
-  const jumpToTimeline = () => {
-    setActiveTab('timeline');
-    scrollTo(timelineRef);
-  };
+  const handleAnalyze = useCallback(async (title: string, text: string, name: string) => {
+    setShowUpload(false);
+    setAnalyzing(true);
+    try {
+      const res = await fetch('/api/analyze-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ case_title: title, materials: [{ name, kind: 'text', text }], mode: 'flash', language: 'it' }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      setCaseData(await res.json());
+    } catch (e) {
+      alert(`Errore analisi: ${(e as Error).message}`);
+    } finally {
+      setAnalyzing(false);
+    }
+  }, []);
 
-  const jumpToDeadlines = () => {
-    setActiveTab('deadlines');
-    scrollTo(deadlinesRef);
-  };
+  if (error) return (
+    <main className="app-shell loading-shell">
+      <AlertTriangle /><h1>Errore</h1><p>{error}</p>
+      <button className="ghost-button" onClick={onBack}>← Torna ai fascicoli</button>
+    </main>
+  );
 
-  const jumpToContradictions = () => {
-    setActiveTab('questions');
-    scrollTo(contradictionsRef);
-  };
+  if (!caseData) return (
+    <main className="app-shell loading-shell">
+      <Loader2 className="spin" size={40} /><p>Carico fascicolo…</p>
+    </main>
+  );
 
-  const jumpToMaterials = () => {
-    scrollTo(materialsRef);
-  };
-
-  const jumpToBrief = () => {
-    setActiveTab('brief');
-  };
-
-  if (error) {
-    return (
-      <main className="app-shell loading-shell">
-        <AlertTriangle />
-        <h1>Backend non raggiungibile</h1>
-        <p>{error}</p>
-        <p className="muted">Avvia il backend FastAPI e ricarica.</p>
-      </main>
-    );
-  }
-
-  if (!caseData) return <Skeleton />;
+  const la = caseData.legal_analysis;
 
   return (
     <main className="app-shell">
+      {/* Back button */}
+      <button className="back-button" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
+
+      {analyzing && (
+        <div className="analyzing-banner"><Loader2 className="spin" size={18} /> Analisi AI in corso…</div>
+      )}
+
+      {/* Hero */}
       <section className="hero-card">
         <div className="hero-topline">
-          <span><Gavel size={15} /> Pocket Legal Triage Alpha</span>
-          <button className="pill action-pill" onClick={jumpToBrief}>
-            <Sparkles className="sparkle-pulse" size={14} /> Analisi profonda
-          </button>
+          <span><Gavel size={14} /> Pocket Legal Triage</span>
+          {la && (
+            <div className="risk-pill" style={{ background: riskColor(la.risk_level) + '22', border: `1px solid ${riskColor(la.risk_level)}55`, color: riskColor(la.risk_level) }}>
+              {riskIcon(la.risk_level)} Rischio {riskLabel(la.risk_level)}
+            </div>
+          )}
         </div>
         <h1>{caseData.case_title}</h1>
         <p>{caseData.case_summary}</p>
         <div className="hero-actions">
-          <button className="primary-button" onClick={jumpToMaterials}>Processa nuovo materiale <ArrowRight size={16} /></button>
-          <button className="secondary-button" onClick={jumpToBrief}>Analisi profonda Pro</button>
+          <button className="primary-button" onClick={() => setShowUpload(true)}>
+            <Upload size={15} /> Carica materiale
+          </button>
+          <button className="secondary-button" onClick={() => { setActiveTab('legal'); scrollTo(timelineRef); }}>
+            <Sparkles size={14} /> Analisi legale
+          </button>
         </div>
       </section>
 
+      {/* Stats */}
       <section className="stats-grid">
-        <button className="stats-card" onClick={jumpToMaterials}>
-          <FileText />
-          <strong>{caseData.materials.length}</strong>
-          <span>materiali</span>
+        <button className="stats-card" onClick={() => { scrollTo(materialsRef); }}>
+          <FileText /><strong>{caseData.materials.length}</strong><span>materiali</span>
         </button>
-        <button className="stats-card" onClick={jumpToTimeline}>
-          <MapPin />
-          <strong>{caseData.timeline.length}</strong>
-          <span>eventi</span>
+        <button className="stats-card" onClick={() => { setActiveTab('timeline'); scrollTo(timelineRef); }}>
+          <MapPin /><strong>{caseData.timeline.length}</strong><span>eventi</span>
         </button>
-        <button className="stats-card" onClick={jumpToContradictions}>
-          <AlertTriangle />
-          <strong>{caseData.contradictions.length}</strong>
-          <span>contraddizioni</span>
+        <button className="stats-card" onClick={() => { setActiveTab('questions'); scrollTo(contradictionsRef); }}>
+          <AlertTriangle /><strong>{caseData.contradictions.length}</strong><span>contraddizioni</span>
         </button>
-        <button className="stats-card" onClick={jumpToDeadlines}>
-          <BriefcaseBusiness />
-          <strong>{nextDeadline ? formatShortDate(nextDeadline.due_date) : '—'}</strong>
-          <span>priorità</span>
+        <button className="stats-card" onClick={() => { setActiveTab('deadlines'); scrollTo(deadlinesRef); }}>
+          <BriefcaseBusiness /><strong>{nextDeadline ? formatShortDate(nextDeadline.due_date) : '—'}</strong><span>priorità</span>
         </button>
       </section>
 
-      <section className="deadline-card">
-        <div>
-          <p className="eyebrow">Prossima priorità</p>
-          <h2>{nextDeadline?.title}</h2>
-          <p>{nextDeadline ? `${formatDate(nextDeadline.due_date)}${nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''} · ${nextDeadline.status === 'confirmed' ? 'confermato' : 'da confermare'}` : 'Nessuna scadenza caricata'}</p>
-          <p>{nextDeadline?.description}</p>
-        </div>
-        <ShieldCheck className="deadline-icon" />
-      </section>
+      {/* Next deadline banner */}
+      {nextDeadline && (
+        <section className="deadline-card" onClick={() => setActiveTab('deadlines')}>
+          <div>
+            <p className="eyebrow">Prossima priorità</p>
+            <h2>{nextDeadline.title}</h2>
+            <p>{formatDate(nextDeadline.due_date)}{nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''} · {nextDeadline.status === 'confirmed' ? 'confermato' : 'da confermare'}</p>
+            <p>{nextDeadline.description}</p>
+          </div>
+          <ShieldCheck className="deadline-icon" />
+        </section>
+      )}
 
+      {/* Tab bar (scrollable) */}
       <nav className="tab-bar">
-        {tabs.map((tab) => (
+        {tabs.map(tab => (
           <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>
+            {tab.id === 'legal' && la && (
+              <span className="tab-risk-dot" style={{ background: riskColor(la.risk_level) }} />
+            )}
             {tab.label}
           </button>
         ))}
       </nav>
 
+      {/* Timeline */}
       {activeTab === 'timeline' && (
         <section ref={timelineRef} className="panel timeline-panel">
-          {caseData.timeline.map((event) => (
-            <article className="timeline-item" key={`${event.date}-${event.time}-${event.title}`}>
+          {caseData.timeline.map((ev, i) => (
+            <article className="timeline-item" key={i}>
               <div className="time-dot" />
               <div className="timeline-content">
-                <p className="eyebrow">{event.date} · {event.time ?? 'orario da chiarire'} · confidenza {confidence(event.confidence)}</p>
-                <h3>{event.title}</h3>
-                <p>{event.description}</p>
-                <div className="source-row">{event.source_refs.map((source) => <SourceBadge key={source.quote} refItem={source} onSelect={setSelectedSource} />)}</div>
+                <p className="eyebrow">{ev.date} · {ev.time ?? 'orario da chiarire'} · confidenza {pct(ev.confidence)}</p>
+                <h3>{ev.title}</h3>
+                <p>{ev.description}</p>
+                <SourceRow refs={ev.source_refs} onSelect={setSelectedSource} />
               </div>
             </article>
           ))}
         </section>
       )}
 
+      {/* Deadlines */}
       {activeTab === 'deadlines' && (
         <section ref={deadlinesRef} className="panel deadline-list-panel">
           <h2><CalendarClock size={18} /> Agenda difensiva</h2>
-          <p className="muted">Date estratte dal fascicolo. Le scadenze candidate vanno confermate dal difensore prima di essere trattate come operative.</p>
-          {caseData.procedural_deadlines.map((item) => (
-            <article className="deadline-item" key={`${item.due_date}-${item.title}`}>
+          <p className="muted">Scadenze estratte dal fascicolo. Le candidate vanno confermate dal difensore prima di essere trattate come operative.</p>
+          {caseData.procedural_deadlines.map((dl, i) => (
+            <article className="deadline-item" key={i}>
               <div className="deadline-item-header">
                 <div>
-                  <p className="eyebrow">{deadlineTypeLabel(item.deadline_type)} · urgenza {item.urgency}</p>
-                  <h3>{item.title}</h3>
+                  <p className="eyebrow">{deadlineTypeLabel(dl.deadline_type)} · urgenza {dl.urgency}</p>
+                  <h3>{dl.title}</h3>
                 </div>
-                <span className={`status-chip ${item.status}`}>{item.status === 'confirmed' ? 'confermato' : item.status === 'candidate' ? 'da confermare' : 'verifica'}</span>
+                <span className={`status-chip ${dl.status}`}>{dl.status === 'confirmed' ? 'confermato' : dl.status === 'candidate' ? 'da confermare' : 'verifica'}</span>
               </div>
-              <p className="deadline-date">{formatDateFull(item.due_date)}{item.due_time ? ` · ${item.due_time}` : ''}</p>
-              <p>{item.description}</p>
-              <ul className="task-list">
-                {item.tasks.map((task) => <li key={task}>{task}</li>)}
-              </ul>
-              <div className="source-row">{item.source_refs.map((source) => <SourceBadge key={source.quote} refItem={source} onSelect={setSelectedSource} />)}</div>
+              <p className="deadline-date">{formatDateFull(dl.due_date)}{dl.due_time ? ` · ${dl.due_time}` : ''}</p>
+              <p>{dl.description}</p>
+              {(dl.start_work_date || dl.internal_target_date) && (
+                <div className="workback-grid">
+                  {dl.start_work_date && <div><span>Inizio lavori</span><strong>{formatDate(dl.start_work_date)}</strong></div>}
+                  {dl.internal_target_date && <div><span>Target interno</span><strong>{formatDate(dl.internal_target_date)}</strong></div>}
+                </div>
+              )}
+              <ul className="task-list">{dl.tasks.map((t, ti) => <li key={ti}>{t}</li>)}</ul>
+              <SourceRow refs={dl.source_refs} onSelect={setSelectedSource} />
             </article>
           ))}
         </section>
       )}
 
+      {/* People & evidence */}
       {activeTab === 'facts' && (
         <section className="panel grid-panel">
           <div>
             <h2><Users size={18} /> Persone</h2>
-            {caseData.people.map((person) => (
-              <article className="mini-card" key={person.name}>
-                <h3>{person.name}</h3>
-                <p className="role">{person.role}</p>
-                <p>{person.notes}</p>
-                <div className="source-row">{person.source_refs.map((source) => <SourceBadge key={source.quote} refItem={source} onSelect={setSelectedSource} />)}</div>
+            {caseData.people.map(p => (
+              <article className="mini-card" key={p.name}>
+                <h3>{p.name}</h3><p className="role">{p.role}</p><p>{p.notes}</p>
+                <SourceRow refs={p.source_refs} onSelect={setSelectedSource} />
               </article>
             ))}
           </div>
           <div>
             <h2><Search size={18} /> Prove</h2>
-            {caseData.evidence.map((item) => (
-              <article className="mini-card" key={item.title}>
-                <h3>{item.title}</h3>
-                <p className="role">{item.status}</p>
-                <p>{item.notes}</p>
-                <div className="source-row">{item.source_refs.map((source) => <SourceBadge key={source.quote} refItem={source} onSelect={setSelectedSource} />)}</div>
+            {caseData.evidence.map(ev => (
+              <article className="mini-card" key={ev.title}>
+                <h3>{ev.title}</h3><p className="role">{ev.status}</p><p>{ev.notes}</p>
+                <SourceRow refs={ev.source_refs} onSelect={setSelectedSource} />
               </article>
             ))}
           </div>
         </section>
       )}
 
+      {/* Legal analysis */}
+      {activeTab === 'legal' && (
+        la
+          ? <LegalAnalysisTab la={la} onSelectSource={setSelectedSource} />
+          : <section className="panel"><p className="muted">Analisi legale non disponibile per questo fascicolo.</p></section>
+      )}
+
+      {/* Questions / contradictions */}
       {activeTab === 'questions' && (
         <section className="panel">
           <h2>Domande per colloquio / udienza</h2>
-          {caseData.open_questions.map((item) => (
-            <article className="question-card" key={item.question}>
-              <h3>{item.question}</h3>
-              <p>{item.why_it_matters}</p>
-              <div className="source-row">{item.source_refs.map((source) => <SourceBadge key={source.quote} refItem={source} onSelect={setSelectedSource} />)}</div>
+          {caseData.open_questions.map(q => (
+            <article className="question-card" key={q.question}>
+              <h3>{q.question}</h3><p>{q.why_it_matters}</p>
+              <SourceRow refs={q.source_refs} onSelect={setSelectedSource} />
             </article>
           ))}
           <h2>Documenti mancanti</h2>
-          {caseData.missing_documents.map((doc) => (
+          {caseData.missing_documents.map(doc => (
             <article className="missing-card" key={doc.title}>
               <CheckCircle2 />
-              <div>
-                <h3>{doc.title} <span>{doc.priority}</span></h3>
-                <p>{doc.reason}</p>
-              </div>
+              <div><h3>{doc.title} <span>{doc.priority}</span></h3><p>{doc.reason}</p></div>
             </article>
           ))}
           <h2 ref={contradictionsRef}>Contraddizioni</h2>
-          {caseData.contradictions.map((item) => (
-            <article className="question-card contradiction" key={item.title}>
-              <h3>{item.title}</h3>
-              <p>{item.description}</p>
-              <div className="source-row">{item.source_refs.map((source) => <SourceBadge key={source.quote} refItem={source} onSelect={setSelectedSource} />)}</div>
+          {caseData.contradictions.map(c => (
+            <article className="question-card contradiction" key={c.title}>
+              <h3>{c.title}</h3><p>{c.description}</p>
+              <SourceRow refs={c.source_refs} onSelect={setSelectedSource} />
             </article>
           ))}
         </section>
       )}
 
+      {/* Brief */}
       {activeTab === 'brief' && (
         <section className="panel brief-panel">
-          {markdownToLines(caseData.brief_markdown).map((line) => {
-            if (line.startsWith('## ')) return <h2 key={line}>{line.replace('## ', '')}</h2>;
-            if (line.startsWith('### ')) return <h3 key={line}>{line.replace('### ', '')}</h3>;
-            if (line.startsWith('- ')) return <p className="bullet" key={line}>• {line.replace('- ', '')}</p>;
-            return <p key={line}>{line.replaceAll('**', '')}</p>;
+          {markdownToLines(caseData.brief_markdown).map((line, i) => {
+            if (line.startsWith('## ')) return <h2 key={i}>{line.slice(3)}</h2>;
+            if (line.startsWith('### ')) return <h3 key={i}>{line.slice(4)}</h3>;
+            if (line.startsWith('- ')) return <p className="bullet" key={i}>• {line.slice(2)}</p>;
+            if (line.startsWith('**') && line.endsWith('**')) return <p key={i}><strong>{line.slice(2, -2)}</strong></p>;
+            return <p key={i}>{line.replaceAll('**', '')}</p>;
           })}
           <div className="usage-box">
             <p className="eyebrow">Stima processamento</p>
-            <p>{caseData.usage_estimate.pages} pagine · {caseData.usage_estimate.audio_minutes} min audio · Flash in/out {caseData.usage_estimate.flash_input_tokens}/{caseData.usage_estimate.flash_output_tokens} token · Pro usato: {caseData.usage_estimate.pro_used ? 'sì' : 'no'}</p>
+            <p>
+              {caseData.usage_estimate.pages} pag · {caseData.usage_estimate.audio_minutes} min audio ·
+              Flash {caseData.usage_estimate.flash_input_tokens}/{caseData.usage_estimate.flash_output_tokens} tok ·
+              Pro: {caseData.usage_estimate.pro_used ? 'sì' : 'no'} · {caseData.usage_estimate.model_route}
+            </p>
           </div>
         </section>
       )}
 
+      {/* Materials */}
       <section ref={materialsRef} className="materials-panel">
-        <h2>Materiali caricati</h2>
-        {caseData.materials.map((material) => (
-          <button key={material.id} className="material-button" onClick={() => setSelectedMaterial(material)}>
-            <FileText size={17} />
+        <div className="materials-header">
+          <h2>Materiali caricati</h2>
+          <button className="upload-fab" onClick={() => setShowUpload(true)}><Plus size={16} /> Aggiungi</button>
+        </div>
+        {caseData.materials.map((m: Material) => (
+          <button key={m.id} className="material-button" onClick={() => setSelectedMaterial(m)}>
+            {m.kind === 'audio' ? <Mic size={17} /> : <FileText size={17} />}
             <div>
-              <strong>{material.name}</strong>
-              <p>{material.description}</p>
-              <small>{material.excerpt}</small>
+              <strong>{m.name}</strong>
+              <p>{m.description}</p>
+              <small>{m.excerpt}</small>
             </div>
           </button>
         ))}
@@ -469,8 +898,33 @@ function App() {
 
       <SourceDrawer source={selectedSource} onClose={() => setSelectedSource(null)} />
       <MaterialDrawer material={selectedMaterial} onClose={() => setSelectedMaterial(null)} />
+      {showUpload && <UploadDrawer onClose={() => setShowUpload(false)} onAnalyze={handleAnalyze} />}
     </main>
   );
+}
+
+// ── Root app ─────────────────────────────────────────────────────────────────
+
+type View = 'cases' | 'case';
+
+function App() {
+  const [view, setView] = useState<View>('cases');
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+
+  const handleSelectCase = useCallback((id: string) => {
+    setSelectedCaseId(id);
+    setView('case');
+  }, []);
+
+  const handleBack = useCallback(() => {
+    setView('cases');
+    setSelectedCaseId(null);
+  }, []);
+
+  if (view === 'case' && selectedCaseId) {
+    return <CaseDetailView caseId={selectedCaseId} onBack={handleBack} />;
+  }
+  return <CaseListView onSelect={handleSelectCase} />;
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
