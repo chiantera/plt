@@ -17,6 +17,7 @@ type Material = {
   kind: string;
   description: string;
   excerpt: string;
+  content: string;
 };
 
 type TimelineEvent = {
@@ -118,9 +119,17 @@ function markdownToLines(markdown: string): string[] {
   return markdown.split('\n').filter((line) => line.trim().length > 0);
 }
 
+const weekdays = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+
 function formatDate(value: string | null): string {
   if (!value) return 'da definire';
   return new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`));
+}
+
+function formatDateFull(value: string | null): string {
+  if (!value) return 'da definire';
+  const date = new Date(`${value}T12:00:00`);
+  return `${weekdays[date.getDay()]} ${new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)}`;
 }
 
 function formatShortDate(value: string | null): string {
@@ -161,11 +170,34 @@ function SourceDrawer({ source, onClose }: { source: SourceRef | null; onClose: 
           </div>
           <button onClick={onClose} className="ghost-button">Chiudi</button>
         </div>
-        <blockquote>“{source.quote}”</blockquote>
+        <blockquote>&ldquo;{source.quote}&rdquo;</blockquote>
         <div className="drawer-meta">
           <span>Pagina {source.page ?? 1}</span>
           <span>Chunk {source.chunk ?? 'demo'}</span>
           <span>Confidenza {confidence(source.confidence)}</span>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function MaterialDrawer({ material, onClose }: { material: Material | null; onClose: () => void }) {
+  if (!material) return null;
+  return (
+    <div className="drawer-backdrop" onClick={onClose}>
+      <aside className="source-drawer material-drawer" onClick={(event) => event.stopPropagation()}>
+        <div className="drawer-handle" />
+        <div className="drawer-header">
+          <div>
+            <p className="eyebrow">Documento</p>
+            <h2>{material.name}</h2>
+          </div>
+          <button onClick={onClose} className="ghost-button">Chiudi</button>
+        </div>
+        <div className="material-content">
+          {material.content
+            ? material.content.split('\n').map((line, i) => <p key={i}>{line || '\u00A0'}</p>)
+            : <p className="muted">Contenuto non disponibile per {material.kind.toUpperCase()}.</p>}
         </div>
       </aside>
     </div>
@@ -186,6 +218,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('timeline');
   const [selectedSource, setSelectedSource] = useState<SourceRef | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const timelineRef = useRef<HTMLElement | null>(null);
   const deadlinesRef = useRef<HTMLElement | null>(null);
   const contradictionsRef = useRef<HTMLHeadingElement | null>(null);
@@ -336,18 +369,8 @@ function App() {
                 </div>
                 <span className={`status-chip ${item.status}`}>{item.status === 'confirmed' ? 'confermato' : item.status === 'candidate' ? 'da confermare' : 'verifica'}</span>
               </div>
-              <p className="deadline-date">{formatDate(item.due_date)}{item.due_time ? ` · ${item.due_time}` : ''}</p>
+              <p className="deadline-date">{formatDateFull(item.due_date)}{item.due_time ? ` · ${item.due_time}` : ''}</p>
               <p>{item.description}</p>
-              <div className="workback-grid">
-                <div>
-                  <span>Inizia</span>
-                  <strong>{formatDate(item.start_work_date)}</strong>
-                </div>
-                <div>
-                  <span>Target interno</span>
-                  <strong>{formatDate(item.internal_target_date)}</strong>
-                </div>
-              </div>
               <ul className="task-list">
                 {item.tasks.map((task) => <li key={task}>{task}</li>)}
               </ul>
@@ -433,18 +456,19 @@ function App() {
       <section ref={materialsRef} className="materials-panel">
         <h2>Materiali caricati</h2>
         {caseData.materials.map((material) => (
-          <article key={material.id}>
+          <button key={material.id} className="material-button" onClick={() => setSelectedMaterial(material)}>
             <FileText size={17} />
             <div>
               <strong>{material.name}</strong>
               <p>{material.description}</p>
               <small>{material.excerpt}</small>
             </div>
-          </article>
+          </button>
         ))}
       </section>
 
       <SourceDrawer source={selectedSource} onClose={() => setSelectedSource(null)} />
+      <MaterialDrawer material={selectedMaterial} onClose={() => setSelectedMaterial(null)} />
     </main>
   );
 }

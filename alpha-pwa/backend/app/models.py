@@ -19,6 +19,7 @@ class Material(BaseModel):
     kind: Literal["text", "pdf", "image", "audio"]
     description: str
     excerpt: str
+    content: str = ""
 
 
 class TimelineEvent(BaseModel):

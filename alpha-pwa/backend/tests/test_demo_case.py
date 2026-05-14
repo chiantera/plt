@@ -59,7 +59,7 @@ def test_demo_case_exposes_procedural_deadlines_and_workback_schedule():
 
     brief = next(item for item in deadlines if item["deadline_type"] == "defense_brief")
     assert brief["status"] == "candidate"
-    assert brief["due_date"] == "2026-05-31"
+    assert brief["due_date"] == "2026-06-01"
     assert brief["start_work_date"] == "2026-05-15"
     assert brief["internal_target_date"] == "2026-05-29"
     assert any("contraddizione" in task.lower() for task in brief["tasks"])

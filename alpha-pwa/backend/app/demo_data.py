@@ -79,6 +79,19 @@ def build_demo_case() -> CaseAnalysis:
                 kind="text",
                 description="Narrazione sintetica del verbale di arresto e contestazione provvisoria.",
                 excerpt="Fermo presso uscita laterale, zaino nero, secondo soggetto verso via Roma.",
+                content=(
+                    "VERBALE DI ARRESTO — Commissariato Roma Centro\n\n"
+                    "Agenti: Maresciallo Rossi, Agente De Luca\n\n"
+                    "Il giorno 18/04/2026, alle ore 21:20 circa, gli agenti sopraindicati intervenivano "
+                    "presso il supermercato Conad di via Nazionale 85 a seguito di segnalazione di furto in atto.\n\n"
+                    "Sul posto veniva fermato il signor Marco Bianchi (nato a Roma il 12/03/1998) nei pressi dell'uscita "
+                    "laterale del supermercato. Il soggetto risultava in possesso di uno zaino di colore nero contenente "
+                    "merce non pagata per un valore stimato di circa € 340.\n\n"
+                    "Un secondo soggetto veniva visto allontanarsi in direzione via Roma, non identificato.\n\n"
+                    "Al signor Bianchi veniva contestato il furto aggravato in concorso ai sensi degli "
+                    "artt. 624, 625 e 110 c.p.\n\n"
+                    "Verbale redatto alle 21:35 del 18/04/2026."
+                ),
             ),
             Material(
                 id="dichiarazione_testimone",
@@ -86,6 +99,17 @@ def build_demo_case() -> CaseAnalysis:
                 kind="text",
                 description="Dichiarazione della commessa del supermercato.",
                 excerpt="La testimone non vede chiaramente il volto della seconda persona.",
+                content=(
+                    "DICHIARAZIONE TESTIMONE — Anna Verdi\n\n"
+                    "La sottoscritta Anna Verdi (nata a Roma il 05/09/1995), dipendente del supermercato Conad "
+                    "di via Nazionale 85, dichiara quanto segue.\n\n"
+                    "Mi trovavo nei pressi degli scaffali elettronici intorno alle 21:18 quando ho notato "
+                    "un uomo con una giacca blu che passava rapidamente. Ho visto due persone dirigersi "
+                    "verso l'uscita laterale ma non ho visto chiaramente i loro volti.\n\n"
+                    "In particolare, preciso di non aver visto chiaramente il volto della seconda persona "
+                    "che si allontanava. La zona dell'uscita laterale è meno illuminata.\n\n"
+                    "Letto, confermato e sottoscritto."
+                ),
             ),
             Material(
                 id="nota_cliente",
@@ -93,6 +117,17 @@ def build_demo_case() -> CaseAnalysis:
                 kind="text",
                 description="Nota cliente / trascrizione colloquio difensivo.",
                 excerpt="Il cliente sostiene di essere stato davanti alla farmacia alle 21:15.",
+                content=(
+                    "NOTA COLLOQUIO DIFENSIVO — 20/04/2026\n\n"
+                    "Cliente: Marco Bianchi\n\n"
+                    "Il cliente sostiene di essere già uscito dal supermercato intorno alle 21:15 e di "
+                    "trovarsi davanti alla farmacia di via Roma quando sono intervenuti gli agenti. Aggiunge "
+                    "che lo zaino nero non era suo.\n\n"
+                    "Dichiara di essere accompagnato in quel momento da un conoscente di nome Luca (cognome "
+                    "da verificare) che potrebbe confermare la presenza davanti alla farmacia.\n\n"
+                    "Chiede di acquisire le immagini della farmacia e i dati di geolocalizzazione del telefono "
+                    "per confermare la posizione alle 21:15."
+                ),
             ),
             Material(
                 id="avviso_udienza",
@@ -100,6 +135,15 @@ def build_demo_case() -> CaseAnalysis:
                 kind="text",
                 description="Avviso di udienza di convalida e misura.",
                 excerpt="Udienza 20/04/2026 ore 09:30, Tribunale di Roma, aula 4.",
+                content=(
+                    "AVVISO DI UDIENZA — Ufficio GIP Roma\n\n"
+                    "Udienza di convalida e discussione misura fissata per il giorno\n\n"
+                    "20 aprile 2026, ore 09:30\n\n"
+                    "presso il Tribunale di Roma, aula 4.\n\n"
+                    "Eventuali note difensive e documentazione a supporto della misura dovranno essere "
+                    "depositate entro il 31 maggio 2026.\n\n"
+                    "Si raccomanda la comparizione personale del difensore."
+                ),
             ),
         ],
         timeline=[
@@ -194,9 +238,9 @@ def build_demo_case() -> CaseAnalysis:
                 ],
             ),
             ProceduralDeadline(
-                title="Memoria difensiva / note per la misura",
+                title="Memoria difensiva",
                 deadline_type="defense_brief",
-                due_date="2026-05-31",
+                due_date="2026-06-01",
                 due_time=None,
                 status="candidate",
                 urgency="media",

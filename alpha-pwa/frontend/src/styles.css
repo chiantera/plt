@@ -237,7 +237,8 @@ p { color: #cbd5e1; line-height: 1.5; }
 .task-list { padding-left: 19px; color: #cbd5e1; line-height: 1.5; }
 .task-list li { margin: 5px 0; }
 
-.materials-panel article { display: flex; gap: 11px; padding: 12px 0; border-top: 1px solid rgba(148, 163, 184, 0.14); }
+.materials-panel button { display: flex; gap: 11px; padding: 12px 0; border-top: 1px solid rgba(148, 163, 184, 0.14); background: none; border-left: 0; border-right: 0; border-bottom: 0; color: inherit; width: 100%; text-align: left; cursor: pointer; }
+.materials-panel button:hover { background: rgba(56, 189, 248, 0.06); margin: 0 -18px; padding-left: 18px; padding-right: 18px; width: calc(100% + 36px); }
 .materials-panel svg { color: #7dd3fc; flex: none; margin-top: 2px; }
 .materials-panel p { margin-bottom: 4px; }
 
@@ -262,6 +263,8 @@ p { color: #cbd5e1; line-height: 1.5; }
 .drawer-header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 blockquote { margin: 12px 0; padding: 16px; background: rgba(30, 41, 59, 0.8); border-left: 4px solid #38bdf8; border-radius: 14px; color: #e2e8f0; line-height: 1.55; }
 .drawer-meta span { color: #94a3b8; font-size: 0.8rem; }
+.material-drawer .material-content { max-height: 55vh; overflow-y: auto; margin: 12px 0; }
+.material-drawer .material-content p { line-height: 1.65; margin-bottom: 6px; font-size: 0.95rem; }
 
 @media (min-width: 680px) {
   .grid-panel { grid-template-columns: 1fr 1fr; }
