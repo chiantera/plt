@@ -62,6 +62,20 @@ class Contradiction(BaseModel):
     source_refs: list[SourceRef]
 
 
+class ProceduralDeadline(BaseModel):
+    title: str
+    deadline_type: Literal["hearing", "defense_brief", "filing", "investigation", "other"]
+    due_date: str
+    due_time: str | None = None
+    status: Literal["confirmed", "candidate", "needs_review"]
+    urgency: Literal["alta", "media", "bassa"]
+    description: str
+    start_work_date: str | None = None
+    internal_target_date: str | None = None
+    source_refs: list[SourceRef]
+    tasks: list[str]
+
+
 class UsageEstimate(BaseModel):
     pages: int
     audio_minutes: int
@@ -83,5 +97,6 @@ class CaseAnalysis(BaseModel):
     open_questions: list[OpenQuestion]
     missing_documents: list[MissingDocument]
     contradictions: list[Contradiction]
+    procedural_deadlines: list[ProceduralDeadline]
     brief_markdown: str
     usage_estimate: UsageEstimate

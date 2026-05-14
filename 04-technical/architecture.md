@@ -118,6 +118,25 @@ Every extracted claim should ideally point to:
 - original uploaded source;
 - confidence score.
 
+## Timeline model
+
+PLT needs two related timelines, not just one generic chronology:
+
+1. **Factual timeline**
+   - alleged crime / underlying events;
+   - witness/client/police versions;
+   - contradictions between sources;
+   - uncertainty/confidence and source refs.
+
+2. **Procedural/deadline timeline**
+   - court summons and hearing dates;
+   - filing deadlines;
+   - defense brief due dates;
+   - internal work-back schedule, e.g. start drafting May 15 for a May 31 deadline and target submission at least one weekday before the official due date;
+   - reminders, missing materials, and next actions.
+
+Natural-language interaction should operate over both timelines and the full source-linked case corpus.
+
 ## Cost guard
 
 Before large processing:

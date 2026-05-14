@@ -17,12 +17,21 @@
 7. Lawyer edits/accepts.
 8. Lawyer exports or opens consultation brief.
 
-## Flow 2: Court-day brief
+## Flow 2: Court-day and deadline brief
 
-1. Lawyer opens case in courthouse hallway.
-2. Taps **Court-day brief**.
-3. App shows:
+1. Lawyer opens case in courthouse hallway or from phone.
+2. App highlights the procedural timeline:
    - next hearing/date/location;
+   - filing deadlines;
+   - defense brief due dates;
+   - recommended internal work schedule.
+3. Example scheduling behavior:
+   - if a defense brief is due May 31;
+   - suggest “start working May 15”;
+   - target internal submission at least 1 weekday before May 31;
+   - surface reminders and missing materials before the deadline becomes stupid.
+4. Lawyer taps **Court-day brief**.
+5. App shows:
    - procedural posture;
    - recent changes;
    - key facts;
@@ -30,8 +39,8 @@
    - documents to bring;
    - client reminders;
    - suggested talking points.
-4. Lawyer can dictate a post-hearing note afterward.
-5. App updates timeline and next actions.
+6. Lawyer can dictate or type a post-hearing note afterward.
+7. App updates the factual timeline, procedural timeline, deadline schedule, and next actions.
 
 ## Flow 3: Appeal-prep packet
 

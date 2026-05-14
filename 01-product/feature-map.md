@@ -20,11 +20,14 @@
 - document classification
 - entity extraction
 - date/deadline extraction
-- event extraction
+- factual event extraction starting from the alleged crime / actual events
+- procedural timeline extraction: court dates, hearings, filing deadlines, brief due dates
+- work-back scheduling: start dates, internal review dates, “submit at least one weekday before due date” targets
 - evidence tagging
 - legal/procedural marker detection
-- contradiction candidate generation
+- contradiction candidate generation across uploaded materials
 - missing-info generation
+- natural-language Q&A over the source-linked case corpus
 
 ### Case structure
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AlertTriangle, ArrowRight, BriefcaseBusiness, CheckCircle2, FileText, Gavel, Loader2, MapPin, Search, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRight, BriefcaseBusiness, CalendarClock, CheckCircle2, FileText, Gavel, Loader2, MapPin, Search, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import './styles.css';
 
 type SourceRef = {
@@ -60,6 +60,20 @@ type Contradiction = {
   source_refs: SourceRef[];
 };
 
+type ProceduralDeadline = {
+  title: string;
+  deadline_type: 'hearing' | 'defense_brief' | 'filing' | 'investigation' | 'other';
+  due_date: string;
+  due_time: string | null;
+  status: 'confirmed' | 'candidate' | 'needs_review';
+  urgency: 'alta' | 'media' | 'bassa';
+  description: string;
+  start_work_date: string | null;
+  internal_target_date: string | null;
+  source_refs: SourceRef[];
+  tasks: string[];
+};
+
 type UsageEstimate = {
   pages: number;
   audio_minutes: number;
@@ -81,14 +95,16 @@ type CaseAnalysis = {
   open_questions: OpenQuestion[];
   missing_documents: MissingDocument[];
   contradictions: Contradiction[];
+  procedural_deadlines: ProceduralDeadline[];
   brief_markdown: string;
   usage_estimate: UsageEstimate;
 };
 
-type TabId = 'timeline' | 'facts' | 'questions' | 'brief';
+type TabId = 'timeline' | 'deadlines' | 'facts' | 'questions' | 'brief';
 
 const tabs: Array<{ id: TabId; label: string }> = [
   { id: 'timeline', label: 'Timeline' },
+  { id: 'deadlines', label: 'Scadenze' },
   { id: 'facts', label: 'Persone & prove' },
   { id: 'questions', label: 'Da verificare' },
   { id: 'brief', label: 'Promemoria' },
@@ -100,6 +116,22 @@ function confidence(value: number): string {
 
 function markdownToLines(markdown: string): string[] {
   return markdown.split('\n').filter((line) => line.trim().length > 0);
+}
+
+function formatDate(value: string | null): string {
+  if (!value) return 'da definire';
+  return new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`));
+}
+
+function deadlineTypeLabel(type: ProceduralDeadline['deadline_type']): string {
+  const labels: Record<ProceduralDeadline['deadline_type'], string> = {
+    hearing: 'udienza',
+    defense_brief: 'memoria difensiva',
+    filing: 'deposito',
+    investigation: 'indagine difensiva',
+    other: 'altro',
+  };
+  return labels[type];
 }
 
 function SourceBadge({ refItem, onSelect }: { refItem: SourceRef; onSelect: (source: SourceRef) => void }) {
@@ -161,7 +193,11 @@ function App() {
   }, []);
 
   const nextDeadline = useMemo(() => {
-    return caseData?.timeline.find((event) => event.title.toLowerCase().includes('udienza'));
+    return [...(caseData?.procedural_deadlines ?? [])].sort((a, b) => {
+      const aStamp = `${a.due_date}T${a.due_time ?? '23:59'}`;
+      const bStamp = `${b.due_date}T${b.due_time ?? '23:59'}`;
+      return aStamp.localeCompare(bStamp);
+    })[0];
   }, [caseData]);
 
   if (error) {
@@ -210,8 +246,8 @@ function App() {
         </article>
         <article>
           <BriefcaseBusiness />
-          <strong>{nextDeadline?.time ?? '—'}</strong>
-          <span>udienza</span>
+          <strong>{nextDeadline?.due_time ?? '—'}</strong>
+          <span>prossima</span>
         </article>
       </section>
 
@@ -219,6 +255,7 @@ function App() {
         <div>
           <p className="eyebrow">Prossimo atto</p>
           <h2>{nextDeadline?.title}</h2>
+          <p>{nextDeadline ? `${formatDate(nextDeadline.due_date)}${nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''} · ${nextDeadline.status === 'confirmed' ? 'confermato' : 'da confermare'}` : 'Nessuna scadenza caricata'}</p>
           <p>{nextDeadline?.description}</p>
         </div>
         <ShieldCheck className="deadline-icon" />
@@ -243,6 +280,40 @@ function App() {
                 <p>{event.description}</p>
                 <div className="source-row">{event.source_refs.map((source) => <SourceBadge key={source.quote} refItem={source} onSelect={setSelectedSource} />)}</div>
               </div>
+            </article>
+          ))}
+        </section>
+      )}
+
+      {activeTab === 'deadlines' && (
+        <section className="panel deadline-list-panel">
+          <h2><CalendarClock size={18} /> Scadenze & calendario difensivo</h2>
+          <p className="muted">Date estratte dal fascicolo. Le scadenze candidate vanno confermate dal difensore prima di essere trattate come operative.</p>
+          {caseData.procedural_deadlines.map((item) => (
+            <article className="deadline-item" key={`${item.due_date}-${item.title}`}>
+              <div className="deadline-item-header">
+                <div>
+                  <p className="eyebrow">{deadlineTypeLabel(item.deadline_type)} · urgenza {item.urgency}</p>
+                  <h3>{item.title}</h3>
+                </div>
+                <span className={`status-chip ${item.status}`}>{item.status === 'confirmed' ? 'confermato' : item.status === 'candidate' ? 'da confermare' : 'verifica'}</span>
+              </div>
+              <p className="deadline-date">{formatDate(item.due_date)}{item.due_time ? ` · ${item.due_time}` : ''}</p>
+              <p>{item.description}</p>
+              <div className="workback-grid">
+                <div>
+                  <span>Inizia</span>
+                  <strong>{formatDate(item.start_work_date)}</strong>
+                </div>
+                <div>
+                  <span>Target interno</span>
+                  <strong>{formatDate(item.internal_target_date)}</strong>
+                </div>
+              </div>
+              <ul className="task-list">
+                {item.tasks.map((task) => <li key={task}>{task}</li>)}
+              </ul>
+              <div className="source-row">{item.source_refs.map((source) => <SourceBadge key={source.quote} refItem={source} onSelect={setSelectedSource} />)}</div>
             </article>
           ))}
         </section>

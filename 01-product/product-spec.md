@@ -32,7 +32,9 @@ Mobile-first criminal-defense case triage: turn discovery dumps, scans, audio, a
 
 ## Core job-to-be-done
 
-When I receive messy case materials, I want to quickly extract what matters and organize it into a reliable case view, so I can prepare for client meetings, hearings, and appeals without manually reading and sorting everything first.
+When I receive messy criminal-defense case materials in any format — PDFs, scanned pages, photos of handwritten notes, audio notes, court summons, charges, client notes, WhatsApp/screenshots, and other evidence — I want the app to parse them into a reliable, source-linked case workspace so I can prepare for client meetings, hearings, briefs, deadlines, and appeals without manually reading and sorting everything first.
+
+This is **not** an “AI lawyer” app. It is a criminal-defense case-ingestion, organization, deadline, contradiction, and prep workspace with natural-language interaction over the lawyer’s own case corpus.
 
 ## MVP scope
 

@@ -8,6 +8,7 @@ from .models import (
     MissingDocument,
     OpenQuestion,
     Person,
+    ProceduralDeadline,
     SourceRef,
     TimelineEvent,
     UsageEstimate,
@@ -54,6 +55,12 @@ def build_demo_case() -> CaseAnalysis:
         "Udienza di convalida e discussione misura fissata per il 20/04/2026 ore 09:30 presso il Tribunale di Roma, aula 4.",
         0.95,
         "udienza-1",
+    )
+    termine_memoria = ref(
+        "avviso_udienza.txt",
+        "Eventuali note difensive e documentazione a supporto della misura dovranno essere depositate entro il 31/05/2026.",
+        0.78,
+        "termine-memoria-1",
     )
 
     return CaseAnalysis(
@@ -167,6 +174,43 @@ def build_demo_case() -> CaseAnalysis:
         contradictions=[
             Contradiction(title="Contraddizione oraria 21:15 / 21:20", description="La versione del cliente lo colloca davanti alla farmacia alle 21:15, mentre il verbale lo colloca presso l'uscita laterale alle 21:20.", source_refs=[cliente_farmacia, verbale_uscita]),
             Contradiction(title="Identificazione della seconda persona non chiara", description="Il verbale parla di concorso con secondo soggetto, ma la testimone non vede chiaramente il volto della seconda persona.", source_refs=[contestazione, testimone_volto]),
+        ],
+        procedural_deadlines=[
+            ProceduralDeadline(
+                title="Udienza di convalida e misura",
+                deadline_type="hearing",
+                due_date="2026-04-20",
+                due_time="09:30",
+                status="confirmed",
+                urgency="alta",
+                description="Udienza presso Tribunale di Roma, aula 4. Portare documentazione difensiva urgente e note sui punti critici.",
+                start_work_date="2026-04-19",
+                internal_target_date="2026-04-19",
+                source_refs=[udienza],
+                tasks=[
+                    "Preparare scaletta su contraddizione oraria 21:15 / 21:20.",
+                    "Portare documentazione su domicilio/lavoro ai fini della misura.",
+                    "Verificare disponibilità immediata dei video farmacia/supermercato.",
+                ],
+            ),
+            ProceduralDeadline(
+                title="Memoria difensiva / note per la misura",
+                deadline_type="defense_brief",
+                due_date="2026-05-31",
+                due_time=None,
+                status="candidate",
+                urgency="media",
+                description="Termine candidato estratto dall'avviso: preparare note difensive e deposito documentale con anticipo, da confermare manualmente.",
+                start_work_date="2026-05-15",
+                internal_target_date="2026-05-29",
+                source_refs=[termine_memoria],
+                tasks=[
+                    "Confermare il termine in cancelleria o sul fascicolo telematico.",
+                    "Redigere sezione sulla contraddizione tra farmacia e uscita laterale.",
+                    "Allegare richiesta/acquisizione video farmacia e supermercato.",
+                    "Chiudere bozza almeno un giorno feriale prima della scadenza ufficiale.",
+                ],
+            ),
         ],
         brief_markdown=(
             "## Promemoria difensivo rapido\n\n"

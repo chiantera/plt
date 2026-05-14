@@ -41,3 +41,26 @@ def test_usage_estimate_exposes_flash_first_model_route():
     assert usage["pages"] >= 4
     assert usage["flash_input_tokens"] > 0
     assert usage["flash_output_tokens"] > 0
+
+
+def test_demo_case_exposes_procedural_deadlines_and_workback_schedule():
+    client = TestClient(app)
+
+    payload = client.get("/api/demo-case").json()
+    deadlines = payload["procedural_deadlines"]
+
+    assert len(deadlines) >= 2
+    hearing = deadlines[0]
+    assert hearing["deadline_type"] == "hearing"
+    assert hearing["status"] == "confirmed"
+    assert hearing["due_date"] == "2026-04-20"
+    assert hearing["due_time"] == "09:30"
+    assert hearing["source_refs"][0]["source_name"] == "avviso_udienza.txt"
+
+    brief = next(item for item in deadlines if item["deadline_type"] == "defense_brief")
+    assert brief["status"] == "candidate"
+    assert brief["due_date"] == "2026-05-31"
+    assert brief["start_work_date"] == "2026-05-15"
+    assert brief["internal_target_date"] == "2026-05-29"
+    assert any("contraddizione" in task.lower() for task in brief["tasks"])
+    assert brief["source_refs"]
