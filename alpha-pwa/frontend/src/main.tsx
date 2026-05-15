@@ -851,6 +851,35 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat }: { la: LegalAnalysi
         </div>
         <p>{la.risk_summary}</p>
       </div>
+      
+            {/* AI drafting */}
+      <div className="legal-drafting-box">
+        <div className="legal-drafting-header">
+          <Sparkles size={16} />
+          <div>
+            <div className="legal-drafting-title">Redazione atti con AI</div>
+            <div className="legal-drafting-sub">Memorie, ricorsi, eccezioni — ragionamento giuridico reale, non template</div>
+          </div>
+        </div>
+        <div className="legal-drafting-grid">
+          {([
+            { key: 'memoria',    label: 'Memoria difensiva',     desc: 'Atto completo con IN FATTO, IN DIRITTO e CONCLUSIONI', icon: FileText },
+            { key: 'cassazione', label: 'Ricorso Cassazione',    desc: 'Motivi ex art. 606 c.p.p. con giurisprudenza', icon: Scale },
+            { key: 'eccezione',  label: 'Eccezione procedurale', desc: 'Nullità / inutilizzabilità / inammissibilità', icon: ShieldAlert },
+            { key: 'crossExam',  label: 'Controesame',           desc: 'Schema domande per ciascun testimone dell\'accusa', icon: Users },
+            { key: 'strategy',   label: 'Analisi strategica',    desc: 'Valutazione realistica di ogni linea difensiva', icon: Sparkles },
+          ] as const).map(({ key, label, desc, icon: Icon }) => (
+            <button key={key} className="legal-drafting-card" onClick={() => onOpenChat(key)}>
+              <div className="legal-drafting-card-icon"><Icon size={18} /></div>
+              <div className="legal-drafting-card-label">{label}</div>
+              <div className="legal-drafting-card-desc">{desc}</div>
+            </button>
+          ))}
+        </div>
+        <p className="legal-drafting-note">
+          L'AI conosce il Codice Penale, il c.p.p. e la giurisprudenza della Cassazione. Puoi anche fare domande libere nella chat.
+        </p>
+      </div>
 
       {/* Immediate actions */}
       <div className="legal-section">
