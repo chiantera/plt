@@ -1,5 +1,8 @@
+anthropic
 fastapi
 httpx
+openai
 pydantic
 pytest
+python-multipart
 uvicorn

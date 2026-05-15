@@ -1,125 +1,163 @@
-# Pocket Legal Triage Alpha PWA
+# Pocket Legal Triage — Alpha PWA
 
-Thin working alpha for validating Pocket Legal Triage with Italian criminal-defense lawyers.
+Mobile-first criminal-defense case triage. Italian market, dark theme, AI-powered.
 
-## Current scope
+## What's built
 
-This is **Milestone 1 / early Milestone 2 scaffolding**:
+A working alpha with three fictional demo cases (furto aggravato, frode online, omicidio stradale) and full AI integration:
 
-- FastAPI backend exposes an Italian fictional demo case at `/api/demo-case`.
-- React/Vite mobile-first frontend renders:
-  - timeline;
-  - people and evidence;
-  - open questions;
-  - missing documents;
-  - contradictions;
-  - source-linked brief;
-  - DeepSeek Flash-first usage estimate.
-- Sample data is Italian and criminal-defense oriented.
+- **Homepage** — case list with live stats (risk count, upcoming deadlines, contradictions)
+- **Case detail** — 6-tab view: timeline, scadenze, fatti, analisi legale, domande aperte, memoria
+- **Legal analysis tab** — per-charge element breakdown, ranked defense strategies, constitutional issues, witness credibility scores, evidence balance
+- **Aula Mode** — full-screen court-day overlay (5 slides, keyboard + swipe navigation, live clock)
+- **AI chat** — floating chat button, streaming responses, case context auto-injected
+- **Document drafting** — memoria difensiva, ricorso Cassazione, eccezione procedurale, controesame schema, analisi strategica — all pre-loaded with actual case facts
+- **Task tracking** — deadline tasks with checkbox completion persisted in localStorage
+- **Brief export** — clipboard copy + Web Share API
 
-No real DeepSeek call is wired yet. The backend currently serves structured fixture data shaped like the future DeepSeek extraction output.
+---
 
-## Why Italian first
+## Local setup
 
-Deckard explicitly requested Italian text. The validation target is initially Italian criminal defense, and DeepSeek V4 Pro appears promising for Italian/civil-law reasoning.
+### Requirements
 
-## Run backend
+- Python 3.11+
+- Node 18+ and npm
+- A DeepSeek or Anthropic API key
 
-From `/home/deckard/plt/alpha-pwa`:
+### Backend
 
 ```bash
-PYTHONPATH=backend backend/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+cd plt/alpha-pwa/backend
+
+# Create and activate a virtual environment
+# (required on Debian/Ubuntu — externally-managed-environment)
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set your API key — DeepSeek is ~100x cheaper for dev
+export DEEPSEEK_API_KEY=sk-...        # uses deepseek-v4-flash / deepseek-v4-pro
+# OR
+export ANTHROPIC_API_KEY=sk-ant-...   # uses claude-haiku-4-5 / claude-opus-4-7
+
+# Start the server
+uvicorn app.main:app --reload --port 8000
 ```
 
-If dependencies need reinstalling:
+Each new terminal session you need to re-activate the venv:
 
 ```bash
-backend/.venv/bin/python -m pip install -r backend/requirements.txt
+source plt/alpha-pwa/backend/.venv/bin/activate
 ```
 
-## Run frontend
-
-From `/home/deckard/plt/alpha-pwa/frontend`:
+### Frontend
 
 ```bash
+cd plt/alpha-pwa/frontend
+npm install      # first time only
 npm run dev
 ```
 
-Then open:
+Open **http://localhost:5173** — Vite proxies all `/api/*` requests to port 8000 automatically.
 
-```text
-http://127.0.0.1:5173
-```
+---
 
-## Test / verify
+## API key routing
 
-Backend tests:
+The backend auto-detects which provider to use based on which env var is set:
+
+| Env var | Flash model | Pro model |
+|---|---|---|
+| `DEEPSEEK_API_KEY` | `deepseek-v4-flash` | `deepseek-v4-pro` |
+| `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` | `claude-opus-4-7` |
+
+If both are set, DeepSeek takes priority.
+
+---
+
+## Running tests
+
+Backend (activate venv first):
 
 ```bash
-cd /home/deckard/plt/alpha-pwa
-PYTHONPATH=backend backend/.venv/bin/python -m pytest backend/tests -q
+cd plt/alpha-pwa/backend
+source .venv/bin/activate
+python -m pytest tests/ -v
 ```
 
-Frontend build:
+Frontend type-check + build:
 
 ```bash
-cd /home/deckard/plt/alpha-pwa/frontend
+cd plt/alpha-pwa/frontend
 npm run build
 ```
 
-## Files
+---
 
-```text
-backend/app/main.py        FastAPI app
-backend/app/models.py      Pydantic CaseAnalysis contract
-backend/app/demo_data.py   Italian fictional demo case fixture
-backend/tests/             backend tests
-frontend/src/main.tsx      React app
-frontend/src/styles.css    mobile-first styling
-sample-data/               raw fictional Italian demo materials
+## Key files
+
+```
+backend/
+  app/main.py          FastAPI routes (/api/cases, /api/chat, /api/analyze-text, /api/upload)
+  app/models.py        Pydantic data model (CaseAnalysis, LegalAnalysis, ChatRequest, ...)
+  app/demo_data.py     Three fictional Italian demo cases
+  app/ai_service.py    Provider routing (DeepSeek/Anthropic), streaming chat, case analysis
+  tests/               Backend test suite (11 tests)
+
+frontend/
+  src/main.tsx         Entire React app (~1600 lines — types, components, App)
+  src/styles.css       Mobile-first dark theme CSS (~800 lines)
+  vite.config.ts       Vite config with /api proxy to port 8000
 ```
 
-## DeepSeek key
+---
 
-The backend expects a local private file:
+## Demo cases
 
-```text
-backend/.env
+| Case ID | Name | Charge | Risk |
+|---|---|---|---|
+| `demo-furto-aggravato-roma-2026` | Caso Bianchi | Art. 624/625/110 c.p. — furto aggravato in concorso | Medium |
+| `demo-frode-online-napoli-2026` | Caso Conti | Art. 640 c.p. — truffa online | High |
+| `demo-omicidio-stradale-milano-2026` | Caso Ferrari | Art. 589-bis c.p. — omicidio stradale aggravato | High |
+
+---
+
+## AI chat system prompt
+
+The chat assistant knows:
+- Codice Penale (r.d. 2441/1930) and case law
+- Codice di Procedura Penale (d.P.R. 447/1988)
+- Leggi speciali: Codice della Strada, T.U. Stupefacenti, d.lgs. 231/2001
+- Corte di Cassazione Penale jurisprudence (all sections)
+- Corte EDU fair trial principles
+
+When a case is open, the full dossier (charges, strategies, witnesses, contradictions, evidence balance) is injected into the system prompt automatically.
+
+---
+
+## OCR note
+
+File upload is currently a stub — `.txt` files are extracted, everything else returns a message asking the user to paste text manually. Dedicated OCR is the next infrastructure milestone.
+
+---
+
+## Environment file (optional)
+
+You can store the API key in a `.env` file in `backend/` instead of exporting it each time:
+
+```
+# backend/.env  — do not commit
+DEEPSEEK_API_KEY=sk-...
 ```
 
-Required variables:
+Then load it before starting uvicorn:
 
-```text
-DEEPSEEK_API_KEY=[REDACTED]
-DEEPSEEK_DEFAULT_MODEL=deepseek-v4-flash
-DEEPSEEK_PRO_MODEL=deepseek-v4-pro
+```bash
+export $(grep -v '^#' .env | xargs)
+uvicorn app.main:app --reload --port 8000
 ```
 
-Do not commit this file. It is ignored by `.gitignore`.
-
-## OCR strategy note
-
-Do **not** assume V4 Flash/Pro should be the main OCR engine.
-
-Current direction:
-
-- V4 Flash: extraction, classification, summarization, structured case triage.
-- V4 Pro: escalation / legal reasoning / hard contradictions.
-- DeepSeek-OCR 3B or another dedicated OCR model: primary OCR path if validation confirms quality and deployment is practical.
-
-This keeps OCR as a replaceable adapter rather than baking it into the LLM route.
-
-## Next implementation step
-
-Wire a real `/api/analyze-text` endpoint:
-
-1. Accept uploaded/pasted Italian text.
-2. Call DeepSeek V4 Flash.
-3. Ask for the same `CaseAnalysis` JSON shape.
-4. Render returned analysis in the existing UI.
-
-After that:
-
-- add PDF/plain-text extraction;
-- add dedicated OCR adapter, likely DeepSeek-OCR 3B/local or hosted-free workflow after Deckard sends the V4 notes;
-- add optional `Deep Analysis` route using DeepSeek V4 Pro.
+The `.env` file is in `.gitignore`.
