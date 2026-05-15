@@ -15,6 +15,7 @@ h4 { color: #e2e8f0; font-size: 0.82rem; text-transform: uppercase; letter-spaci
   margin: 0 auto;
   padding: 18px 14px 96px;
 }
+.home-shell { padding: 0 0 96px !important; }
 .loading-shell {
   min-height: 100vh;
   display: grid; place-content: center; text-align: center; gap: 12px; color: #cbd5e1;
@@ -253,6 +254,61 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 }
 .back-button:hover { color: #bae6fd; }
 
+/* ── Homepage ────────────────────────────────────────────────────────────── */
+.home-hero {
+  padding: 40px 20px 24px;
+  background: linear-gradient(160deg, rgba(30,41,59,0.9) 0%, rgba(15,23,42,0.4) 100%);
+  border-bottom: 1px solid rgba(148,163,184,0.1);
+  margin-bottom: 0;
+}
+
+.home-brand {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 28px;
+}
+.home-brand-icon {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; flex: none;
+}
+.home-brand-name { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; line-height: 1.2; }
+.home-brand-tagline { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+
+.home-headline {
+  font-size: clamp(2.4rem, 11vw, 4rem);
+  font-weight: 900; line-height: 0.92; letter-spacing: -0.05em;
+  margin: 0 0 24px; color: #f8fafc;
+}
+.home-headline-accent {
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.home-stats {
+  display: flex; align-items: center; gap: 0;
+  background: rgba(15,23,42,0.6); border: 1px solid rgba(148,163,184,0.15);
+  border-radius: 16px; padding: 14px 0; overflow: hidden;
+}
+.home-stat {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 0 6px;
+}
+.home-stat-value { font-size: 1.55rem; font-weight: 800; line-height: 1; color: #f1f5f9; }
+.home-stat-label { font-size: 0.67rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; }
+.home-stat-divider { width: 1px; height: 36px; background: rgba(148,163,184,0.15); flex: none; }
+
+.home-actions-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 20px; background: rgba(15,23,42,0.7);
+  border-bottom: 1px solid rgba(148,163,184,0.08);
+  position: sticky; top: 0; z-index: 10;
+  backdrop-filter: blur(14px);
+}
+.home-search { flex: 1; position: relative; margin: 0; }
+.home-new-btn { white-space: nowrap; flex: none; }
+
 /* ── Cases list ──────────────────────────────────────────────────────────── */
 .cases-header { margin-bottom: 20px; }
 .cases-header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -260,7 +316,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .cases-title { font-size: clamp(2rem, 8vw, 3.5rem); margin: 12px 0 4px; line-height: 0.97; letter-spacing: -0.05em; }
 .cases-subtitle { color: #64748b; font-size: 0.88rem; margin: 0; }
 .cases-loading { display: flex; justify-content: center; padding: 60px 0; }
-.cases-grid { display: grid; gap: 12px; }
+.cases-grid { display: grid; gap: 12px; padding: 16px 20px; }
 
 .case-card {
   border: 1px solid rgba(148,163,184,0.2);
@@ -277,8 +333,10 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .case-card-title { font-size: 1.05rem; font-weight: 700; margin: 0 0 4px; color: #f1f5f9; }
 .case-card-charges { font-size: 0.78rem; color: #7dd3fc; margin: 0 0 8px; font-family: monospace; }
 .case-card-summary { font-size: 0.85rem; color: #94a3b8; margin: 0 0 14px; line-height: 1.45; }
-.case-card-meta { display: flex; gap: 14px; flex-wrap: wrap; }
+.case-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.case-card-meta { display: flex; gap: 10px; flex-wrap: wrap; }
 .case-card-meta span { display: flex; align-items: center; gap: 5px; color: #64748b; font-size: 0.76rem; }
+.case-card-open { display: flex; align-items: center; gap: 3px; font-size: 0.76rem; font-weight: 600; color: #38bdf8; white-space: nowrap; flex: none; }
 
 /* ── Legal analysis ──────────────────────────────────────────────────────── */
 .legal-panel { display: flex; flex-direction: column; gap: 0; }

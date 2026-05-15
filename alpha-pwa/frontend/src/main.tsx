@@ -498,6 +498,37 @@ function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClos
 
 // ── Case list view ────────────────────────────────────────────────────────────
 
+function HomepageStats({ cases }: { cases: CaseSummary[] }) {
+  const critical = cases.filter(c => c.risk_level === 'critical' || c.risk_level === 'high').length;
+  const totalContradictions = cases.reduce((s, c) => s + c.contradiction_count, 0);
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = cases.filter(c => c.next_deadline_date && c.next_deadline_date >= today).length;
+
+  return (
+    <div className="home-stats">
+      <div className="home-stat">
+        <span className="home-stat-value">{cases.length}</span>
+        <span className="home-stat-label">fascicoli</span>
+      </div>
+      <div className="home-stat-divider" />
+      <div className="home-stat">
+        <span className="home-stat-value" style={{ color: critical > 0 ? '#f87171' : '#4ade80' }}>{critical}</span>
+        <span className="home-stat-label">alto rischio</span>
+      </div>
+      <div className="home-stat-divider" />
+      <div className="home-stat">
+        <span className="home-stat-value" style={{ color: upcoming > 0 ? '#fbbf24' : '#64748b' }}>{upcoming}</span>
+        <span className="home-stat-label">scadenze attive</span>
+      </div>
+      <div className="home-stat-divider" />
+      <div className="home-stat">
+        <span className="home-stat-value" style={{ color: totalContradictions > 0 ? '#fb923c' : '#64748b' }}>{totalContradictions}</span>
+        <span className="home-stat-label">contraddizioni</span>
+      </div>
+    </div>
+  );
+}
+
 function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -535,7 +566,6 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
       });
       if (!res.ok) throw new Error(`Analisi fallita: ${res.status}`);
       const newCase = await res.json() as CaseAnalysis;
-      // Navigate straight to the new case result (store temporarily)
       (window as any).__newCase = newCase;
       onSelect('__new__');
     } catch (e) {
@@ -546,31 +576,41 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
   }, [onSelect]);
 
   return (
-    <main className="app-shell">
-      <header className="cases-header">
-        <div className="cases-header-top">
-          <div className="brand-line"><Gavel size={16} /> Pocket Legal Triage</div>
-          <button className="primary-button" onClick={() => setShowUpload(true)}>
-            <Plus size={15} /> Nuovo fascicolo
-          </button>
+    <main className="app-shell home-shell">
+
+      {/* ── Hero ── */}
+      <header className="home-hero">
+        <div className="home-brand">
+          <div className="home-brand-icon"><Gavel size={22} /></div>
+          <div>
+            <div className="home-brand-name">Pocket Legal Triage</div>
+            <div className="home-brand-tagline">Studio Legale · Milano</div>
+          </div>
         </div>
-        <h1 className="cases-title">I tuoi fascicoli</h1>
-        <p className="cases-subtitle">
-          {cases ? `${cases.length} fascicoli attivi` : 'Carico fascicoli…'}
-        </p>
+        <h1 className="home-headline">
+          I tuoi<br /><span className="home-headline-accent">fascicoli</span>
+        </h1>
+        {cases && <HomepageStats cases={cases} />}
+      </header>
+
+      {/* ── Actions bar ── */}
+      <div className="home-actions-bar">
         {cases && cases.length > 1 && (
-          <div className="cases-search-wrap">
+          <div className="cases-search-wrap home-search">
             <Search size={15} className="cases-search-icon" />
             <input
               className="cases-search"
-              placeholder="Cerca per titolo, accuse, cliente…"
+              placeholder="Cerca cliente, accuse…"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
             {search && <button className="cases-search-clear" onClick={() => setSearch('')}><X size={14} /></button>}
           </div>
         )}
-      </header>
+        <button className="primary-button home-new-btn" onClick={() => setShowUpload(true)}>
+          <Plus size={15} /> Nuovo fascicolo
+        </button>
+      </div>
 
       {analyzing && (
         <div className="analyzing-banner">
@@ -585,6 +625,7 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
         <div className="cases-loading"><Loader2 className="spin" size={32} /></div>
       )}
 
+      {/* ── Cases grid ── */}
       <div className="cases-grid">
         {filtered.length === 0 && cases && (
           <p className="muted" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '32px 0' }}>
@@ -602,12 +643,15 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
             <h3 className="case-card-title">{c.case_title}</h3>
             <p className="case-card-charges">{c.charge_summary}</p>
             <p className="case-card-summary">{c.case_summary}</p>
-            <div className="case-card-meta">
-              {c.next_deadline_date && (
-                <span><CalendarClock size={13} /> {formatShortDate(c.next_deadline_date)}</span>
-              )}
-              <span><AlertTriangle size={13} /> {c.contradiction_count} contraddizioni</span>
-              <span><FileText size={13} /> {c.material_count} materiali</span>
+            <div className="case-card-footer">
+              <div className="case-card-meta">
+                {c.next_deadline_date && (
+                  <span><CalendarClock size={13} /> {formatShortDate(c.next_deadline_date)}</span>
+                )}
+                <span><AlertTriangle size={13} /> {c.contradiction_count} contraddizioni</span>
+                <span><FileText size={13} /> {c.material_count} materiali</span>
+              </div>
+              <span className="case-card-open">Apri <ChevronRight size={14} /></span>
             </div>
           </button>
         ))}
