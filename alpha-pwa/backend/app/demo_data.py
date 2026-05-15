@@ -971,6 +971,565 @@ def build_demo_case_2() -> CaseAnalysis:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# DEMO CASE 3 — Omicidio stradale aggravato (Milano)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_demo_case_3() -> CaseAnalysis:
+    r_verbale = ref(
+        "verbale_incidente.txt",
+        "Incidente avvenuto il 15/03/2026 alle ore 23:45 in via Torino. "
+        "Etilometro somministrato alle ore 02:00 del 16/03/2026: tasso alcolemico 0,9 g/L.",
+        0.93, "verbale-1",
+    )
+    r_etilometro = ref(
+        "verbale_incidente.txt",
+        "Tasso alcolemico rilevato: 0,9 g/L. Limite legale: 0,5 g/L. "
+        "Intervallo tra incidente e misurazione: 2 ore e 15 minuti.",
+        0.91, "verbale-2",
+    )
+    r_referto = ref(
+        "referto_sanitario.txt",
+        "La paziente Russo Maria, nata il 04/05/1958, è deceduta il 17/03/2026 "
+        "alle ore 11:20 per politrauma da investimento da veicolo.",
+        0.96, "referto-1",
+    )
+    r_testa = ref(
+        "dichiarazione_testa.txt",
+        "La donna sembrava uscire improvvisamente tra le auto parcheggiate. "
+        "Non l'ho vista finché non era già in mezzo alla carreggiata.",
+        0.88, "testa-1",
+    )
+    r_testa_visib = ref(
+        "dichiarazione_testa.txt",
+        "C'era una pensilina dell'autobus che copriva la visuale da quel lato. "
+        "Il manto stradale era bagnato, le condizioni di visibilità erano scarse.",
+        0.85, "testa-2",
+    )
+    r_avviso = ref(
+        "avviso_udienza.txt",
+        "Udienza preliminare fissata per il 15/06/2026 ore 09:00 dinanzi al GUP "
+        "del Tribunale di Milano. Imputato: Ferrari Giulio.",
+        0.99, "avviso-1",
+    )
+
+    legal_analysis_3 = LegalAnalysis(
+        risk_level="high",
+        risk_summary=(
+            "Caso ad alto rischio per la natura dell'accusa (omicidio stradale aggravato ex art. 589-bis c.p., "
+            "comma 1) e per la presenza del tasso alcolemico oltre soglia. "
+            "La principale linea difensiva si basa sul vizio procedurale dell'etilometro (misurazione a 2h15min dall'incidente) "
+            "e sull'interruzione del nesso causale per condotta improvvisa della vittima."
+        ),
+        immediate_actions=[
+            "Richiedere urgentemente il libretto di manutenzione e la data di ultima taratura dell'etilometro utilizzato",
+            "Depositare istanza di perizia tossicologica per stimare il tasso alcolemico effettivo al momento dell'incidente (back-calculation)",
+            "Raccogliere documentazione fotografica del punto d'incidente: posizione pensilina, segnaletica, illuminazione notturna",
+            "Contattare il testimone Marco Testa per escussione difensiva prima dell'udienza",
+            "Acquisire eventuali immagini da telecamere di sorveglianza della zona (conservazione entro 30 giorni)",
+        ],
+        charges=[
+            ChargeAnalysis(
+                charge_code="art. 589-bis c.p. co. 1",
+                charge_name="Omicidio stradale aggravato (guida in stato di ebbrezza)",
+                max_sentence="da 8 a 12 anni di reclusione",
+                elements_required=[
+                    ChargeElement(
+                        element="Conduzione del veicolo",
+                        description="Ferrari era alla guida del veicolo al momento dell'incidente",
+                        status="proven",
+                        notes="Non contestato dal difensore",
+                        source_refs=[r_verbale],
+                    ),
+                    ChargeElement(
+                        element="Tasso alcolemico > 0,8 g/L",
+                        description="Rilevato 0,9 g/L ma con 2h15min di ritardo",
+                        status="disputed",
+                        notes="La misurazione tardiva rende il dato incerto: il tasso reale al momento dell'incidente è sconosciuto",
+                        source_refs=[r_etilometro],
+                    ),
+                    ChargeElement(
+                        element="Nesso causale con la morte",
+                        description="La guida in stato di ebbrezza deve essere causa determinante del decesso",
+                        status="disputed",
+                        notes="Il testimone descrive condotta imprevedibile della vittima che potrebbe escludere la causalità",
+                        source_refs=[r_testa, r_testa_visib],
+                    ),
+                    ChargeElement(
+                        element="Evento morte",
+                        description="Russo Maria è deceduta il 17/03/2026",
+                        status="proven",
+                        notes="Confermato dal referto sanitario",
+                        source_refs=[r_referto],
+                    ),
+                ],
+                available_defenses=[
+                    "Vizio procedurale: misurazione etilometro oltre i 30 minuti dall'evento",
+                    "Back-calculation: stima del tasso effettivo al momento dell'incidente",
+                    "Interruzione nesso causale: comportamento anomalo e imprevedibile della vittima",
+                    "Concorso di colpa della vittima ex art. 1227 c.c. (rilevante in sede civile)",
+                ],
+                prosecution_strength=0.68,
+                notes="L'accusa è rafforzata dal tasso sopra soglia, ma la procedura di misurazione è il punto debole principale.",
+                source_refs=[r_verbale, r_etilometro, r_referto],
+            ),
+        ],
+        strategies=[
+            DefenseStrategy(
+                title="Eccezione procedurale sull'etilometro",
+                strategy_type="procedural",
+                priority="primary",
+                description=(
+                    "Contestare la validità della misurazione alcolimetrica effettuata a 2h15min dall'incidente, "
+                    "senza esame del sangue contestuale. Richiedere perizia tecnica per la back-calculation "
+                    "del tasso alcolemico al momento dei fatti."
+                ),
+                strengths=[
+                    "La giurisprudenza (Cass. pen. IV, n. 22985/2019) richiede double-check entro 30 min",
+                    "Assenza di prelievo ematico contestuale indebolisce la prova principale",
+                    "Il libretto di taratura dell'etilometro potrebbe rivelare irregolarità",
+                ],
+                risks=[
+                    "Il GUP potrebbe ritenere sufficiente il dato etilometrico anche se tardivo",
+                    "La back-calculation è una stima, non una certezza assoluta",
+                ],
+                required_evidence=[
+                    "Libretto di manutenzione e taratura dell'etilometro (modello e matricola)",
+                    "Perizia tossicologica con back-calculation (metabolismo medio 0,15 g/L/h)",
+                    "Verbale originale con orari esatti di misurazione",
+                ],
+                source_refs=[r_etilometro],
+            ),
+            DefenseStrategy(
+                title="Interruzione del nesso causale",
+                strategy_type="alibi",
+                priority="secondary",
+                description=(
+                    "Dimostrare che la condotta della vittima (attraversamento improvviso tra auto parcheggiate, "
+                    "visibilità ostruita dalla pensilina, manto stradale bagnato) costituisce causa autonoma "
+                    "o concorrente dell'evento, sufficiente a ridurre o escludere la responsabilità penale."
+                ),
+                strengths=[
+                    "Testimone oculare descrive attraversamento improvviso della vittima",
+                    "Condizioni meteo avverse (fondo stradale bagnato) documentabili",
+                    "Pensilina dell'autobus ostruiva la visibilità: verificabile con sopralluogo",
+                ],
+                risks=[
+                    "La guida in stato di ebbrezza aggrava il giudizio sulla prevedibilità dell'evento",
+                    "Richiede sopralluogo e documentazione fotografica tempestivi",
+                ],
+                required_evidence=[
+                    "Documentazione fotografica del punto d'incidente",
+                    "Dati meteo della notte del 15/03/2026 per Milano (ARPA Lombardia)",
+                    "Misurazione ufficiale della visibilità da quel punto (ingegnere del traffico)",
+                ],
+                source_refs=[r_testa, r_testa_visib],
+            ),
+            DefenseStrategy(
+                title="Patteggiamento con sospensione condizionale",
+                strategy_type="negotiation",
+                priority="fallback",
+                description=(
+                    "In caso di fallimento delle strategie principali, negoziare un patteggiamento "
+                    "che consenta la sospensione condizionale della pena e limiti le conseguenze accessorie "
+                    "(in particolare la revoca della patente di guida)."
+                ),
+                strengths=[
+                    "Incensuratezza del cliente (nessun precedente penale)",
+                    "Collaborazione con le autorità fin dall'inizio",
+                    "Risarcimento precoce agli eredi della vittima può ridurre la pena",
+                ],
+                risks=[
+                    "Il patteggiamento implica riconoscimento implicito della responsabilità",
+                    "La revoca della patente è quasi automatica per omicidio stradale aggravato",
+                ],
+                required_evidence=[
+                    "Certificato del casellario giudiziale",
+                    "Documentazione di risarcimento/offerta agli eredi",
+                ],
+                source_refs=[r_avviso],
+            ),
+        ],
+        constitutional_issues=[
+            ConstitutionalIssue(
+                title="Inutilizzabilità della prova etilometrica (art. 191 c.p.p.)",
+                issue_type="procedural_violation",
+                severity="significant",
+                description=(
+                    "La misurazione del tasso alcolemico è avvenuta 2h15min dopo l'incidente, "
+                    "senza prelievo ematico contestuale e senza rispetto del termine di 30 minuti "
+                    "previsto dalla prassi consolidata. Se l'etilometro risultasse non tarato o malfunzionante, "
+                    "la prova sarebbe inutilizzabile ex art. 191 c.p.p."
+                ),
+                legal_basis="Art. 191 c.p.p. — inutilizzabilità delle prove acquisite in violazione di legge; "
+                            "art. 379 bis c.p.p. — prelievo coattivo; Cass. pen. IV sez. n. 22985/2019",
+                remedy=(
+                    "Istanza di esclusione della prova etilometrica; in subordine, perizia tecnica "
+                    "per verificare taratura e conformità dell'apparecchio."
+                ),
+                source_refs=[r_etilometro],
+            ),
+        ],
+        witness_assessments=[
+            WitnessAssessment(
+                witness_name="Agente Rossi Carlo (Polizia Locale Milano)",
+                role="prosecution",
+                credibility_score=0.78,
+                key_testimony="Ha effettuato il rilievo dell'incidente e somministrato il test etilometrico alle 02:00.",
+                strengths=[
+                    "Testimone istituzionale con verbale ufficiale",
+                    "Presente sulla scena, ha effettuato i rilievi",
+                ],
+                vulnerabilities=[
+                    "Ha proceduto alla misurazione alcolimetrica con 2h15min di ritardo",
+                    "Non ha disposto prelievo ematico contestuale",
+                    "Potrebbe non ricordare dettagli specifici della scena a distanza di mesi",
+                ],
+                cross_examination_angles=[
+                    "Perché non è stato effettuato un prelievo ematico contestuale?",
+                    "Qual è il numero di matricola dell'etilometro? Quando è stata l'ultima taratura?",
+                    "Come spiega il ritardo di oltre 2 ore tra l'incidente e la misurazione?",
+                ],
+                source_refs=[r_verbale, r_etilometro],
+            ),
+            WitnessAssessment(
+                witness_name="Marco Testa (testimone oculare)",
+                role="neutral",
+                credibility_score=0.71,
+                key_testimony="Ha visto la vittima uscire improvvisamente tra le auto. Descrive pensilina e fondo bagnato.",
+                strengths=[
+                    "Testimone diretto presente sulla scena al momento dell'incidente",
+                    "Descrizione dell'attraversamento improvviso della vittima favorevole alla difesa",
+                    "Conferma le condizioni di scarsa visibilità",
+                ],
+                vulnerabilities=[
+                    "Shock post-traumatico potrebbe aver alterato la percezione",
+                    "Non è chiaro da dove esattamente stesse osservando",
+                    "La PM potrebbe contestarne l'affidabilità del ricordo a distanza di mesi",
+                ],
+                cross_examination_angles=[
+                    "Da quale distanza ha visto l'attraversamento? Dove si trovava esattamente?",
+                    "Conferma che la pensilina ostruiva la visuale dal lato del veicolo?",
+                    "Ha visto le luci del veicolo prima dell'impatto?",
+                ],
+                source_refs=[r_testa, r_testa_visib],
+            ),
+        ],
+        evidence_balance=EvidenceBalance(
+            prosecution_strength=0.65,
+            defense_strength=0.35,
+            key_prosecution_evidence=[
+                "Tasso alcolemico 0,9 g/L (oltre il limite di 0,8 g/L)",
+                "Decesso della vittima confermato dal referto sanitario",
+                "Veicolo condotto dal Ferrari al momento dell'incidente",
+            ],
+            key_defense_evidence=[
+                "Ritardo di 2h15min nella misurazione etilometrica (senza prelievo ematico)",
+                "Testimone descrive attraversamento improvviso della vittima",
+                "Condizioni di visibilità ridotta (pensilina, fondo bagnato, ore notturne)",
+            ],
+            critical_gaps=[
+                "Mancanza di prelievo ematico contestuale all'incidente",
+                "Assenza di immagini da telecamere di sorveglianza (ancora da verificare)",
+                "Libretto di taratura dell'etilometro non ancora acquisito",
+                "Velocità effettiva del veicolo al momento dell'impatto non determinata",
+            ],
+            overall_assessment=(
+                "Il caso pende verso l'accusa per la presenza del tasso alcolemico e la morte della vittima, "
+                "ma il vizio procedurale della misurazione etilometrica è un punto di attacco reale e solido. "
+                "La condotta della vittima può ridurre significativamente la responsabilità penale."
+            ),
+        ),
+        client_summary=(
+            "Giulio, la situazione è seria ma ci sono argomenti difensivi concreti. "
+            "Il test dell'alcol è stato fatto quasi 2 ore e mezza dopo l'incidente, senza analisi del sangue: "
+            "questo è il nostro argomento più forte. Dobbiamo subito ottenere i documenti dell'etilometro "
+            "e far fare una perizia tecnica. "
+            "In parallelo, il testimone Marco Testa ci dice che la signora Russo è uscita improvvisamente "
+            "tra le auto parcheggiate, in condizioni di scarsa visibilità: questo può ridurre la sua responsabilità. "
+            "Non parlare con nessuno dell'accaduto senza di me presente."
+        ),
+    )
+
+    return CaseAnalysis(
+        case_id="demo-omicidio-stradale-milano-2026",
+        case_title="Caso Ferrari — Omicidio stradale aggravato (Milano)",
+        language="it",
+        case_summary=(
+            "Giulio Ferrari, 45 anni, è accusato di omicidio stradale aggravato ex art. 589-bis c.p. comma 1 "
+            "per aver investito e causato la morte di Russo Maria (67 anni) la notte del 15/03/2026 alle 23:45 "
+            "in via Torino, Milano. Il test etilometrico, effettuato alle 02:00 del 16/03/2026, "
+            "ha rilevato un tasso di 0,9 g/L. La vittima è deceduta il 17/03/2026. "
+            "Il testimone oculare Marco Testa riferisce che la vittima è uscita improvvisamente tra le auto "
+            "parcheggiate. Udienza preliminare il 15/06/2026."
+        ),
+        materials=[
+            Material(
+                id="m1",
+                name="verbale_incidente.txt",
+                kind="text",
+                description="Verbale di rilievo dell'incidente stradale redatto dalla Polizia Locale di Milano",
+                excerpt="Incidente avvenuto il 15/03/2026 alle ore 23:45 in via Torino...",
+                content="",
+            ),
+            Material(
+                id="m2",
+                name="referto_sanitario.txt",
+                kind="text",
+                description="Referto del Pronto Soccorso dell'Ospedale San Carlo — decesso Russo Maria",
+                excerpt="La paziente Russo Maria è deceduta il 17/03/2026 alle ore 11:20 per politrauma...",
+                content="",
+            ),
+            Material(
+                id="m3",
+                name="dichiarazione_testa.txt",
+                kind="text",
+                description="Dichiarazione testimoniale di Marco Testa, testimone oculare dell'incidente",
+                excerpt="La donna sembrava uscire improvvisamente tra le auto parcheggiate...",
+                content="",
+            ),
+            Material(
+                id="m4",
+                name="avviso_udienza.txt",
+                kind="text",
+                description="Avviso di fissazione udienza preliminare GUP Tribunale di Milano",
+                excerpt="Udienza preliminare fissata per il 15/06/2026 ore 09:00...",
+                content="",
+            ),
+        ],
+        timeline=[
+            TimelineEvent(
+                date="2026-03-15",
+                time="23:45",
+                title="Incidente stradale in via Torino",
+                description="Il veicolo condotto da Ferrari investe Russo Maria all'incrocio con via Torino. "
+                             "Intervenuta la Polizia Locale alle 00:05 del 16/03.",
+                source_refs=[r_verbale],
+                confidence=0.95,
+            ),
+            TimelineEvent(
+                date="2026-03-16",
+                time="00:05",
+                title="Intervento Polizia Locale e rilievi",
+                description="Agente Rossi effettua i rilievi dell'incidente. Ferrari condotto al comando per accertamenti.",
+                source_refs=[r_verbale],
+                confidence=0.93,
+            ),
+            TimelineEvent(
+                date="2026-03-16",
+                time="02:00",
+                title="Test etilometrico: 0,9 g/L",
+                description="Test alcolimetrico somministrato 2h15min dopo l'incidente. Tasso: 0,9 g/L (limite 0,8 g/L). "
+                             "Nessun prelievo ematico contestuale.",
+                source_refs=[r_etilometro],
+                confidence=0.91,
+            ),
+            TimelineEvent(
+                date="2026-03-17",
+                time="11:20",
+                title="Decesso di Russo Maria",
+                description="La vittima decede all'Ospedale San Carlo per politrauma da investimento.",
+                source_refs=[r_referto],
+                confidence=0.98,
+            ),
+            TimelineEvent(
+                date="2026-04-10",
+                time=None,
+                title="Notifica avviso di garanzia a Ferrari",
+                description="Ferrari riceve avviso di garanzia per omicidio stradale aggravato art. 589-bis c.p.",
+                source_refs=[r_avviso],
+                confidence=0.92,
+            ),
+            TimelineEvent(
+                date="2026-06-15",
+                time="09:00",
+                title="Udienza preliminare GUP",
+                description="Udienza preliminare dinanzi al GUP del Tribunale di Milano.",
+                source_refs=[r_avviso],
+                confidence=0.99,
+            ),
+        ],
+        people=[
+            Person(
+                name="Ferrari Giulio",
+                role="Imputato",
+                notes="45 anni, residente a Milano. Incensurato. Conducente del veicolo.",
+                source_refs=[r_verbale],
+            ),
+            Person(
+                name="Russo Maria",
+                role="Vittima",
+                notes="67 anni. Deceduta il 17/03/2026 per politrauma da investimento.",
+                source_refs=[r_referto],
+            ),
+            Person(
+                name="Marco Testa",
+                role="Testimone oculare",
+                notes="Presente sulla scena al momento dell'incidente. Descrive attraversamento improvviso della vittima.",
+                source_refs=[r_testa],
+            ),
+            Person(
+                name="Agente Rossi Carlo",
+                role="Polizia Locale Milano",
+                notes="Ha effettuato i rilievi e somministrato il test etilometrico.",
+                source_refs=[r_verbale],
+            ),
+        ],
+        evidence=[
+            EvidenceItem(
+                title="Test etilometrico: 0,9 g/L",
+                status="controverso",
+                notes="Misurazione tardiva (2h15min). Manca back-calculation. Taratura da verificare.",
+                source_refs=[r_etilometro],
+            ),
+            EvidenceItem(
+                title="Referto sanitario — decesso Russo Maria",
+                status="acquisito",
+                notes="Conferma la causa del decesso (politrauma). Non contestato.",
+                source_refs=[r_referto],
+            ),
+            EvidenceItem(
+                title="Dichiarazione testimone Testa",
+                status="favorevole",
+                notes="Descrive attraversamento improvviso e condizioni di scarsa visibilità.",
+                source_refs=[r_testa, r_testa_visib],
+            ),
+            EvidenceItem(
+                title="Immagini telecamere sorveglianza",
+                status="da acquisire",
+                notes="Presenza di telecamere nella zona da verificare con urgenza. Conservazione a rischio.",
+                source_refs=[r_verbale],
+            ),
+        ],
+        open_questions=[
+            OpenQuestion(
+                question="Il testimone Marco Testa conferma che la vittima ha attraversato improvvisamente?",
+                why_it_matters="Fondamentale per interrompere il nesso causale e ridurre la responsabilità penale.",
+                source_refs=[r_testa],
+            ),
+            OpenQuestion(
+                question="Qual è la data di ultima taratura dell'etilometro utilizzato?",
+                why_it_matters="Un etilometro non tarato rende inutilizzabile la prova del tasso alcolemico.",
+                source_refs=[r_etilometro],
+            ),
+            OpenQuestion(
+                question="Esistono telecamere di sorveglianza che riprendono il punto d'incidente?",
+                why_it_matters="Potrebbero confermare o smentire la dinamica dell'attraversamento.",
+                source_refs=[r_verbale],
+            ),
+            OpenQuestion(
+                question="La back-calculation del tasso alcolemico porterebbe il valore sotto 0,8 g/L?",
+                why_it_matters="Se sì, cade l'aggravante dell'art. 589-bis c.p. e si ritorna al 589 ordinario.",
+                source_refs=[r_etilometro],
+            ),
+        ],
+        missing_documents=[
+            MissingDocument(
+                title="Libretto di manutenzione e taratura dell'etilometro",
+                reason="Necessario per verificare la validità della misurazione alcolimetrica",
+                priority="alta",
+            ),
+            MissingDocument(
+                title="Perizia tossicologica con back-calculation",
+                reason="Per stimare il tasso alcolemico effettivo al momento dell'incidente",
+                priority="alta",
+            ),
+            MissingDocument(
+                title="Immagini telecamere sorveglianza zona incidente",
+                reason="Possibile prova della dinamica dell'attraversamento",
+                priority="alta",
+            ),
+            MissingDocument(
+                title="Dati meteo ARPA Lombardia notte 15-16/03/2026",
+                reason="Documentare le condizioni meteo avverse (fondo bagnato)",
+                priority="media",
+            ),
+        ],
+        contradictions=[
+            Contradiction(
+                title="Contraddizione tra orario incidente e orario misurazione",
+                description="Il verbale indica l'incidente alle 23:45 ma il test etilometrico è delle 02:00 "
+                            "(2h15min dopo). La PM non ha disposto prelievo ematico contestuale all'incidente. "
+                            "Questa lacuna procedurale è la principale contraddizione nell'impianto accusatorio.",
+                source_refs=[r_verbale, r_etilometro],
+            ),
+            Contradiction(
+                title="Condotta della vittima vs. causalità dell'ebbrezza",
+                description="Il testimone descrive un attraversamento improvviso e imprevedibile della vittima "
+                            "in condizioni di scarsa visibilità. Questo contrasta con la tesi accusatoria "
+                            "che attribuisce causalmente la morte solo allo stato di ebbrezza del conducente.",
+                source_refs=[r_testa, r_testa_visib],
+            ),
+        ],
+        procedural_deadlines=[
+            ProceduralDeadline(
+                title="Termine deposito memorie difensive",
+                deadline_type="filing",
+                due_date="2026-06-08",
+                due_time=None,
+                status="candidate",
+                urgency="alta",
+                description="Deposito memorie difensive e lista testi prima dell'udienza preliminare del 15/06/2026.",
+                start_work_date="2026-05-15",
+                internal_target_date="2026-06-05",
+                source_refs=[r_avviso],
+                tasks=[
+                    "Ottenere e analizzare il libretto di taratura dell'etilometro",
+                    "Incaricare perito tossicologico per back-calculation",
+                    "Effettuare sopralluogo con ingegnere del traffico",
+                    "Escutere informalmente il testimone Marco Testa",
+                    "Redigere lista testi per udienza preliminare",
+                    "Preparare memoria difensiva sull'inutilizzabilità della prova etilometrica",
+                ],
+            ),
+            ProceduralDeadline(
+                title="Udienza preliminare GUP",
+                deadline_type="hearing",
+                due_date="2026-06-15",
+                due_time="09:00",
+                status="confirmed",
+                urgency="alta",
+                description="Udienza preliminare dinanzi al GUP del Tribunale di Milano per omicidio stradale aggravato.",
+                start_work_date=None,
+                internal_target_date=None,
+                source_refs=[r_avviso],
+                tasks=[
+                    "Preparare discussione orale sull'inutilizzabilità del test etilometrico",
+                    "Produrre eventuale perizia tossicologica in udienza",
+                    "Valutare richiesta di rito alternativo (patteggiamento) se necessario",
+                ],
+            ),
+        ],
+        brief_markdown=(
+            "## Caso Ferrari — Omicidio stradale aggravato (Milano)\n\n"
+            "### Sintesi\n"
+            "Ferrari Giulio, 45 anni, incensurato, è accusato di omicidio stradale aggravato "
+            "ex art. 589-bis c.p. comma 1 per il decesso di Russo Maria (67 anni) avvenuto il 17/03/2026. "
+            "L'incidente è avvenuto il 15/03/2026 alle 23:45 in via Torino, Milano.\n\n"
+            "### Punti critici\n"
+            "- **Vizio procedurale etilometro**: misurazione a 2h15min dall'incidente, senza prelievo ematico. "
+            "Questo è il punto difensivo principale e va sviluppato con urgenza.\n"
+            "- **Condotta della vittima**: il testimone Testa descrive attraversamento improvviso, "
+            "pensilina che ostruiva la visuale, fondo stradale bagnato.\n"
+            "- **Back-calculation**: se il tasso al momento dell'incidente era < 0,8 g/L, "
+            "cade l'aggravante e si applica l'art. 589 ordinario (pena massima 7 anni).\n\n"
+            "### Linea difensiva\n"
+            "Eccezione procedurale sull'etilometro + interruzione del nesso causale per condotta della vittima. "
+            "In subordine, patteggiamento con sospensione condizionale sfruttando l'incensuratezza del cliente.\n\n"
+            "### Rischio\n"
+            "Alto. La pena edittale è 8-12 anni per l'art. 589-bis aggravato. "
+            "Ma il vizio procedurale della misurazione è reale e può cambiare completamente il quadro accusatorio. "
+            "Agire immediatamente sul libretto dell'etilometro e sulla perizia tossicologica."
+        ),
+        usage_estimate=UsageEstimate(
+            pages=4, audio_minutes=0,
+            flash_input_tokens=3200, flash_output_tokens=1400,
+            pro_used=False, model_route="claude-haiku-4-5",
+        ),
+        legal_analysis=legal_analysis_3,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Registry of all demo cases
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -978,7 +1537,7 @@ ALL_DEMO_CASES: dict[str, CaseAnalysis] = {}
 
 
 def _build_all() -> dict[str, CaseAnalysis]:
-    cases = [build_demo_case(), build_demo_case_2()]
+    cases = [build_demo_case(), build_demo_case_2(), build_demo_case_3()]
     return {c.case_id: c for c in cases}
 
 

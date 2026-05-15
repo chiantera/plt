@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client';
 import {
   AlertTriangle, ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness,
-  CalendarClock, CheckCircle2, ChevronDown, ChevronRight, FileText, Gavel,
-  Loader2, MapPin, Mic, Plus, Scale, Search, ShieldAlert, ShieldCheck,
-  ShieldOff, Sparkles, Upload, Users, X, Zap,
+  CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
+  Clock, Copy, FileText, Gavel, Loader2, MapPin, Mic, Plus, Scale,
+  Search, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles, Square,
+  Upload, Users, X, Zap,
 } from 'lucide-react';
 import './styles.css';
 
@@ -124,7 +125,52 @@ function issueTypeLabel(t: string) {
 
 function markdownToLines(md: string) { return md.split('\n').filter(l => l.trim()); }
 
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+function useToast() {
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setToast({ message, type });
+    timerRef.current = setTimeout(() => setToast(null), 2800);
+  }, []);
+  return { toast, showToast, dismissToast: () => setToast(null) };
+}
+
+function useCompletedTasks(caseId: string) {
+  const [completed, setCompleted] = useState<Set<string>>(() => {
+    try { return new Set<string>(JSON.parse(localStorage.getItem('plt_tasks') ?? '[]')); }
+    catch { return new Set<string>(); }
+  });
+  const key = (dlTitle: string, idx: number) => `${caseId}|${dlTitle}|${idx}`;
+  const toggle = useCallback((dlTitle: string, idx: number) => {
+    setCompleted(prev => {
+      const next = new Set(prev);
+      const k = `${caseId}|${dlTitle}|${idx}`;
+      if (next.has(k)) next.delete(k); else next.add(k);
+      try { localStorage.setItem('plt_tasks', JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  }, [caseId]);
+  const isDone = useCallback((dlTitle: string, idx: number) => completed.has(key(dlTitle, idx)), [completed, caseId]);
+  const doneCount = useCallback((dlTitle: string, total: number) => {
+    let n = 0; for (let i = 0; i < total; i++) if (completed.has(key(dlTitle, i))) n++;
+    return n;
+  }, [completed, caseId]);
+  return { toggle, isDone, doneCount };
+}
+
 // ── Small components ─────────────────────────────────────────────────────────
+
+function ToastNotification({ message, type, onDismiss }: { message: string; type: 'success' | 'info' | 'error'; onDismiss: () => void }) {
+  return (
+    <div className={`toast toast-${type}`} onClick={onDismiss}>
+      {type === 'success' ? <CheckCircle2 size={15} /> : type === 'error' ? <AlertTriangle size={15} /> : <Sparkles size={15} />}
+      <span>{message}</span>
+    </div>
+  );
+}
 
 function SourceBadge({ refItem, onSelect }: { refItem: SourceRef; onSelect: (s: SourceRef) => void }) {
   return (
@@ -294,6 +340,162 @@ function UploadDrawer({ onClose, onAnalyze }: { onClose: () => void; onAnalyze: 
   );
 }
 
+// ── Aula Mode overlay ─────────────────────────────────────────────────────────
+
+const AULA_SLIDES = 5;
+
+function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClose: () => void }) {
+  const [slide, setSlide] = useState(0);
+  const [time, setTime] = useState(() => new Date());
+  const touchStartX = useRef(0);
+  const la = caseData.legal_analysis;
+
+  const nextDeadline = useMemo(() =>
+    [...caseData.procedural_deadlines].sort((a, b) =>
+      `${a.due_date}T${a.due_time ?? '23:59'}`.localeCompare(`${b.due_date}T${b.due_time ?? '23:59'}`)
+    )[0],
+    [caseData]
+  );
+  const primaryStrategy = la?.strategies.find(s => s.priority === 'primary') ?? la?.strategies[0];
+
+  useEffect(() => {
+    const t = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') setSlide(s => Math.min(s + 1, AULA_SLIDES - 1));
+      else if (e.key === 'ArrowLeft') setSlide(s => Math.max(s - 1, 0));
+      else if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const dx = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > 44) setSlide(s => dx > 0 ? Math.min(s + 1, AULA_SLIDES - 1) : Math.max(s - 1, 0));
+  };
+
+  return (
+    <div className="aula-overlay" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      <div className="aula-header">
+        <div className="aula-brand"><Gavel size={13} /> AULA MODE</div>
+        <div className="aula-clock"><Clock size={12} /> {time.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+        <button className="aula-close" onClick={onClose}><X size={19} /></button>
+      </div>
+
+      <div className="aula-dots">
+        {Array.from({ length: AULA_SLIDES }, (_, i) => (
+          <button key={i} className={`aula-dot${slide === i ? ' active' : ''}`} onClick={() => setSlide(i)} />
+        ))}
+      </div>
+
+      <div className="aula-content">
+        {slide === 0 && (
+          <div className="aula-slide">
+            <div className="aula-slide-label">01 — Il caso</div>
+            <h2 className="aula-case-title">{caseData.case_title}</h2>
+            {nextDeadline && (
+              <div className="aula-hearing-box">
+                <div className="aula-hearing-label">Prossima udienza / scadenza</div>
+                <div className="aula-hearing-date">{formatDateFull(nextDeadline.due_date)}{nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''}</div>
+                <div className="aula-hearing-desc">{nextDeadline.title}</div>
+              </div>
+            )}
+            {la && (
+              <div className="aula-risk-box" style={{ borderColor: riskColor(la.risk_level) + '88', background: riskColor(la.risk_level) + '18' }}>
+                {riskIcon(la.risk_level)} <span style={{ color: riskColor(la.risk_level), fontWeight: 800 }}>Rischio {riskLabel(la.risk_level)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {slide === 1 && (
+          <div className="aula-slide">
+            <div className="aula-slide-label">02 — Strategia principale</div>
+            {primaryStrategy ? (
+              <>
+                <h3 className="aula-strategy-title">{primaryStrategy.title}</h3>
+                <ul className="aula-points">
+                  {primaryStrategy.strengths.slice(0, 3).map((s, i) => (
+                    <li key={i}><span className="aula-num">{i + 1}</span><span>{s}</span></li>
+                  ))}
+                </ul>
+                {primaryStrategy.risks[0] && (
+                  <div className="aula-risk-note"><AlertTriangle size={13} /> {primaryStrategy.risks[0]}</div>
+                )}
+              </>
+            ) : <p className="aula-empty">Nessuna strategia disponibile</p>}
+          </div>
+        )}
+
+        {slide === 2 && (
+          <div className="aula-slide">
+            <div className="aula-slide-label">03 — Contraddizioni da usare</div>
+            {caseData.contradictions.length > 0 ? (
+              <ul className="aula-contradictions">
+                {caseData.contradictions.slice(0, 3).map((c, i) => (
+                  <li key={i}>
+                    <span className="aula-num">{i + 1}</span>
+                    <div><strong>{c.title}</strong><p>{c.description}</p></div>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="aula-empty">Nessuna contraddizione rilevata</p>}
+          </div>
+        )}
+
+        {slide === 3 && (
+          <div className="aula-slide">
+            <div className="aula-slide-label">04 — Testimoni chiave</div>
+            {la?.witness_assessments.length ? (
+              <div className="aula-witnesses">
+                {la.witness_assessments.map((w, i) => (
+                  <div key={i} className={`aula-witness aula-witness-${w.role}`}>
+                    <div className="aula-witness-header">
+                      <strong>{w.witness_name}</strong>
+                      <span className={`witness-role-badge role-${w.role}`}>{witnessRoleLabel(w.role)}</span>
+                      <span className="aula-cred" style={{ color: w.credibility_score >= 0.7 ? '#ef4444' : '#f97316' }}>{pct(w.credibility_score)}</span>
+                    </div>
+                    {w.vulnerabilities[0] && <p className="aula-vuln">⚡ {w.vulnerabilities[0]}</p>}
+                    {w.cross_examination_angles[0] && <p className="aula-cross">→ {w.cross_examination_angles[0]}</p>}
+                  </div>
+                ))}
+              </div>
+            ) : <p className="aula-empty">Nessuna valutazione testimone disponibile</p>}
+          </div>
+        )}
+
+        {slide === 4 && (
+          <div className="aula-slide">
+            <div className="aula-slide-label">05 — Azioni ora</div>
+            {la?.immediate_actions.length ? (
+              <ul className="aula-actions">
+                {la.immediate_actions.slice(0, 5).map((a, i) => (
+                  <li key={i}><CheckCircle2 size={14} /><span>{a}</span></li>
+                ))}
+              </ul>
+            ) : <p className="aula-empty">Nessuna azione urgente definita</p>}
+          </div>
+        )}
+      </div>
+
+      <div className="aula-nav">
+        <button className="aula-nav-btn" onClick={() => setSlide(s => Math.max(s - 1, 0))} disabled={slide === 0}>
+          <ArrowLeft size={22} />
+        </button>
+        <span className="aula-nav-counter">{slide + 1} / {AULA_SLIDES}</span>
+        <button className="aula-nav-btn" onClick={() => setSlide(s => Math.min(s + 1, AULA_SLIDES - 1))} disabled={slide === AULA_SLIDES - 1}>
+          <ArrowRight size={22} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Case list view ────────────────────────────────────────────────────────────
 
 function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
@@ -301,6 +503,19 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
   const [error, setError] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!cases) return [];
+    if (!search.trim()) return cases;
+    const q = search.toLowerCase();
+    return cases.filter(c =>
+      c.case_title.toLowerCase().includes(q) ||
+      c.charge_summary.toLowerCase().includes(q) ||
+      c.client_name.toLowerCase().includes(q) ||
+      c.case_summary.toLowerCase().includes(q)
+    );
+  }, [cases, search]);
 
   useEffect(() => {
     fetch('/api/cases')
@@ -343,6 +558,18 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
         <p className="cases-subtitle">
           {cases ? `${cases.length} fascicoli attivi` : 'Carico fascicoli…'}
         </p>
+        {cases && cases.length > 1 && (
+          <div className="cases-search-wrap">
+            <Search size={15} className="cases-search-icon" />
+            <input
+              className="cases-search"
+              placeholder="Cerca per titolo, accuse, cliente…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && <button className="cases-search-clear" onClick={() => setSearch('')}><X size={14} /></button>}
+          </div>
+        )}
       </header>
 
       {analyzing && (
@@ -359,7 +586,12 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
       )}
 
       <div className="cases-grid">
-        {cases?.map(c => (
+        {filtered.length === 0 && cases && (
+          <p className="muted" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '32px 0' }}>
+            Nessun fascicolo corrisponde a &ldquo;{search}&rdquo;
+          </p>
+        )}
+        {filtered.map(c => (
           <button key={c.case_id} className="case-card" onClick={() => onSelect(c.case_id)}>
             <div className="case-card-header">
               <div className="case-card-risk" style={{ background: riskColor(c.risk_level) + '22', border: `1px solid ${riskColor(c.risk_level)}55` }}>
@@ -387,6 +619,7 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
 }
 
 // ── Legal analysis tab ────────────────────────────────────────────────────────
+
 
 function LegalAnalysisTab({ la, onSelectSource }: { la: LegalAnalysis; onSelectSource: (s: SourceRef) => void }) {
   const [expandedCharge, setExpandedCharge] = useState<number | null>(0);
@@ -619,6 +852,28 @@ function CaseDetailView({ caseId, onBack }: { caseId: string; onBack: () => void
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [aulaModeActive, setAulaModeActive] = useState(false);
+
+  const { toast, showToast, dismissToast } = useToast();
+  const { toggle: toggleTask, isDone, doneCount } = useCompletedTasks(caseId);
+
+  const exportBrief = useCallback(async () => {
+    if (!caseData) return;
+    try {
+      await navigator.clipboard.writeText(caseData.brief_markdown);
+      showToast('Promemoria copiato negli appunti!');
+    } catch {
+      showToast('Copia non riuscita', 'error');
+    }
+  }, [caseData, showToast]);
+
+  const shareBrief = useCallback(async () => {
+    if (!caseData) return;
+    if (typeof navigator.share === 'function') {
+      try { await navigator.share({ title: caseData.case_title, text: caseData.brief_markdown }); return; } catch {}
+    }
+    exportBrief();
+  }, [caseData, exportBrief]);
 
   const timelineRef = useRef<HTMLElement | null>(null);
   const deadlinesRef = useRef<HTMLElement | null>(null);
@@ -709,6 +964,9 @@ function CaseDetailView({ caseId, onBack }: { caseId: string; onBack: () => void
           <button className="secondary-button" onClick={() => { setActiveTab('legal'); scrollTo(timelineRef); }}>
             <Sparkles size={14} /> Analisi legale
           </button>
+          <button className="aula-trigger-btn" onClick={() => setAulaModeActive(true)}>
+            <Gavel size={14} /> Aula
+          </button>
         </div>
       </section>
 
@@ -792,7 +1050,22 @@ function CaseDetailView({ caseId, onBack }: { caseId: string; onBack: () => void
                   {dl.internal_target_date && <div><span>Target interno</span><strong>{formatDate(dl.internal_target_date)}</strong></div>}
                 </div>
               )}
-              <ul className="task-list">{dl.tasks.map((t, ti) => <li key={ti}>{t}</li>)}</ul>
+              <div className="task-progress">
+                <div className="task-progress-bar">
+                  <div className="task-progress-fill" style={{ width: `${dl.tasks.length ? (doneCount(dl.title, dl.tasks.length) / dl.tasks.length) * 100 : 0}%` }} />
+                </div>
+                <span>{doneCount(dl.title, dl.tasks.length)}/{dl.tasks.length} completati</span>
+              </div>
+              <ul className="task-list">
+                {dl.tasks.map((t, ti) => (
+                  <li key={ti} className={`task-item${isDone(dl.title, ti) ? ' task-done' : ''}`} onClick={() => toggleTask(dl.title, ti)}>
+                    {isDone(dl.title, ti)
+                      ? <CheckSquare size={15} className="task-icon task-icon-done" />
+                      : <Square size={15} className="task-icon" />}
+                    <span>{t}</span>
+                  </li>
+                ))}
+              </ul>
               <SourceRow refs={dl.source_refs} onSelect={setSelectedSource} />
             </article>
           ))}
@@ -860,6 +1133,11 @@ function CaseDetailView({ caseId, onBack }: { caseId: string; onBack: () => void
       {/* Brief */}
       {activeTab === 'brief' && (
         <section className="panel brief-panel">
+          <div className="brief-toolbar">
+            <button className="brief-action-btn" onClick={exportBrief}><Copy size={14} /> Copia</button>
+            <button className="brief-action-btn" onClick={shareBrief}><Share2 size={14} /> Condividi</button>
+            <button className="brief-action-btn" onClick={() => setAulaModeActive(true)}><Gavel size={14} /> Aula Mode</button>
+          </div>
           {markdownToLines(caseData.brief_markdown).map((line, i) => {
             if (line.startsWith('## ')) return <h2 key={i}>{line.slice(3)}</h2>;
             if (line.startsWith('### ')) return <h3 key={i}>{line.slice(4)}</h3>;
@@ -899,6 +1177,8 @@ function CaseDetailView({ caseId, onBack }: { caseId: string; onBack: () => void
       <SourceDrawer source={selectedSource} onClose={() => setSelectedSource(null)} />
       <MaterialDrawer material={selectedMaterial} onClose={() => setSelectedMaterial(null)} />
       {showUpload && <UploadDrawer onClose={() => setShowUpload(false)} onAnalyze={handleAnalyze} />}
+      {aulaModeActive && <AulaModeOverlay caseData={caseData} onClose={() => setAulaModeActive(false)} />}
+      {toast && <ToastNotification message={toast.message} type={toast.type} onDismiss={dismissToast} />}
     </main>
   );
 }
