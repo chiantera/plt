@@ -5,10 +5,11 @@ from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
-from .ai_service import analyze_case
+from .ai_service import analyze_case, stream_chat
 from .demo_data import build_demo_case, get_all_cases, get_case_summaries
-from .models import AnalyzeRequest, CaseAnalysis, CaseSummary
+from .models import AnalyzeRequest, CaseAnalysis, CaseSummary, ChatRequest
 
 app = FastAPI(title="Pocket Legal Triage Alpha", version="0.2.0")
 
@@ -57,6 +58,21 @@ def analyze_text(request: AnalyzeRequest) -> CaseAnalysis:
         return analyze_case(request)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"AI analysis failed: {exc}") from exc
+
+
+# ── Chat (SSE streaming) ─────────────────────────────────────────────────────
+
+@app.post("/api/chat")
+def chat_endpoint(request: ChatRequest) -> StreamingResponse:
+    """Stream a chat response from Claude as Server-Sent Events."""
+    try:
+        return StreamingResponse(
+            stream_chat(request),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Chat failed: {exc}") from exc
 
 
 # ── File upload (stub — extracts text, queues for analysis) ──────────────────

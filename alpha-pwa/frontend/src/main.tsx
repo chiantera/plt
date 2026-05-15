@@ -3,9 +3,9 @@ import { createRoot } from 'react-dom/client';
 import {
   AlertTriangle, ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness,
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
-  Clock, Copy, FileText, Gavel, Loader2, MapPin, Mic, Plus, Scale,
-  Search, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles, Square,
-  Upload, Users, X, Zap,
+  Clock, Copy, FileText, Gavel, Loader2, MapPin, MessageSquare, Mic, Plus,
+  Scale, Search, Send, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles,
+  Square, Upload, Users, X, Zap,
 } from 'lucide-react';
 import './styles.css';
 
@@ -59,6 +59,38 @@ type CaseSummary = {
 };
 
 type TabId = 'timeline' | 'deadlines' | 'facts' | 'legal' | 'questions' | 'brief';
+
+type ChatMsg = { role: 'user' | 'assistant'; content: string; id: string; };
+type ChatState = { open: boolean; messages: ChatMsg[]; caseContext: string | null; };
+
+function buildCaseContext(c: CaseAnalysis): string {
+  const la = c.legal_analysis;
+  let ctx = `FASCICOLO: ${c.case_title}\n\nSINTESI: ${c.case_summary}\n\n`;
+  if (la) {
+    ctx += `ACCUSE:\n${la.charges.map(ch => `• ${ch.charge_code} — ${ch.charge_name} (max: ${ch.max_sentence})`).join('\n')}\n\n`;
+    ctx += `RISCHIO: ${la.risk_level.toUpperCase()} — ${la.risk_summary}\n\n`;
+    ctx += `STRATEGIA PRINCIPALE:\n${la.strategies[0]?.title}: ${la.strategies[0]?.description}\n\n`;
+    if (la.constitutional_issues.length > 0) {
+      ctx += `QUESTIONI PROCEDURALI:\n${la.constitutional_issues.map(i => `• ${i.title}\n  Base legale: ${i.legal_basis}\n  Rimedio: ${i.remedy}`).join('\n')}\n\n`;
+    }
+    ctx += `CONTRADDIZIONI:\n${c.contradictions.map(ct => `• ${ct.title}: ${ct.description}`).join('\n')}\n\n`;
+    ctx += `TESTIMONI:\n${la.witness_assessments.map(w => `• ${w.witness_name} (${w.role}, credibilità ${Math.round(w.credibility_score * 100)}%): ${w.key_testimony}`).join('\n')}\n\n`;
+    ctx += `BILANCIAMENTO PROVE:\n  Accusa: ${Math.round(la.evidence_balance.prosecution_strength * 100)}% — ${la.evidence_balance.key_prosecution_evidence.join('; ')}\n  Difesa: ${Math.round(la.evidence_balance.defense_strength * 100)}% — ${la.evidence_balance.key_defense_evidence.join('; ')}\n  Lacune: ${la.evidence_balance.critical_gaps.join('; ')}`;
+  }
+  return ctx;
+}
+
+const DOC_PROMPTS: Record<string, (ctx: string) => string> = {
+  memoria: ctx => `${ctx}\n\n---\nRedigi una memoria difensiva completa per questo caso. Struttura l'atto secondo il formato italiano standard:\n\n**INTESTAZIONE** (Tribunale competente, numero procedimento, imputato, difensore)\n**IN FATTO** — narrazione precisa dei fatti rilevanti per la difesa\n**IN DIRITTO** — motivi giuridici articolati, con:\n  - Citazioni normative specifiche (art. X c.p. / art. X c.p.p.)\n  - Precedenti della Cassazione Penale (sezione, numero, anno)\n  - Interpretazioni dottrinali rilevanti\n**CONCLUSIONI** — richieste formali al giudice\n\nScrivi in italiano giuridico formale. Sii specifico e approfondito, non generico.`,
+
+  cassazione: ctx => `${ctx}\n\n---\nPredisponi un ricorso per Cassazione avverso eventuale sentenza di condanna. Sviluppa i motivi di ricorso ex art. 606 c.p.p. più solidi per questo caso. Per ogni motivo:\n\n**MOTIVO N. X — [tipo ex lett. a/b/c/d/e art. 606 c.p.p.]**\n  - Formulazione tecnica del motivo\n  - Norma o principio violato\n  - Argomentazione sviluppata\n  - Precedenti della Cassazione favorevoli (cita sezione e numero)\n\nConcentrati sui vizi di legittimità più fondati: violazione di legge (lett. b), vizio di motivazione (lett. e), inutilizzabilità prove (lett. c).`,
+
+  eccezione: ctx => `${ctx}\n\n---\nRedigi un'eccezione procedurale formale da depositare in udienza, focalizzata sul vizio processuale più solido del fascicolo. Struttura:\n\n**TITOLO ECCEZIONE**\n**NORMA VIOLATA** (articolo preciso del c.p.p. o legge speciale)\n**IN FATTO** — descrizione della violazione procedurale concreta\n**IN DIRITTO** — argomentazione giuridica con:\n  - Interpretazione della norma violata\n  - Conseguenza processuale (nullità / inutilizzabilità / inammissibilità)\n  - Giurisprudenza della Cassazione che supporta l'eccezione\n**RICHIESTA** — provvedimento chiesto al giudice\n\nSii preciso: indica se si tratta di nullità assoluta, relativa, o inutilizzabilità patologica/fisiologica.`,
+
+  crossExam: ctx => `${ctx}\n\n---\nPreparazione per il controesame dei testimoni dell'accusa. Per ciascun testimone nel fascicolo, sviluppa:\n\n**[NOME TESTIMONE — ruolo]**\nCredibilità: [score]\n\n*Obiettivo del controesame*: [minare la credibilità / estrarre ammissioni favorevoli / limitare il danno]\n\n*Sequenza di domande*:\n1. [domanda di apertura — fatto non contestabile]\n2-5. [sviluppo logico verso la contraddizione o l'ammissione]\nX. [domanda finale incisiva]\n\n*Trappole da evitare*:\n*Documenti da usare come confronto*:\n\nUsa la tecnica del controesame a domande chiuse (sì/no).`,
+
+  strategy: ctx => `${ctx}\n\n---\nAnalisi strategica approfondita del caso. Valuta ogni linea difensiva con occhio critico da avvocato esperto:\n\nPer ogni strategia:\n- **Probabilità di successo** (realistica, non ottimistica)\n- **Prove necessarie ancora da acquisire**\n- **Rischi e controindicazioni**\n- **Giurisprudenza favorevole** (Cass. pen., sezione, numero)\n- **Tempistica tattica** — quando e come giocare questa carta\n\nConcludi con una **raccomandazione tattica generale**: quale combinazione di strategie adottare, in quale ordine, e quale eventuale piano B prepararsi.`,
+};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -496,6 +528,146 @@ function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClos
   );
 }
 
+// ── Chat ─────────────────────────────────────────────────────────────────────
+
+function ChatDrawer({
+  state, onClose, onSend, onQuickAction, streaming,
+}: {
+  state: ChatState;
+  onClose: () => void;
+  onSend: (msg: string) => void;
+  onQuickAction: (key: string) => void;
+  streaming: boolean;
+}) {
+  const [input, setInput] = useState('');
+  const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [state.messages, streaming]);
+
+  useEffect(() => {
+    if (state.open) setTimeout(() => inputRef.current?.focus(), 80);
+  }, [state.open]);
+
+  const submit = () => {
+    const t = input.trim();
+    if (!t || streaming) return;
+    setInput('');
+    onSend(t);
+  };
+
+  const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
+  };
+
+  const QUICK_ACTIONS = [
+    { key: 'memoria',    label: 'Memoria difensiva',    icon: FileText },
+    { key: 'cassazione', label: 'Ricorso Cassazione',   icon: Scale },
+    { key: 'eccezione',  label: 'Eccezione procedurale', icon: ShieldAlert },
+    { key: 'crossExam',  label: 'Controesame testimoni', icon: Users },
+    { key: 'strategy',   label: 'Analisi strategica',    icon: Sparkles },
+  ] as const;
+
+  const isEmpty = state.messages.length === 0;
+
+  return (
+    <div className={`chat-overlay ${state.open ? 'chat-overlay--open' : ''}`} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="chat-drawer">
+        <div className="chat-header">
+          <div className="chat-header-title">
+            <div className="chat-header-icon"><Sparkles size={16} /></div>
+            <div>
+              <div className="chat-header-name">Assistente Legale AI</div>
+              {state.caseContext && <div className="chat-header-sub">Contesto fascicolo attivo</div>}
+            </div>
+          </div>
+          <button className="chat-close-btn" onClick={onClose}><X size={20} /></button>
+        </div>
+
+        {/* Quick actions — always visible when there's a case context */}
+        {state.caseContext && (
+          <div className="chat-quick-bar">
+            {QUICK_ACTIONS.map(({ key, label, icon: Icon }) => (
+              <button key={key} className="chat-quick-chip" onClick={() => onQuickAction(key)} disabled={streaming}>
+                <Icon size={13} /> {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="chat-messages" ref={listRef}>
+          {isEmpty && (
+            <div className="chat-empty">
+              <div className="chat-empty-icon"><Sparkles size={32} /></div>
+              <h3>Assistente legale</h3>
+              {state.caseContext
+                ? <p>Conosco il fascicolo. Posso redigere memorie difensive, ricorsi per Cassazione, eccezioni procedurali, o rispondere a qualsiasi domanda di diritto penale italiano.</p>
+                : <p>Sono specializzato in diritto penale italiano. Conosco il Codice Penale, il Codice di Procedura Penale e la giurisprudenza della Cassazione. Apri un fascicolo per abilitare la redazione di atti processuali.</p>
+              }
+            </div>
+          )}
+          {state.messages.map(m => (
+            <div key={m.id} className={`chat-bubble chat-bubble--${m.role}`}>
+              {m.role === 'assistant'
+                ? <div className="chat-md" dangerouslySetInnerHTML={{ __html: renderChatMarkdown(m.content) }} />
+                : <span>{m.content}</span>
+              }
+            </div>
+          ))}
+          {streaming && state.messages[state.messages.length - 1]?.role === 'user' && (
+            <div className="chat-bubble chat-bubble--assistant chat-bubble--loading">
+              <span className="chat-dots"><span /><span /><span /></span>
+            </div>
+          )}
+        </div>
+
+        <div className="chat-input-row">
+          <textarea
+            ref={inputRef}
+            className="chat-input"
+            rows={1}
+            placeholder={state.caseContext ? 'Chiedi qualcosa sul fascicolo, o richiedi un atto…' : 'Domanda di diritto penale italiano…'}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKey}
+          />
+          <button className="chat-send-btn" onClick={submit} disabled={!input.trim() || streaming}>
+            {streaming ? <Loader2 size={18} className="spin" /> : <Send size={18} />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasContext: boolean }) {
+  return (
+    <button className={`chat-fab ${hasContext ? 'chat-fab--context' : ''}`} onClick={onClick} aria-label="Apri assistente legale">
+      <MessageSquare size={22} />
+      {hasContext && <span className="chat-fab-dot" />}
+    </button>
+  );
+}
+
+function renderChatMarkdown(text: string): string {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^---$/gm, '<hr>')
+    .replace(/^• (.+)$/gm, '<li>$1</li>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>(\n|$))+/g, s => `<ul>${s}</ul>`)
+    .replace(/\n{2,}/g, '</p><p>')
+    .replace(/^(?!<[hul])(.+)$/gm, (_, p) => p ? p : '')
+    .replace(/\n/g, '<br>');
+}
+
 // ── Case list view ────────────────────────────────────────────────────────────
 
 function HomepageStats({ cases }: { cases: CaseSummary[] }) {
@@ -665,7 +837,7 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
 // ── Legal analysis tab ────────────────────────────────────────────────────────
 
 
-function LegalAnalysisTab({ la, onSelectSource }: { la: LegalAnalysis; onSelectSource: (s: SourceRef) => void }) {
+function LegalAnalysisTab({ la, onSelectSource, onOpenChat }: { la: LegalAnalysis; onSelectSource: (s: SourceRef) => void; onOpenChat: (key: string) => void }) {
   const [expandedCharge, setExpandedCharge] = useState<number | null>(0);
   const [expandedStrategy, setExpandedStrategy] = useState<number | null>(0);
 
@@ -873,6 +1045,35 @@ function LegalAnalysisTab({ la, onSelectSource }: { la: LegalAnalysis; onSelectS
         <h2><Users size={16} /> Sintesi per il cliente</h2>
         <p>{la.client_summary}</p>
       </div>
+
+      {/* AI drafting */}
+      <div className="legal-drafting-box">
+        <div className="legal-drafting-header">
+          <Sparkles size={16} />
+          <div>
+            <div className="legal-drafting-title">Redazione atti con AI</div>
+            <div className="legal-drafting-sub">Memorie, ricorsi, eccezioni — ragionamento giuridico reale, non template</div>
+          </div>
+        </div>
+        <div className="legal-drafting-grid">
+          {([
+            { key: 'memoria',    label: 'Memoria difensiva',     desc: 'Atto completo con IN FATTO, IN DIRITTO e CONCLUSIONI', icon: FileText },
+            { key: 'cassazione', label: 'Ricorso Cassazione',    desc: 'Motivi ex art. 606 c.p.p. con giurisprudenza', icon: Scale },
+            { key: 'eccezione',  label: 'Eccezione procedurale', desc: 'Nullità / inutilizzabilità / inammissibilità', icon: ShieldAlert },
+            { key: 'crossExam',  label: 'Controesame',           desc: 'Schema domande per ciascun testimone dell\'accusa', icon: Users },
+            { key: 'strategy',   label: 'Analisi strategica',    desc: 'Valutazione realistica di ogni linea difensiva', icon: Sparkles },
+          ] as const).map(({ key, label, desc, icon: Icon }) => (
+            <button key={key} className="legal-drafting-card" onClick={() => onOpenChat(key)}>
+              <div className="legal-drafting-card-icon"><Icon size={18} /></div>
+              <div className="legal-drafting-card-label">{label}</div>
+              <div className="legal-drafting-card-desc">{desc}</div>
+            </button>
+          ))}
+        </div>
+        <p className="legal-drafting-note">
+          L'AI conosce il Codice Penale, il c.p.p. e la giurisprudenza della Cassazione. Puoi anche fare domande libere nella chat.
+        </p>
+      </div>
     </section>
   );
 }
@@ -888,7 +1089,7 @@ const tabs: Array<{ id: TabId; label: string }> = [
   { id: 'brief', label: 'Promemoria' },
 ];
 
-function CaseDetailView({ caseId, onBack }: { caseId: string; onBack: () => void }) {
+function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded }: { caseId: string; onBack: () => void; onOpenChat: (key: string) => void; onCaseLoaded: (d: CaseAnalysis) => void }) {
   const [caseData, setCaseData] = useState<CaseAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('timeline');
@@ -927,11 +1128,11 @@ function CaseDetailView({ caseId, onBack }: { caseId: string; onBack: () => void
   useEffect(() => {
     if (caseId === '__new__') {
       const nc = (window as any).__newCase as CaseAnalysis | undefined;
-      if (nc) { setCaseData(nc); return; }
+      if (nc) { setCaseData(nc); onCaseLoaded(nc); return; }
     }
     fetch(`/api/cases/${caseId}`)
       .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<CaseAnalysis>; })
-      .then(setCaseData)
+      .then(d => { setCaseData(d); onCaseLoaded(d); })
       .catch(e => setError(e.message));
   }, [caseId]);
 
@@ -1143,7 +1344,7 @@ function CaseDetailView({ caseId, onBack }: { caseId: string; onBack: () => void
       {/* Legal analysis */}
       {activeTab === 'legal' && (
         la
-          ? <LegalAnalysisTab la={la} onSelectSource={setSelectedSource} />
+          ? <LegalAnalysisTab la={la} onSelectSource={setSelectedSource} onOpenChat={onOpenChat} />
           : <section className="panel"><p className="muted">Analisi legale non disponibile per questo fascicolo.</p></section>
       )}
 
@@ -1231,24 +1432,151 @@ function CaseDetailView({ caseId, onBack }: { caseId: string; onBack: () => void
 
 type View = 'cases' | 'case';
 
+const SYSTEM_PROMPT_IT = `Sei un assistente legale AI per avvocati penalisti italiani.
+
+Hai padronanza approfondita di:
+- Codice Penale (r.d. 19 ottobre 1930 n. 2441) e giurisprudenza applicativa
+- Codice di Procedura Penale (d.P.R. 22 settembre 1988 n. 447) e disposizioni di attuazione
+- Leggi speciali: Codice della Strada (d.lgs. 285/1992), T.U. Stupefacenti (d.P.R. 309/1990), d.lgs. 231/2001
+- Giurisprudenza della Corte di Cassazione Penale (tutte le sezioni, orientamenti consolidati e recenti)
+- Prassi processuale dei Tribunali italiani e tecniche difensive
+- Giurisprudenza della Corte EDU su equo processo e diritti dell'imputato
+
+Quando redigi atti processuali usa il formato standard italiano:
+- Memorie: INTESTAZIONE, IN FATTO, IN DIRITTO, CONCLUSIONI
+- Ricorsi Cassazione: motivi ex art. 606 c.p.p. con sezione e numero
+- Eccezioni: norma violata, tipo di vizio (nullità/inutilizzabilità/inammissibilità), rimedio
+
+Cita norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Cassazione con sezione, numero e anno quando pertinenti. Scrivi in italiano giuridico formale. Questo è uno strumento professionale per avvocati: non aggiungere disclaimer o avvertenze.`;
+
 function App() {
   const [view, setView] = useState<View>('cases');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [activeCaseData, setActiveCaseData] = useState<CaseAnalysis | null>(null);
+  const [chat, setChat] = useState<ChatState>({ open: false, messages: [], caseContext: null });
+  const [chatStreaming, setChatStreaming] = useState(false);
 
   const handleSelectCase = useCallback((id: string) => {
     setSelectedCaseId(id);
     setView('case');
+    setActiveCaseData(null);
+    setChat(prev => ({ ...prev, caseContext: null }));
   }, []);
 
   const handleBack = useCallback(() => {
     setView('cases');
     setSelectedCaseId(null);
+    setActiveCaseData(null);
+    setChat(prev => ({ ...prev, caseContext: null }));
   }, []);
 
-  if (view === 'case' && selectedCaseId) {
-    return <CaseDetailView caseId={selectedCaseId} onBack={handleBack} />;
-  }
-  return <CaseListView onSelect={handleSelectCase} />;
+  const handleCaseLoaded = useCallback((data: CaseAnalysis) => {
+    setActiveCaseData(data);
+    setChat(prev => ({ ...prev, caseContext: buildCaseContext(data) }));
+  }, []);
+
+  const openChat = useCallback((initialKey?: string) => {
+    if (initialKey && activeCaseData) {
+      const ctx = buildCaseContext(activeCaseData);
+      const promptFn = DOC_PROMPTS[initialKey];
+      if (promptFn) {
+        const userMsg: ChatMsg = { role: 'user', content: promptFn(ctx), id: crypto.randomUUID() };
+        setChat(prev => ({ ...prev, open: true, messages: [...prev.messages, userMsg] }));
+        sendToApi([...chat.messages, userMsg]);
+        return;
+      }
+    }
+    setChat(prev => ({ ...prev, open: true }));
+  }, [activeCaseData, chat.messages]);
+
+  const sendMessage = useCallback((text: string) => {
+    const userMsg: ChatMsg = { role: 'user', content: text, id: crypto.randomUUID() };
+    setChat(prev => ({ ...prev, messages: [...prev.messages, userMsg] }));
+    sendToApi([...chat.messages, userMsg]);
+  }, [chat.messages]);
+
+  const sendToApi = useCallback(async (messages: ChatMsg[]) => {
+    setChatStreaming(true);
+    const assistantId = crypto.randomUUID();
+    setChat(prev => ({
+      ...prev,
+      messages: [...prev.messages.filter(m => m.id !== assistantId),
+        { role: 'assistant', content: '', id: assistantId }],
+    }));
+
+    try {
+      const caseCtx = activeCaseData ? buildCaseContext(activeCaseData) : null;
+      const systemWithCtx = caseCtx
+        ? `${SYSTEM_PROMPT_IT}\n\n---\n${caseCtx}`
+        : SYSTEM_PROMPT_IT;
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          system_override: systemWithCtx,
+          mode: 'flash',
+        }),
+      });
+
+      if (!res.ok || !res.body) throw new Error(`${res.status}`);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = line.slice(6).trim();
+          if (payload === '[DONE]') break;
+          try {
+            const { text } = JSON.parse(payload) as { text: string };
+            setChat(prev => ({
+              ...prev,
+              messages: prev.messages.map(m =>
+                m.id === assistantId ? { ...m, content: m.content + text } : m
+              ),
+            }));
+          } catch { /* skip malformed chunk */ }
+        }
+      }
+    } catch (e) {
+      setChat(prev => ({
+        ...prev,
+        messages: prev.messages.map(m =>
+          m.id === m.id && m.role === 'assistant' && m.content === ''
+            ? { ...m, content: `Errore: ${(e as Error).message}` }
+            : m
+        ),
+      }));
+    } finally {
+      setChatStreaming(false);
+    }
+  }, [activeCaseData]);
+
+  return (
+    <>
+      {view === 'case' && selectedCaseId
+        ? <CaseDetailView caseId={selectedCaseId} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} />
+        : <CaseListView onSelect={handleSelectCase} />
+      }
+      <FloatingChatButton onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))} hasContext={!!activeCaseData} />
+      <ChatDrawer
+        state={chat}
+        onClose={() => setChat(prev => ({ ...prev, open: false }))}
+        onSend={sendMessage}
+        onQuickAction={openChat}
+        streaming={chatStreaming}
+      />
+    </>
+  );
 }
 
 createRoot(document.getElementById('root')!).render(<App />);

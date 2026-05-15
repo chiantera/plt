@@ -223,3 +223,14 @@ class AnalyzeRequest(BaseModel):
     materials: list[AnalyzeMaterialInput]
     mode: Literal["flash", "pro"] = "flash"
     language: Literal["it", "en"] = "it"
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+    system_override: str | None = None
+    mode: Literal["flash", "pro"] = "flash"

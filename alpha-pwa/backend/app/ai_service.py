@@ -5,11 +5,15 @@ import os
 
 import anthropic
 
+import typing
+from collections.abc import Generator
+
 from .models import (
     AnalyzeRequest,
     CaseAnalysis,
     ChargeAnalysis,
     ChargeElement,
+    ChatRequest,
     Contradiction,
     ConstitutionalIssue,
     DefenseStrategy,
@@ -138,3 +142,40 @@ Istruzioni specifiche:
     data["usage_estimate"].setdefault("audio_minutes", 0)
 
     return CaseAnalysis.model_validate(data)
+
+
+_DEFAULT_SYSTEM = """\
+Sei un assistente legale AI per avvocati penalisti italiani.
+
+Hai padronanza approfondita di:
+- Codice Penale (r.d. 19 ottobre 1930 n. 2441) e giurisprudenza applicativa
+- Codice di Procedura Penale (d.P.R. 22 settembre 1988 n. 447) e disposizioni di attuazione
+- Leggi speciali: Codice della Strada (d.lgs. 285/1992), T.U. Stupefacenti (d.P.R. 309/1990), d.lgs. 231/2001
+- Giurisprudenza della Corte di Cassazione Penale (tutte le sezioni, orientamenti consolidati e recenti)
+- Prassi processuale dei Tribunali italiani e tecniche difensive
+- Giurisprudenza della Corte EDU su equo processo e diritti dell'imputato
+
+Quando redigi atti processuali usa il formato standard italiano:
+- Memorie: INTESTAZIONE, IN FATTO, IN DIRITTO, CONCLUSIONI
+- Ricorsi Cassazione: motivi ex art. 606 c.p.p. con sezione e numero
+- Eccezioni: norma violata, tipo di vizio (nullità/inutilizzabilità/inammissibilità), rimedio
+
+Cita norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Cassazione con sezione, numero e anno. \
+Scrivi in italiano giuridico formale. Questo è uno strumento professionale per avvocati: non aggiungere disclaimer."""
+
+
+def stream_chat(request: ChatRequest) -> Generator[str, None, None]:
+    """Stream an SSE response for the chat endpoint."""
+    client = _get_client()
+    model = "claude-haiku-4-5-20251001" if request.mode == "flash" else "claude-opus-4-7"
+    system = request.system_override or _DEFAULT_SYSTEM
+
+    with client.messages.stream(
+        model=model,
+        max_tokens=4096,
+        system=system,
+        messages=[{"role": m.role, "content": m.content} for m in request.messages],
+    ) as stream:
+        for text in stream.text_stream:
+            yield f"data: {json.dumps({'text': text})}\n\n"
+    yield "data: [DONE]\n\n"
