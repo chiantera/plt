@@ -2,44 +2,48 @@ from __future__ import annotations
 
 import json
 import os
-
-import anthropic
-
-import typing
 from collections.abc import Generator
 
 from .models import (
     AnalyzeRequest,
     CaseAnalysis,
-    ChargeAnalysis,
-    ChargeElement,
     ChatRequest,
-    Contradiction,
-    ConstitutionalIssue,
-    DefenseStrategy,
-    EvidenceBalance,
-    EvidenceItem,
-    LegalAnalysis,
-    Material,
-    MissingDocument,
-    OpenQuestion,
-    Person,
-    ProceduralDeadline,
-    SourceRef,
-    TimelineEvent,
-    UsageEstimate,
-    WitnessAssessment,
 )
 
-_client: anthropic.Anthropic | None = None
+# ── Provider selection ────────────────────────────────────────────────────────
+# Set DEEPSEEK_API_KEY to use DeepSeek (OpenAI-compatible, ~100x cheaper).
+# Falls back to Anthropic if only ANTHROPIC_API_KEY is set.
+
+def _use_deepseek() -> bool:
+    return bool(os.environ.get("DEEPSEEK_API_KEY"))
 
 
-def _get_client() -> anthropic.Anthropic:
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
-    return _client
+def _get_openai_client():  # returns openai.OpenAI
+    import openai
+    return openai.OpenAI(
+        api_key=os.environ["DEEPSEEK_API_KEY"],
+        base_url="https://api.deepseek.com",
+    )
 
+
+def _get_anthropic_client():
+    import anthropic
+    return anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+
+
+def _flash_model() -> str:
+    return "deepseek-v4-flash" if _use_deepseek() else "claude-haiku-4-5-20251001"
+
+
+def _pro_model() -> str:
+    return "deepseek-v4-pro" if _use_deepseek() else "claude-opus-4-7"
+
+
+def _model(mode: str) -> str:
+    return _flash_model() if mode == "flash" else _pro_model()
+
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT = """\
 Sei un assistente legale AI specializzato in diritto penale italiano e statunitense.
@@ -86,16 +90,35 @@ _ANALYSIS_SCHEMA = """\
 }
 """
 
+_DEFAULT_CHAT_SYSTEM = """\
+Sei un assistente legale AI per avvocati penalisti italiani.
+
+Hai padronanza approfondita di:
+- Codice Penale (r.d. 19 ottobre 1930 n. 2441) e giurisprudenza applicativa
+- Codice di Procedura Penale (d.P.R. 22 settembre 1988 n. 447) e disposizioni di attuazione
+- Leggi speciali: Codice della Strada (d.lgs. 285/1992), T.U. Stupefacenti (d.P.R. 309/1990), d.lgs. 231/2001
+- Giurisprudenza della Corte di Cassazione Penale (tutte le sezioni, orientamenti consolidati e recenti)
+- Prassi processuale dei Tribunali italiani e tecniche difensive
+- Giurisprudenza della Corte EDU su equo processo e diritti dell'imputato
+
+Quando redigi atti processuali usa il formato standard italiano:
+- Memorie: INTESTAZIONE, IN FATTO, IN DIRITTO, CONCLUSIONI
+- Ricorsi Cassazione: motivi ex art. 606 c.p.p. con sezione e numero
+- Eccezioni: norma violata, tipo di vizio (nullità/inutilizzabilità/inammissibilità), rimedio
+
+Cita norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Cassazione con sezione, numero e anno. \
+Scrivi in italiano giuridico formale. Questo è uno strumento professionale per avvocati: non aggiungere disclaimer."""
+
+
+# ── Analysis (non-streaming) ──────────────────────────────────────────────────
 
 def analyze_case(request: AnalyzeRequest) -> CaseAnalysis:
-    """Call Claude to produce a full CaseAnalysis from raw text materials."""
-    client = _get_client()
-
+    """Produce a full CaseAnalysis JSON from raw text materials."""
+    model = _model(request.mode)
     materials_text = "\n\n".join(
         f"=== {m.name} ({m.kind}) ===\n{m.text}"
         for m in request.materials
     )
-
     user_message = f"""\
 Titolo del caso: {request.case_title}
 Lingua output: {request.language}
@@ -117,64 +140,84 @@ Istruzioni specifiche:
 - L'analisi legale deve essere pratica e orientata all'udienza.
 """
 
-    model = "claude-haiku-4-5-20251001" if request.mode == "flash" else "claude-opus-4-7"
+    if _use_deepseek():
+        raw, usage = _deepseek_complete(model, _SYSTEM_PROMPT, user_message)
+    else:
+        raw, usage = _anthropic_complete(model, _SYSTEM_PROMPT, user_message)
 
-    message = client.messages.create(
-        model=model,
-        max_tokens=8192,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_message}],
-    )
-
-    raw = message.content[0].text.strip()
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
 
     data = json.loads(raw)
-
-    # Patch usage estimate with actual token counts
     data.setdefault("usage_estimate", {})
-    data["usage_estimate"]["flash_input_tokens"] = message.usage.input_tokens
-    data["usage_estimate"]["flash_output_tokens"] = message.usage.output_tokens
-    data["usage_estimate"]["pro_used"] = request.mode == "pro"
-    data["usage_estimate"]["model_route"] = model
+    data["usage_estimate"].update({
+        "flash_input_tokens": usage["input"],
+        "flash_output_tokens": usage["output"],
+        "pro_used": request.mode == "pro",
+        "model_route": model,
+    })
     data["usage_estimate"].setdefault("pages", len(request.materials))
     data["usage_estimate"].setdefault("audio_minutes", 0)
-
     return CaseAnalysis.model_validate(data)
 
 
-_DEFAULT_SYSTEM = """\
-Sei un assistente legale AI per avvocati penalisti italiani.
+def _deepseek_complete(model: str, system: str, user: str) -> tuple[str, dict]:
+    client = _get_openai_client()
+    resp = client.chat.completions.create(
+        model=model,
+        max_tokens=8192,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+    )
+    text = resp.choices[0].message.content or ""
+    usage = {"input": resp.usage.prompt_tokens, "output": resp.usage.completion_tokens}
+    return text, usage
 
-Hai padronanza approfondita di:
-- Codice Penale (r.d. 19 ottobre 1930 n. 2441) e giurisprudenza applicativa
-- Codice di Procedura Penale (d.P.R. 22 settembre 1988 n. 447) e disposizioni di attuazione
-- Leggi speciali: Codice della Strada (d.lgs. 285/1992), T.U. Stupefacenti (d.P.R. 309/1990), d.lgs. 231/2001
-- Giurisprudenza della Corte di Cassazione Penale (tutte le sezioni, orientamenti consolidati e recenti)
-- Prassi processuale dei Tribunali italiani e tecniche difensive
-- Giurisprudenza della Corte EDU su equo processo e diritti dell'imputato
 
-Quando redigi atti processuali usa il formato standard italiano:
-- Memorie: INTESTAZIONE, IN FATTO, IN DIRITTO, CONCLUSIONI
-- Ricorsi Cassazione: motivi ex art. 606 c.p.p. con sezione e numero
-- Eccezioni: norma violata, tipo di vizio (nullità/inutilizzabilità/inammissibilità), rimedio
+def _anthropic_complete(model: str, system: str, user: str) -> tuple[str, dict]:
+    client = _get_anthropic_client()
+    msg = client.messages.create(
+        model=model, max_tokens=8192, system=system,
+        messages=[{"role": "user", "content": user}],
+    )
+    text = msg.content[0].text
+    usage = {"input": msg.usage.input_tokens, "output": msg.usage.output_tokens}
+    return text, usage
 
-Cita norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Cassazione con sezione, numero e anno. \
-Scrivi in italiano giuridico formale. Questo è uno strumento professionale per avvocati: non aggiungere disclaimer."""
 
+# ── Chat (streaming SSE) ──────────────────────────────────────────────────────
 
 def stream_chat(request: ChatRequest) -> Generator[str, None, None]:
-    """Stream an SSE response for the chat endpoint."""
-    client = _get_client()
-    model = "claude-haiku-4-5-20251001" if request.mode == "flash" else "claude-opus-4-7"
-    system = request.system_override or _DEFAULT_SYSTEM
+    """Yield SSE chunks for the /api/chat endpoint."""
+    model = _model(request.mode)
+    system = request.system_override or _DEFAULT_CHAT_SYSTEM
+    messages = [{"role": m.role, "content": m.content} for m in request.messages]
 
-    with client.messages.stream(
+    if _use_deepseek():
+        yield from _deepseek_stream(model, system, messages)
+    else:
+        yield from _anthropic_stream(model, system, messages)
+
+
+def _deepseek_stream(model: str, system: str, messages: list) -> Generator[str, None, None]:
+    client = _get_openai_client()
+    stream = client.chat.completions.create(
         model=model,
         max_tokens=4096,
-        system=system,
-        messages=[{"role": m.role, "content": m.content} for m in request.messages],
+        messages=[{"role": "system", "content": system}, *messages],
+        stream=True,
+    )
+    for chunk in stream:
+        text = chunk.choices[0].delta.content or ""
+        if text:
+            yield f"data: {json.dumps({'text': text})}\n\n"
+    yield "data: [DONE]\n\n"
+
+
+def _anthropic_stream(model: str, system: str, messages: list) -> Generator[str, None, None]:
+    import anthropic
+    client = _get_anthropic_client()
+    with client.messages.stream(
+        model=model, max_tokens=4096, system=system, messages=messages,
     ) as stream:
         for text in stream.text_stream:
             yield f"data: {json.dumps({'text': text})}\n\n"
