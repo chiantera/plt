@@ -8,3 +8,17 @@ uploads/
 frontend/node_modules/
 frontend/dist/
 frontend/*.tsbuildinfo
+
+# Capacitor / Android — generated, do not commit
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/app/build/
+frontend/android/app/src/main/assets/public/
+frontend/android/app/src/main/assets/capacitor.config.json
+frontend/android/app/src/main/assets/capacitor.plugins.json
+frontend/android/capacitor-cordova-android-plugins/
+frontend/android/local.properties
+frontend/android/.idea/
+frontend/android/captures/
+frontend/android/.cxx/
+*.iml
