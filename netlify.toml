@@ -1,10 +1,8 @@
 [build]
   base    = "alpha-pwa/frontend"
-  command = "npm run build"
+  command = "VITE_SUPABASE_URL=$SUPABASE_URL VITE_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY npm run build"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "20"
   VITE_API_URL  = "https://plt-backend.onrender.com"
-  VITE_SUPABASE_URL = "$SUPABASE_URL"
-  VITE_SUPABASE_ANON_KEY = "$SUPABASE_ANON_KEY"
