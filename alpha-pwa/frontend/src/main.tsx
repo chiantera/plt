@@ -867,9 +867,7 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
       return prev ? [summary, ...prev] : [summary];
     });
     setLocalIds(prev => new Set([...prev, newCase.case_id]));
-    (window as any).__newCase = newCase;
-    onSelect(newCase.case_id);
-  }, [onSelect]);
+  }, []);
 
   const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
