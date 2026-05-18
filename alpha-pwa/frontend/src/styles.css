@@ -245,6 +245,117 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
   border-radius: 16px; padding: 12px 16px; color: #fca5a5; margin-bottom: 14px;
 }
+.warming-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.28);
+  border-radius: 14px; padding: 10px 14px; color: #fde68a;
+  font-size: 0.86rem; margin-bottom: 14px;
+}
+
+/* ── Inline editing ──────────────────────────────────────────────────────── */
+.editable {
+  cursor: text;
+  border-radius: 6px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  transition: background 0.12s, box-shadow 0.12s;
+  display: inline;
+  word-break: break-word;
+}
+.editable:hover { background: rgba(56,189,248,0.10); box-shadow: inset 0 -1px 0 rgba(56,189,248,0.45); }
+.editable:focus-visible { outline: 2px solid rgba(56,189,248,0.6); outline-offset: 2px; }
+.editable-empty { color: #64748b; font-style: italic; }
+.editable-input {
+  font: inherit;
+  color: inherit;
+  background: rgba(15,23,42,0.85);
+  border: 1px solid rgba(56,189,248,0.55);
+  border-radius: 8px;
+  padding: 6px 9px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  letter-spacing: inherit;
+  line-height: inherit;
+}
+.editable-input-multi {
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+.editable-row-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+}
+.row-delete-btn {
+  flex: none;
+  background: none;
+  border: 1px solid rgba(239,68,68,0.25);
+  color: #fca5a5;
+  border-radius: 999px;
+  width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.12s, background 0.12s;
+}
+.row-delete-btn:hover { opacity: 1; background: rgba(239,68,68,0.12); }
+.add-row-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 10px;
+  background: rgba(56,189,248,0.08);
+  border: 1px dashed rgba(56,189,248,0.4);
+  color: #bae6fd;
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.add-row-btn:hover { background: rgba(56,189,248,0.16); }
+
+.editable-select {
+  font: inherit;
+  color: inherit;
+  background: rgba(15,23,42,0.6);
+  border: 1px solid rgba(148,163,184,0.32);
+  border-radius: 6px;
+  padding: 2px 6px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 18px;
+  background-image: linear-gradient(45deg, transparent 50%, #94a3b8 50%), linear-gradient(135deg, #94a3b8 50%, transparent 50%);
+  background-position: calc(100% - 9px) 50%, calc(100% - 4px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+.editable-select:hover { border-color: rgba(56,189,248,0.6); }
+.editable-select:focus { outline: 2px solid rgba(56,189,248,0.6); outline-offset: 2px; }
+.editable-select option { background: #0f172a; color: #f8fafc; }
+
+.editable-percent-input { width: 70px; padding: 2px 6px; display: inline-block; }
+
+.editable-string-list { list-style: none; padding: 0; margin: 6px 0; }
+.editable-string-list li {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(148,163,184,0.10);
+}
+.editable-string-list li:last-child { border-bottom: none; }
+.editable-string-list li.muted { color: #94a3b8; font-style: italic; border-bottom: none; }
+.editable-string-list svg { flex: none; margin-top: 4px; color: #94a3b8; }
+
+.brief-editor {
+  width: 100%;
+  min-height: 240px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.86rem;
+}
+.brief-preview {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148,163,184,0.2);
+}
 
 /* ── Back button ─────────────────────────────────────────────────────────── */
 .back-button {

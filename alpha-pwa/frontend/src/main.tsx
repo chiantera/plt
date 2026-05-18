@@ -268,6 +268,200 @@ function StrengthBar({ value, label, color }: { value: number; label: string; co
   );
 }
 
+function Editable({ value, onChange, placeholder, multiline, className }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => {
+    if (!editing) return;
+    const el = multiline ? textareaRef.current : inputRef.current;
+    el?.focus();
+    if (el instanceof HTMLInputElement) el.select();
+  }, [editing, multiline]);
+
+  const commit = () => {
+    setEditing(false);
+    const next = draft.trim();
+    if (next !== value) onChange(next);
+  };
+  const cancel = () => { setDraft(value); setEditing(false); };
+
+  if (editing) {
+    if (multiline) {
+      return (
+        <textarea
+          ref={textareaRef}
+          className={`editable-input editable-input-multi ${className ?? ''}`}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => {
+            if (e.key === 'Escape') cancel();
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) commit();
+          }}
+          rows={Math.max(2, Math.min(10, draft.split('\n').length + 1))}
+          placeholder={placeholder}
+        />
+      );
+    }
+    return (
+      <input
+        ref={inputRef}
+        className={`editable-input ${className ?? ''}`}
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') cancel();
+        }}
+        placeholder={placeholder}
+      />
+    );
+  }
+
+  const display = value || (placeholder ?? 'Tocca per scrivere…');
+  return (
+    <span
+      className={`editable${value ? '' : ' editable-empty'} ${className ?? ''}`}
+      onClick={() => setEditing(true)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditing(true); } }}
+      title="Tocca per modificare"
+    >
+      {display}
+    </span>
+  );
+}
+
+function RowDelete({ onClick, label }: { onClick: () => void; label?: string }) {
+  return (
+    <button
+      className="row-delete-btn"
+      onClick={e => { e.stopPropagation(); if (confirm(label ? `Eliminare "${label}"?` : 'Eliminare questa voce?')) onClick(); }}
+      title="Elimina voce"
+    >
+      <Trash2 size={13} />
+    </button>
+  );
+}
+
+function AddRowButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button className="add-row-btn" onClick={onClick}>
+      <Plus size={14} /> {label}
+    </button>
+  );
+}
+
+function EditableSelect<T extends string>({ value, options, onChange, className }: {
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (v: T) => void;
+  className?: string;
+}) {
+  return (
+    <select
+      className={`editable-select ${className ?? ''}`}
+      value={value}
+      onChange={e => onChange(e.target.value as T)}
+      onClick={e => e.stopPropagation()}
+    >
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+}
+
+function EditablePercent({ value, onChange, className }: {
+  value: number;
+  onChange: (v: number) => void;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(Math.round(value * 100)));
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { setDraft(String(Math.round(value * 100))); }, [value]);
+  useEffect(() => { if (editing) { ref.current?.focus(); ref.current?.select(); } }, [editing]);
+
+  const commit = () => {
+    setEditing(false);
+    const n = Math.max(0, Math.min(100, Number(draft) || 0));
+    const asFloat = n / 100;
+    if (Math.abs(asFloat - value) > 0.001) onChange(asFloat);
+    setDraft(String(n));
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={ref}
+        type="number"
+        min={0}
+        max={100}
+        step={1}
+        className={`editable-input editable-percent-input ${className ?? ''}`}
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(String(Math.round(value * 100))); setEditing(false); } }}
+      />
+    );
+  }
+  return (
+    <span
+      className={`editable ${className ?? ''}`}
+      onClick={e => { e.stopPropagation(); setEditing(true); }}
+      role="button"
+      tabIndex={0}
+      title="Tocca per modificare"
+    >
+      {Math.round(value * 100)}%
+    </span>
+  );
+}
+
+function EditableStringList({ items, onChange, placeholder, itemClass, addLabel, icon }: {
+  items: string[];
+  onChange: (next: string[]) => void;
+  placeholder: string;
+  itemClass?: string;
+  addLabel: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <>
+      <ul className="editable-string-list">
+        {items.length === 0 && <li className="muted">Nessuna voce.</li>}
+        {items.map((item, i) => (
+          <li key={i} className={itemClass}>
+            {icon}
+            <span style={{ flex: 1 }}>
+              <Editable
+                value={item}
+                onChange={v => onChange(items.map((x, idx) => idx === i ? v : x))}
+                placeholder={placeholder}
+                multiline
+              />
+            </span>
+            <RowDelete onClick={() => onChange(items.filter((_, idx) => idx !== i))} />
+          </li>
+        ))}
+      </ul>
+      <AddRowButton label={addLabel} onClick={() => onChange([...items, ''])} />
+    </>
+  );
+}
+
 // ── Drawers ──────────────────────────────────────────────────────────────────
 
 function SourceDrawer({ source, onClose }: { source: SourceRef | null; onClose: () => void }) {
@@ -811,10 +1005,30 @@ function HomepageStats({ cases }: { cases: CaseSummary[] }) {
   );
 }
 
+async function fetchWithWakeup(
+  url: string,
+  opts: { firstTimeoutMs: number; retryTimeoutMs: number; onSlow: () => void }
+): Promise<Response> {
+  const attempt = (timeoutMs: number) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+  };
+  try {
+    const r = await attempt(opts.firstTimeoutMs);
+    if (r.ok) return r;
+    throw new Error(`${r.status}`);
+  } catch {
+    opts.onSlow();
+    return attempt(opts.retryTimeoutMs);
+  }
+}
+
 function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
   const [localIds, setLocalIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [warming, setWarming] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [search, setSearch] = useState('');
@@ -838,16 +1052,21 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
       const localSummaries = local.map(caseAnalysisToSummary);
       const localIdSet = new Set(local.map(c => c.case_id));
       setLocalIds(localIdSet);
+      setCases(localSummaries);
 
-      // Backend demo cases — merge, skip duplicates already in IndexedDB
+      // Backend demo cases — patient retry to absorb Render free-tier cold start
       try {
-        const r = await fetch(`${API}/api/cases`);
+        const r = await fetchWithWakeup(`${API}/api/cases`, {
+          firstTimeoutMs: 5000,
+          retryTimeoutMs: 45000,
+          onSlow: () => setWarming(true),
+        });
         if (!r.ok) throw new Error(`${r.status}`);
         const demo = await r.json() as CaseSummary[];
         setCases([...localSummaries, ...demo.filter(c => !localIdSet.has(c.case_id))]);
+        setWarming(false);
       } catch {
-        // Backend unreachable — show only local cases
-        setCases(localSummaries);
+        setWarming(false);
         if (localSummaries.length === 0) setError('Backend non raggiungibile e nessun fascicolo locale');
       }
     })();
@@ -867,7 +1086,8 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
       return prev ? [summary, ...prev] : [summary];
     });
     setLocalIds(prev => new Set([...prev, newCase.case_id]));
-  }, []);
+    onSelect(newCase.case_id);
+  }, [onSelect]);
 
   const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -923,6 +1143,13 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
 
       {error && <div className="error-banner"><AlertTriangle size={16} /> {error}</div>}
 
+      {warming && (
+        <div className="warming-banner">
+          <Loader2 className="spin" size={16} />
+          Sto svegliando il server — può richiedere qualche secondo…
+        </div>
+      )}
+
       {cases === null && !error && (
         <div className="cases-loading"><Loader2 className="spin" size={32} /></div>
       )}
@@ -977,9 +1204,71 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
 // ── Legal analysis tab ────────────────────────────────────────────────────────
 
 
-function LegalAnalysisTab({ la, onSelectSource, onOpenChat }: { la: LegalAnalysis; onSelectSource: (s: SourceRef) => void; onOpenChat: (key: string) => void }) {
+function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
+  la: LegalAnalysis;
+  onSelectSource: (s: SourceRef) => void;
+  onOpenChat: (key: string) => void;
+  onUpdate: (updater: (la: LegalAnalysis) => LegalAnalysis) => void;
+}) {
   const [expandedCharge, setExpandedCharge] = useState<number | null>(0);
   const [expandedStrategy, setExpandedStrategy] = useState<number | null>(0);
+
+  const updateCharge = (i: number, patch: Partial<ChargeAnalysis>) =>
+    onUpdate(la => ({ ...la, charges: la.charges.map((c, idx) => idx === i ? { ...c, ...patch } : c) }));
+  const deleteCharge = (i: number) =>
+    onUpdate(la => ({ ...la, charges: la.charges.filter((_, idx) => idx !== i) }));
+  const addCharge = () =>
+    onUpdate(la => ({ ...la, charges: [...la.charges, { charge_code: '', charge_name: '', max_sentence: '', elements_required: [], available_defenses: [], prosecution_strength: 0.5, notes: '', source_refs: [] }] }));
+
+  const updateElement = (ci: number, ei: number, patch: Partial<ChargeElement>) =>
+    onUpdate(la => ({ ...la, charges: la.charges.map((c, idx) => idx === ci ? { ...c, elements_required: c.elements_required.map((e, j) => j === ei ? { ...e, ...patch } : e) } : c) }));
+  const deleteElement = (ci: number, ei: number) =>
+    onUpdate(la => ({ ...la, charges: la.charges.map((c, idx) => idx === ci ? { ...c, elements_required: c.elements_required.filter((_, j) => j !== ei) } : c) }));
+  const addElement = (ci: number) =>
+    onUpdate(la => ({ ...la, charges: la.charges.map((c, idx) => idx === ci ? { ...c, elements_required: [...c.elements_required, { element: '', description: '', status: 'disputed', notes: '', source_refs: [] }] } : c) }));
+
+  const updateStrategy = (i: number, patch: Partial<DefenseStrategy>) =>
+    onUpdate(la => ({ ...la, strategies: la.strategies.map((s, idx) => idx === i ? { ...s, ...patch } : s) }));
+  const deleteStrategy = (i: number) =>
+    onUpdate(la => ({ ...la, strategies: la.strategies.filter((_, idx) => idx !== i) }));
+  const addStrategy = () =>
+    onUpdate(la => ({ ...la, strategies: [...la.strategies, { title: '', strategy_type: '', priority: 'secondary', description: '', strengths: [], risks: [], required_evidence: [], source_refs: [] }] }));
+
+  const updateIssue = (i: number, patch: Partial<ConstitutionalIssue>) =>
+    onUpdate(la => ({ ...la, constitutional_issues: la.constitutional_issues.map((x, idx) => idx === i ? { ...x, ...patch } : x) }));
+  const deleteIssue = (i: number) =>
+    onUpdate(la => ({ ...la, constitutional_issues: la.constitutional_issues.filter((_, idx) => idx !== i) }));
+  const addIssue = () =>
+    onUpdate(la => ({ ...la, constitutional_issues: [...la.constitutional_issues, { title: '', issue_type: '', severity: 'significant', description: '', legal_basis: '', remedy: '', source_refs: [] }] }));
+
+  const updateWitness = (i: number, patch: Partial<WitnessAssessment>) =>
+    onUpdate(la => ({ ...la, witness_assessments: la.witness_assessments.map((w, idx) => idx === i ? { ...w, ...patch } : w) }));
+  const deleteWitness = (i: number) =>
+    onUpdate(la => ({ ...la, witness_assessments: la.witness_assessments.filter((_, idx) => idx !== i) }));
+  const addWitness = () =>
+    onUpdate(la => ({ ...la, witness_assessments: [...la.witness_assessments, { witness_name: '', role: 'neutral', credibility_score: 0.5, key_testimony: '', strengths: [], vulnerabilities: [], cross_examination_angles: [], source_refs: [] }] }));
+
+  const updateBalance = (patch: Partial<EvidenceBalance>) =>
+    onUpdate(la => ({ ...la, evidence_balance: { ...la.evidence_balance, ...patch } }));
+
+  const RISK_OPTIONS: Array<{ value: 'low' | 'medium' | 'high' | 'critical'; label: string }> = [
+    { value: 'low', label: 'Basso' }, { value: 'medium', label: 'Medio' },
+    { value: 'high', label: 'Alto' }, { value: 'critical', label: 'Critico' },
+  ];
+  const ELEMENT_STATUS_OPTIONS: Array<{ value: ChargeElement['status']; label: string }> = [
+    { value: 'proven', label: 'Provato' }, { value: 'disputed', label: 'Contestato' },
+    { value: 'weak', label: 'Debole' }, { value: 'missing', label: 'Mancante' },
+  ];
+  const PRIORITY_OPTIONS: Array<{ value: DefenseStrategy['priority']; label: string }> = [
+    { value: 'primary', label: 'Primaria' }, { value: 'secondary', label: 'Secondaria' }, { value: 'fallback', label: 'Fallback' },
+  ];
+  const SEVERITY_OPTIONS: Array<{ value: ConstitutionalIssue['severity']; label: string }> = [
+    { value: 'critical', label: 'Critico' }, { value: 'significant', label: 'Significativo' }, { value: 'minor', label: 'Minore' },
+  ];
+  const WITNESS_ROLE_OPTIONS: Array<{ value: WitnessAssessment['role']; label: string }> = [
+    { value: 'prosecution', label: 'Accusa' }, { value: 'defense', label: 'Difesa' },
+    { value: 'neutral', label: 'Neutro' }, { value: 'expert', label: 'Esperto' },
+  ];
 
   return (
     <section className="panel legal-panel">
@@ -987,96 +1276,119 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat }: { la: LegalAnalysi
       {/* Risk banner */}
       <div className="risk-banner" style={{ borderColor: riskColor(la.risk_level) + '66', background: riskColor(la.risk_level) + '11' }}>
         <div className="risk-banner-label" style={{ color: riskColor(la.risk_level) }}>
-          {riskIcon(la.risk_level)} Rischio {riskLabel(la.risk_level)}
+          {riskIcon(la.risk_level)} Rischio{' '}
+          <EditableSelect
+            value={la.risk_level}
+            options={RISK_OPTIONS}
+            onChange={v => onUpdate(la => ({ ...la, risk_level: v }))}
+          />
         </div>
-        <p>{la.risk_summary}</p>
-      </div>
-      
-            {/* AI drafting */}
-      <div className="legal-drafting-box">
-        <div className="legal-drafting-header">
-          <Sparkles size={16} />
-          <div>
-            <div className="legal-drafting-title">Redazione atti con AI</div>
-            <div className="legal-drafting-sub">Memorie, ricorsi, eccezioni — ragionamento giuridico reale, non template</div>
-          </div>
-        </div>
-        <div className="legal-drafting-grid">
-          {([
-            { key: 'memoria',    label: 'Memoria difensiva',     desc: 'Atto completo con IN FATTO, IN DIRITTO e CONCLUSIONI', icon: FileText },
-            { key: 'cassazione', label: 'Ricorso Cassazione',    desc: 'Motivi ex art. 606 c.p.p. con giurisprudenza', icon: Scale },
-            { key: 'eccezione',  label: 'Eccezione procedurale', desc: 'Nullità / inutilizzabilità / inammissibilità', icon: ShieldAlert },
-            { key: 'crossExam',  label: 'Controesame',           desc: 'Schema domande per ciascun testimone dell\'accusa', icon: Users },
-            { key: 'strategy',   label: 'Analisi strategica',    desc: 'Valutazione realistica di ogni linea difensiva', icon: Sparkles },
-          ] as const).map(({ key, label, desc, icon: Icon }) => (
-            <button key={key} className="legal-drafting-card" onClick={() => onOpenChat(key)}>
-              <div className="legal-drafting-card-icon"><Icon size={18} /></div>
-              <div className="legal-drafting-card-label">{label}</div>
-              <div className="legal-drafting-card-desc">{desc}</div>
-            </button>
-          ))}
-        </div>
-        <p className="legal-drafting-note">
-          L'AI conosce il Codice Penale, il c.p.p. e la giurisprudenza della Cassazione. Puoi anche fare domande libere nella chat.
+        <p>
+          <Editable
+            value={la.risk_summary}
+            onChange={v => onUpdate(la => ({ ...la, risk_summary: v }))}
+            placeholder="Sintesi del rischio…"
+            multiline
+          />
         </p>
       </div>
 
       {/* Immediate actions */}
       <div className="legal-section">
         <h2><Zap size={16} /> Azioni immediate</h2>
-        <ul className="action-list">
-          {la.immediate_actions.map((a, i) => (
-            <li key={i} className="action-item"><CheckCircle2 size={14} /><span>{a}</span></li>
-          ))}
-        </ul>
+        <EditableStringList
+          items={la.immediate_actions}
+          onChange={items => onUpdate(la => ({ ...la, immediate_actions: items }))}
+          placeholder="Azione immediata…"
+          itemClass="action-item"
+          icon={<CheckCircle2 size={14} />}
+          addLabel="Aggiungi azione"
+        />
       </div>
 
       {/* Charges */}
       <div className="legal-section">
         <h2><Scale size={16} /> Analisi delle accuse</h2>
         {la.charges.map((charge, ci) => (
-          <div key={charge.charge_code} className="charge-card">
-            <button className="charge-card-header" onClick={() => setExpandedCharge(expandedCharge === ci ? null : ci)}>
-              <div className="charge-card-title-row">
-                <span className="charge-code">{charge.charge_code}</span>
-                <span className="charge-name">{charge.charge_name}</span>
-              </div>
-              <div className="charge-card-meta-row">
-                <div className="strength-mini">
-                  <div className="strength-mini-fill" style={{ width: `${charge.prosecution_strength * 100}%`, background: `hsl(${(1 - charge.prosecution_strength) * 120}, 70%, 50%)` }} />
-                </div>
-                <span className="charge-strength-label">Accusa {pct(charge.prosecution_strength)}</span>
+          <div key={ci} className="charge-card">
+            <div className="charge-card-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button className="charge-card-toggle" onClick={() => setExpandedCharge(expandedCharge === ci ? null : ci)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'inherit' }}>
                 {expandedCharge === ci ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div className="charge-card-title-row">
+                  <span className="charge-code">
+                    <Editable value={charge.charge_code} onChange={v => updateCharge(ci, { charge_code: v })} placeholder="art. …" />
+                  </span>
+                  <span className="charge-name">
+                    <Editable value={charge.charge_name} onChange={v => updateCharge(ci, { charge_name: v })} placeholder="Nome reato" />
+                  </span>
+                </div>
+                <div className="charge-card-meta-row">
+                  <div className="strength-mini">
+                    <div className="strength-mini-fill" style={{ width: `${charge.prosecution_strength * 100}%`, background: `hsl(${(1 - charge.prosecution_strength) * 120}, 70%, 50%)` }} />
+                  </div>
+                  <span className="charge-strength-label">
+                    Accusa{' '}
+                    <EditablePercent value={charge.prosecution_strength} onChange={v => updateCharge(ci, { prosecution_strength: v })} />
+                  </span>
+                </div>
               </div>
-            </button>
+              <RowDelete onClick={() => deleteCharge(ci)} label={charge.charge_name} />
+            </div>
             {expandedCharge === ci && (
               <div className="charge-card-body">
-                <p className="charge-sentence"><strong>Pena massima:</strong> {charge.max_sentence}</p>
+                <p className="charge-sentence">
+                  <strong>Pena massima:</strong>{' '}
+                  <Editable value={charge.max_sentence} onChange={v => updateCharge(ci, { max_sentence: v })} placeholder="es. anni 6" />
+                </p>
                 <h4>Elementi costitutivi</h4>
                 <div className="elements-table">
                   {charge.elements_required.map((el, ei) => (
                     <div key={ei} className="element-row">
                       <div className="element-status-dot" style={{ background: elementStatusColor(el.status) }} title={elementStatusLabel(el.status)} />
-                      <div className="element-body">
-                        <strong>{el.element}</strong>
-                        <p>{el.description}</p>
-                        <p className="element-notes">{el.notes}</p>
-                        <span className={`element-chip element-${el.status}`}>{elementStatusLabel(el.status)}</span>
+                      <div className="element-body" style={{ flex: 1 }}>
+                        <div className="editable-row-head">
+                          <strong>
+                            <Editable value={el.element} onChange={v => updateElement(ci, ei, { element: v })} placeholder="Elemento…" />
+                          </strong>
+                          <RowDelete onClick={() => deleteElement(ci, ei)} label={el.element} />
+                        </div>
+                        <p>
+                          <Editable value={el.description} onChange={v => updateElement(ci, ei, { description: v })} placeholder="Descrizione…" multiline />
+                        </p>
+                        <p className="element-notes">
+                          <Editable value={el.notes} onChange={v => updateElement(ci, ei, { notes: v })} placeholder="Note…" multiline />
+                        </p>
+                        <EditableSelect
+                          value={el.status}
+                          options={ELEMENT_STATUS_OPTIONS}
+                          onChange={v => updateElement(ci, ei, { status: v })}
+                          className={`element-chip element-${el.status}`}
+                        />
                         <SourceRow refs={el.source_refs} onSelect={onSelectSource} />
                       </div>
                     </div>
                   ))}
+                  <AddRowButton label="Aggiungi elemento" onClick={() => addElement(ci)} />
                 </div>
                 <h4>Difese disponibili</h4>
-                <ul className="defense-list">
-                  {charge.available_defenses.map((d, di) => <li key={di}>{d}</li>)}
-                </ul>
-                {charge.notes && <p className="charge-notes">{charge.notes}</p>}
+                <EditableStringList
+                  items={charge.available_defenses}
+                  onChange={items => updateCharge(ci, { available_defenses: items })}
+                  placeholder="Difesa…"
+                  addLabel="Aggiungi difesa"
+                />
+                <h4>Note</h4>
+                <p className="charge-notes">
+                  <Editable value={charge.notes} onChange={v => updateCharge(ci, { notes: v })} placeholder="Note sull'accusa…" multiline />
+                </p>
                 <SourceRow refs={charge.source_refs} onSelect={onSelectSource} />
               </div>
             )}
           </div>
         ))}
+        <AddRowButton label="Aggiungi accusa" onClick={addCharge} />
       </div>
 
       {/* Defense strategies */}
@@ -1084,135 +1396,247 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat }: { la: LegalAnalysi
         <h2><ShieldCheck size={16} /> Strategie difensive</h2>
         {la.strategies.map((s, si) => (
           <div key={si} className={`strategy-card strategy-${s.priority}`}>
-            <button className="strategy-header" onClick={() => setExpandedStrategy(expandedStrategy === si ? null : si)}>
-              <div className="strategy-title-row">
-                <span className={`priority-badge priority-${s.priority}`}>{s.priority === 'primary' ? 'Primaria' : s.priority === 'secondary' ? 'Secondaria' : 'Fallback'}</span>
-                <span className="strategy-type-badge">{strategyTypeLabel(s.strategy_type)}</span>
+            <div className="strategy-header" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={() => setExpandedStrategy(expandedStrategy === si ? null : si)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'inherit' }}>
+                {expandedStrategy === si ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+              </button>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div className="strategy-title-row">
+                  <EditableSelect
+                    value={s.priority}
+                    options={PRIORITY_OPTIONS}
+                    onChange={v => updateStrategy(si, { priority: v })}
+                    className={`priority-badge priority-${s.priority}`}
+                  />
+                  <span className="strategy-type-badge">
+                    <Editable value={s.strategy_type} onChange={v => updateStrategy(si, { strategy_type: v })} placeholder="tipo strategia" />
+                  </span>
+                </div>
+                <div className="strategy-title">
+                  <Editable value={s.title} onChange={v => updateStrategy(si, { title: v })} placeholder="Titolo strategia…" />
+                </div>
               </div>
-              <div className="strategy-title">{s.title}</div>
-              <div className="strategy-expand">{expandedStrategy === si ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</div>
-            </button>
+              <RowDelete onClick={() => deleteStrategy(si)} label={s.title} />
+            </div>
             {expandedStrategy === si && (
               <div className="strategy-body">
-                <p>{s.description}</p>
+                <p>
+                  <Editable value={s.description} onChange={v => updateStrategy(si, { description: v })} placeholder="Descrizione…" multiline />
+                </p>
                 <div className="strategy-cols">
                   <div className="strategy-col">
                     <h4>Punti di forza</h4>
-                    <ul>{s.strengths.map((p, i) => <li key={i} className="pro-item">{p}</li>)}</ul>
+                    <EditableStringList
+                      items={s.strengths}
+                      onChange={items => updateStrategy(si, { strengths: items })}
+                      placeholder="Punto di forza…"
+                      itemClass="pro-item"
+                      addLabel="Aggiungi"
+                    />
                   </div>
                   <div className="strategy-col">
                     <h4>Rischi</h4>
-                    <ul>{s.risks.map((r, i) => <li key={i} className="risk-item">{r}</li>)}</ul>
+                    <EditableStringList
+                      items={s.risks}
+                      onChange={items => updateStrategy(si, { risks: items })}
+                      placeholder="Rischio…"
+                      itemClass="risk-item"
+                      addLabel="Aggiungi"
+                    />
                   </div>
                 </div>
-                {s.required_evidence.length > 0 && (
-                  <>
-                    <h4>Prove necessarie</h4>
-                    <ul className="evidence-needed">{s.required_evidence.map((e, i) => <li key={i}><Search size={12} />{e}</li>)}</ul>
-                  </>
-                )}
+                <h4>Prove necessarie</h4>
+                <EditableStringList
+                  items={s.required_evidence}
+                  onChange={items => updateStrategy(si, { required_evidence: items })}
+                  placeholder="Prova necessaria…"
+                  icon={<Search size={12} />}
+                  addLabel="Aggiungi prova"
+                />
                 <SourceRow refs={s.source_refs} onSelect={onSelectSource} />
               </div>
             )}
           </div>
         ))}
+        <AddRowButton label="Aggiungi strategia" onClick={addStrategy} />
       </div>
 
       {/* Constitutional issues */}
-      {la.constitutional_issues.length > 0 && (
-        <div className="legal-section">
-          <h2><ShieldAlert size={16} /> Problemi costituzionali / procedurali</h2>
-          {la.constitutional_issues.map((issue, ii) => (
-            <div key={ii} className={`issue-card issue-${issue.severity}`}>
-              <div className="issue-header">
-                <span className={`severity-badge severity-${issue.severity}`}>{issue.severity === 'critical' ? 'Critico' : issue.severity === 'significant' ? 'Significativo' : 'Minore'}</span>
-                <span className="issue-type">{issueTypeLabel(issue.issue_type)}</span>
-              </div>
-              <h3>{issue.title}</h3>
-              <p>{issue.description}</p>
-              <div className="issue-law"><BookOpen size={13} /> <em>{issue.legal_basis}</em></div>
-              <div className="issue-remedy"><ShieldCheck size={13} /><span>{issue.remedy}</span></div>
-              <SourceRow refs={issue.source_refs} onSelect={onSelectSource} />
+      <div className="legal-section">
+        <h2><ShieldAlert size={16} /> Problemi costituzionali / procedurali</h2>
+        {la.constitutional_issues.length === 0 && <p className="muted">Nessun problema costituzionale.</p>}
+        {la.constitutional_issues.map((issue, ii) => (
+          <div key={ii} className={`issue-card issue-${issue.severity}`}>
+            <div className="issue-header">
+              <EditableSelect
+                value={issue.severity}
+                options={SEVERITY_OPTIONS}
+                onChange={v => updateIssue(ii, { severity: v })}
+                className={`severity-badge severity-${issue.severity}`}
+              />
+              <span className="issue-type">
+                <Editable value={issue.issue_type} onChange={v => updateIssue(ii, { issue_type: v })} placeholder="tipo problema" />
+              </span>
+              <RowDelete onClick={() => deleteIssue(ii)} label={issue.title} />
             </div>
-          ))}
-        </div>
-      )}
+            <h3>
+              <Editable value={issue.title} onChange={v => updateIssue(ii, { title: v })} placeholder="Titolo…" />
+            </h3>
+            <p>
+              <Editable value={issue.description} onChange={v => updateIssue(ii, { description: v })} placeholder="Descrizione…" multiline />
+            </p>
+            <div className="issue-law">
+              <BookOpen size={13} />{' '}
+              <em>
+                <Editable value={issue.legal_basis} onChange={v => updateIssue(ii, { legal_basis: v })} placeholder="Base legale…" multiline />
+              </em>
+            </div>
+            <div className="issue-remedy">
+              <ShieldCheck size={13} />
+              <span>
+                <Editable value={issue.remedy} onChange={v => updateIssue(ii, { remedy: v })} placeholder="Rimedio…" multiline />
+              </span>
+            </div>
+            <SourceRow refs={issue.source_refs} onSelect={onSelectSource} />
+          </div>
+        ))}
+        <AddRowButton label="Aggiungi problema" onClick={addIssue} />
+      </div>
 
       {/* Witness assessments */}
-      {la.witness_assessments.length > 0 && (
-        <div className="legal-section">
-          <h2><Users size={16} /> Valutazione testimoni</h2>
-          {la.witness_assessments.map((w, wi) => (
-            <div key={wi} className={`witness-card witness-${w.role}`}>
-              <div className="witness-header">
-                <div>
-                  <strong>{w.witness_name}</strong>
-                  <span className={`witness-role-badge role-${w.role}`}>{witnessRoleLabel(w.role)}</span>
-                </div>
-                <div className="credibility-score" style={{ color: w.credibility_score >= 0.7 ? '#ef4444' : w.credibility_score >= 0.5 ? '#f97316' : '#22c55e' }}>
-                  {pct(w.credibility_score)} cred.
-                </div>
+      <div className="legal-section">
+        <h2><Users size={16} /> Valutazione testimoni</h2>
+        {la.witness_assessments.length === 0 && <p className="muted">Nessun testimone.</p>}
+        {la.witness_assessments.map((w, wi) => (
+          <div key={wi} className={`witness-card witness-${w.role}`}>
+            <div className="witness-header">
+              <div>
+                <strong>
+                  <Editable value={w.witness_name} onChange={v => updateWitness(wi, { witness_name: v })} placeholder="Nome testimone…" />
+                </strong>
+                <EditableSelect
+                  value={w.role}
+                  options={WITNESS_ROLE_OPTIONS}
+                  onChange={v => updateWitness(wi, { role: v })}
+                  className={`witness-role-badge role-${w.role}`}
+                />
               </div>
-              <StrengthBar value={w.credibility_score} label="Credibilità percepita" color={`hsl(${(1 - w.credibility_score) * 30}, 80%, 55%)`} />
-              <p className="witness-testimony">&ldquo;{w.key_testimony}&rdquo;</p>
-              <div className="witness-cols">
-                {w.strengths.length > 0 && (
-                  <div>
-                    <h4>Punti forti</h4>
-                    <ul>{w.strengths.map((s, i) => <li key={i} className="pro-item">{s}</li>)}</ul>
-                  </div>
-                )}
-                {w.vulnerabilities.length > 0 && (
-                  <div>
-                    <h4>Vulnerabilità</h4>
-                    <ul>{w.vulnerabilities.map((v, i) => <li key={i} className="risk-item">{v}</li>)}</ul>
-                  </div>
-                )}
+              <div className="credibility-score" style={{ color: w.credibility_score >= 0.7 ? '#ef4444' : w.credibility_score >= 0.5 ? '#f97316' : '#22c55e' }}>
+                <EditablePercent value={w.credibility_score} onChange={v => updateWitness(wi, { credibility_score: v })} /> cred.
               </div>
-              {w.cross_examination_angles.length > 0 && (
-                <>
-                  <h4>Domande cross-examination</h4>
-                  <ul className="cross-list">{w.cross_examination_angles.map((q, i) => <li key={i}><ArrowRight size={12} />{q}</li>)}</ul>
-                </>
-              )}
-              <SourceRow refs={w.source_refs} onSelect={onSelectSource} />
+              <RowDelete onClick={() => deleteWitness(wi)} label={w.witness_name} />
             </div>
-          ))}
-        </div>
-      )}
+            <StrengthBar value={w.credibility_score} label="Credibilità percepita" color={`hsl(${(1 - w.credibility_score) * 30}, 80%, 55%)`} />
+            <p className="witness-testimony">&ldquo;
+              <Editable value={w.key_testimony} onChange={v => updateWitness(wi, { key_testimony: v })} placeholder="Testimonianza chiave…" multiline />
+            &rdquo;</p>
+            <div className="witness-cols">
+              <div>
+                <h4>Punti forti</h4>
+                <EditableStringList
+                  items={w.strengths}
+                  onChange={items => updateWitness(wi, { strengths: items })}
+                  placeholder="Punto forte…"
+                  itemClass="pro-item"
+                  addLabel="Aggiungi"
+                />
+              </div>
+              <div>
+                <h4>Vulnerabilità</h4>
+                <EditableStringList
+                  items={w.vulnerabilities}
+                  onChange={items => updateWitness(wi, { vulnerabilities: items })}
+                  placeholder="Vulnerabilità…"
+                  itemClass="risk-item"
+                  addLabel="Aggiungi"
+                />
+              </div>
+            </div>
+            <h4>Domande cross-examination</h4>
+            <EditableStringList
+              items={w.cross_examination_angles}
+              onChange={items => updateWitness(wi, { cross_examination_angles: items })}
+              placeholder="Domanda…"
+              icon={<ArrowRight size={12} />}
+              addLabel="Aggiungi domanda"
+            />
+            <SourceRow refs={w.source_refs} onSelect={onSelectSource} />
+          </div>
+        ))}
+        <AddRowButton label="Aggiungi testimone" onClick={addWitness} />
+      </div>
 
       {/* Evidence balance */}
       <div className="legal-section">
         <h2><Scale size={16} /> Equilibrio probatorio</h2>
         <div className="balance-card">
           <div className="balance-bars">
-            <StrengthBar value={la.evidence_balance.prosecution_strength} label="Forza accusa" color="#ef4444" />
-            <StrengthBar value={la.evidence_balance.defense_strength} label="Forza difesa" color="#22c55e" />
+            <div>
+              <span className="muted" style={{ fontSize: '0.78rem' }}>Forza accusa:{' '}
+                <EditablePercent value={la.evidence_balance.prosecution_strength} onChange={v => updateBalance({ prosecution_strength: v })} />
+              </span>
+              <StrengthBar value={la.evidence_balance.prosecution_strength} label="Forza accusa" color="#ef4444" />
+            </div>
+            <div>
+              <span className="muted" style={{ fontSize: '0.78rem' }}>Forza difesa:{' '}
+                <EditablePercent value={la.evidence_balance.defense_strength} onChange={v => updateBalance({ defense_strength: v })} />
+              </span>
+              <StrengthBar value={la.evidence_balance.defense_strength} label="Forza difesa" color="#22c55e" />
+            </div>
           </div>
           <div className="balance-cols">
             <div>
               <h4>Prove accusa</h4>
-              <ul>{la.evidence_balance.key_prosecution_evidence.map((e, i) => <li key={i} className="risk-item">{e}</li>)}</ul>
+              <EditableStringList
+                items={la.evidence_balance.key_prosecution_evidence}
+                onChange={items => updateBalance({ key_prosecution_evidence: items })}
+                placeholder="Prova accusa…"
+                itemClass="risk-item"
+                addLabel="Aggiungi"
+              />
             </div>
             <div>
               <h4>Prove difesa</h4>
-              <ul>{la.evidence_balance.key_defense_evidence.map((e, i) => <li key={i} className="pro-item">{e}</li>)}</ul>
+              <EditableStringList
+                items={la.evidence_balance.key_defense_evidence}
+                onChange={items => updateBalance({ key_defense_evidence: items })}
+                placeholder="Prova difesa…"
+                itemClass="pro-item"
+                addLabel="Aggiungi"
+              />
             </div>
           </div>
-          {la.evidence_balance.critical_gaps.length > 0 && (
-            <div className="balance-gaps">
-              <h4><Search size={13} /> Lacune critiche</h4>
-              <ul>{la.evidence_balance.critical_gaps.map((g, i) => <li key={i}>{g}</li>)}</ul>
-            </div>
-          )}
-          <p className="balance-assessment">{la.evidence_balance.overall_assessment}</p>
+          <div className="balance-gaps">
+            <h4><Search size={13} /> Lacune critiche</h4>
+            <EditableStringList
+              items={la.evidence_balance.critical_gaps}
+              onChange={items => updateBalance({ critical_gaps: items })}
+              placeholder="Lacuna…"
+              addLabel="Aggiungi lacuna"
+            />
+          </div>
+          <p className="balance-assessment">
+            <Editable
+              value={la.evidence_balance.overall_assessment}
+              onChange={v => updateBalance({ overall_assessment: v })}
+              placeholder="Valutazione complessiva…"
+              multiline
+            />
+          </p>
         </div>
       </div>
 
       {/* Client summary */}
       <div className="client-summary-box">
         <h2><Users size={16} /> Sintesi per il cliente</h2>
-        <p>{la.client_summary}</p>
+        <p>
+          <Editable
+            value={la.client_summary}
+            onChange={v => onUpdate(la => ({ ...la, client_summary: v }))}
+            placeholder="Sintesi per il cliente…"
+            multiline
+          />
+        </p>
       </div>
 
       {/* AI drafting */}
@@ -1343,12 +1767,36 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     showToast("Documento eliminato");
   }, [caseData, showToast]);
 
+  const updateCase = useCallback(async (updater: (c: CaseAnalysis) => CaseAnalysis) => {
+    if (!caseData) return;
+    const updated = updater(caseData);
+    await dbSave(updated);
+    setCaseData(updated);
+  }, [caseData]);
+
+  const hasUserData = useCallback((c: CaseAnalysis): boolean => {
+    return !!(
+      c.case_summary?.trim() ||
+      c.timeline.length || c.people.length || c.evidence.length ||
+      c.contradictions.length || c.open_questions.length ||
+      c.procedural_deadlines.length || c.legal_analysis
+    );
+  }, []);
+
   const handleAnalyze = useCallback(async () => {
     if (!caseData) return;
+    if (hasUserData(caseData)) {
+      const ok = confirm("L'analisi AI sovrascriverà tutti i campi del fascicolo. Continuare?");
+      if (!ok) return;
+    }
+    const docs = caseData.raw_documents ?? [];
+    if (docs.length === 0) {
+      showToast('Aggiungi almeno un documento prima di analizzare', 'error');
+      return;
+    }
     setShowUpload(false);
     setAnalyzing(true);
     try {
-      const docs = caseData.raw_documents ?? [];
       const materials = docs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text }));
       const res = await fetch(`${API}/api/analyze-text`, {
         method: 'POST',
@@ -1366,7 +1814,59 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     } finally {
       setAnalyzing(false);
     }
-  }, [caseData, showToast, onCaseLoaded]);
+  }, [caseData, hasUserData, showToast, onCaseLoaded, onCaseAnalyzed]);
+
+  // ── List edit helpers (Pass 1: timeline, people, evidence, contradictions) ──
+  const addTimelineEvent = () => updateCase(c => ({
+    ...c,
+    timeline: [...c.timeline, { date: '', time: null, title: '', description: '', source_refs: [], confidence: 1 }],
+  }));
+  const updateTimelineEvent = (i: number, patch: Partial<TimelineEvent>) => updateCase(c => ({
+    ...c, timeline: c.timeline.map((ev, idx) => idx === i ? { ...ev, ...patch } : ev),
+  }));
+  const deleteTimelineEvent = (i: number) => updateCase(c => ({
+    ...c, timeline: c.timeline.filter((_, idx) => idx !== i),
+  }));
+
+  const addPerson = () => updateCase(c => ({
+    ...c, people: [...c.people, { name: '', role: '', notes: '', source_refs: [] }],
+  }));
+  const updatePerson = (i: number, patch: Partial<Person>) => updateCase(c => ({
+    ...c, people: c.people.map((p, idx) => idx === i ? { ...p, ...patch } : p),
+  }));
+  const deletePerson = (i: number) => updateCase(c => ({
+    ...c, people: c.people.filter((_, idx) => idx !== i),
+  }));
+
+  const addEvidence = () => updateCase(c => ({
+    ...c, evidence: [...c.evidence, { title: '', status: '', notes: '', source_refs: [] }],
+  }));
+  const updateEvidence = (i: number, patch: Partial<EvidenceItem>) => updateCase(c => ({
+    ...c, evidence: c.evidence.map((ev, idx) => idx === i ? { ...ev, ...patch } : ev),
+  }));
+  const deleteEvidence = (i: number) => updateCase(c => ({
+    ...c, evidence: c.evidence.filter((_, idx) => idx !== i),
+  }));
+
+  const addContradiction = () => updateCase(c => ({
+    ...c, contradictions: [...c.contradictions, { title: '', description: '', source_refs: [] }],
+  }));
+  const updateContradiction = (i: number, patch: Partial<Contradiction>) => updateCase(c => ({
+    ...c, contradictions: c.contradictions.map((ct, idx) => idx === i ? { ...ct, ...patch } : ct),
+  }));
+  const deleteContradiction = (i: number) => updateCase(c => ({
+    ...c, contradictions: c.contradictions.filter((_, idx) => idx !== i),
+  }));
+
+  const addOpenQuestion = () => updateCase(c => ({
+    ...c, open_questions: [...c.open_questions, { question: '', why_it_matters: '', source_refs: [] }],
+  }));
+  const updateOpenQuestion = (i: number, patch: Partial<OpenQuestion>) => updateCase(c => ({
+    ...c, open_questions: c.open_questions.map((q, idx) => idx === i ? { ...q, ...patch } : q),
+  }));
+  const deleteOpenQuestion = (i: number) => updateCase(c => ({
+    ...c, open_questions: c.open_questions.filter((_, idx) => idx !== i),
+  }));
 
   if (error) return (
     <main className="app-shell loading-shell">
@@ -1381,59 +1881,8 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     </main>
   );
 
-  if (caseData.is_pending) {
-    const docs = caseData.raw_documents ?? [];
-    return (
-      <main className="app-shell">
-        <button className="back-button" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
-        <div className="case-header">
-          <h1 className="case-title">{caseData.case_title}</h1>
-          <p className="muted">Aggiungi i documenti del fascicolo, poi avvia l'analisi AI.</p>
-        </div>
-
-        {analyzing && (
-          <div className="analyzing-banner"><Loader2 className="spin" size={18} /> Analisi AI in corso — attendere…</div>
-        )}
-
-        <section className="panel pending-docs-panel">
-          <div className="panel-header">
-            <h2>Documenti ({docs.length})</h2>
-            <button className="upload-fab" onClick={() => setShowUpload(true)}>
-              <Plus size={16} /> Aggiungi documento o scrivi qualcosa
-            </button>
-          </div>
-          {docs.length === 0
-            ? <p className="muted pending-empty">Nessun documento ancora. Tocca "Aggiungi documento o scrivi qualcosa" per iniziare.</p>
-            : docs.map(d => (
-                <button key={d.doc_id} className="pending-doc-item" onClick={() => setSelectedRawDoc(d)}>
-                  <FileText size={18} className="pending-doc-icon" />
-                  <div>
-                    <strong>{d.description || d.name}</strong>
-                    <small>{d.name} · {new Date(d.added_at).toLocaleDateString('it')}</small>
-                  </div>
-                </button>
-              ))
-          }
-        </section>
-
-        <div className="pending-analyze-row">
-          <button
-            className="primary-button pending-analyze-btn"
-            disabled={docs.length === 0 || analyzing}
-            onClick={handleAnalyze}
-          >
-            <Zap size={16} /> Analizza fascicolo con AI
-          </button>
-        </div>
-
-        <RawDocDrawer doc={selectedRawDoc} onClose={() => setSelectedRawDoc(null)} onDelete={handleDeleteDoc} />
-        {showUpload && <AddDocumentDrawer onClose={() => setShowUpload(false)} onAdd={handleAddDocument} />}
-        {toast && <ToastNotification message={toast.message} type={toast.type} onDismiss={dismissToast} />}
-      </main>
-    );
-  }
-
   const la = caseData.legal_analysis;
+  const rawDocs = caseData.raw_documents ?? [];
 
   return (
     <main className="app-shell">
@@ -1454,14 +1903,27 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
             </div>
           )}
         </div>
-        <h1>{caseData.case_title}</h1>
-        <p>{caseData.case_summary}</p>
+        <h1>
+          <Editable
+            value={caseData.case_title}
+            onChange={t => updateCase(c => ({ ...c, case_title: t }))}
+            placeholder="Titolo del fascicolo…"
+          />
+        </h1>
+        <p>
+          <Editable
+            value={caseData.case_summary}
+            onChange={t => updateCase(c => ({ ...c, case_summary: t }))}
+            placeholder="Sintesi del caso (tocca per scrivere)…"
+            multiline
+          />
+        </p>
         <div className="hero-actions">
           <button className="primary-button" onClick={() => setShowUpload(true)}>
-            <Upload size={15} /> Carica materiale
+            <Upload size={15} /> Aggiungi documento
           </button>
-          <button className="secondary-button" onClick={() => { setActiveTab('legal'); scrollTo(timelineRef); }}>
-            <Sparkles size={14} /> Analisi legale
+          <button className="secondary-button" onClick={handleAnalyze} disabled={analyzing || rawDocs.length === 0}>
+            <Sparkles size={14} /> Analizza con AI
           </button>
           <button className="aula-trigger-btn" onClick={() => setAulaModeActive(true)}>
             <Gavel size={14} /> Aula
@@ -1513,17 +1975,49 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       {/* Timeline */}
       {activeTab === 'timeline' && (
         <section ref={timelineRef} className="panel timeline-panel">
+          {caseData.timeline.length === 0 && (
+            <p className="muted">Nessun evento ancora. Aggiungi il primo evento.</p>
+          )}
           {caseData.timeline.map((ev, i) => (
             <article className="timeline-item" key={i}>
               <div className="time-dot" />
               <div className="timeline-content">
-                <p className="eyebrow">{ev.date} · {ev.time ?? 'orario da chiarire'} · confidenza {pct(ev.confidence)}</p>
-                <h3>{ev.title}</h3>
-                <p>{ev.description}</p>
+                <div className="editable-row-head">
+                  <p className="eyebrow">
+                    <Editable
+                      value={ev.date ?? ''}
+                      onChange={v => updateTimelineEvent(i, { date: v || null })}
+                      placeholder="data"
+                    />
+                    {' · '}
+                    <Editable
+                      value={ev.time ?? ''}
+                      onChange={v => updateTimelineEvent(i, { time: v || null })}
+                      placeholder="orario"
+                    />
+                  </p>
+                  <RowDelete onClick={() => deleteTimelineEvent(i)} label={ev.title} />
+                </div>
+                <h3>
+                  <Editable
+                    value={ev.title}
+                    onChange={v => updateTimelineEvent(i, { title: v })}
+                    placeholder="Titolo evento…"
+                  />
+                </h3>
+                <p>
+                  <Editable
+                    value={ev.description}
+                    onChange={v => updateTimelineEvent(i, { description: v })}
+                    placeholder="Descrizione evento…"
+                    multiline
+                  />
+                </p>
                 <SourceRow refs={ev.source_refs} onSelect={setSelectedSource} />
               </div>
             </article>
           ))}
+          <AddRowButton label="Aggiungi evento" onClick={addTimelineEvent} />
         </section>
       )}
 
@@ -1531,43 +2025,124 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       {activeTab === 'deadlines' && (
         <section ref={deadlinesRef} className="panel deadline-list-panel">
           <h2><CalendarClock size={18} /> Agenda difensiva</h2>
-          <p className="muted">Scadenze estratte dal fascicolo. Le candidate vanno confermate dal difensore prima di essere trattate come operative.</p>
-          {caseData.procedural_deadlines.map((dl, i) => (
-            <article className="deadline-item" key={i}>
-              <div className="deadline-item-header">
-                <div>
-                  <p className="eyebrow">{deadlineTypeLabel(dl.deadline_type)} · urgenza {dl.urgency}</p>
-                  <h3>{dl.title}</h3>
+          <p className="muted">Scadenze del fascicolo. Le candidate vanno confermate prima di essere trattate come operative.</p>
+          {caseData.procedural_deadlines.length === 0 && (
+            <p className="muted">Nessuna scadenza. Aggiungi la prima.</p>
+          )}
+          {caseData.procedural_deadlines.map((dl, i) => {
+            const upd = (patch: Partial<ProceduralDeadline>) => updateCase(c => ({
+              ...c, procedural_deadlines: c.procedural_deadlines.map((d, idx) => idx === i ? { ...d, ...patch } : d),
+            }));
+            const del = () => updateCase(c => ({ ...c, procedural_deadlines: c.procedural_deadlines.filter((_, idx) => idx !== i) }));
+            return (
+              <article className="deadline-item" key={i}>
+                <div className="deadline-item-header">
+                  <div style={{ flex: 1 }}>
+                    <p className="eyebrow">
+                      <EditableSelect
+                        value={dl.deadline_type}
+                        options={[
+                          { value: 'hearing', label: 'Udienza' },
+                          { value: 'defense_brief', label: 'Memoria difensiva' },
+                          { value: 'filing', label: 'Deposito' },
+                          { value: 'investigation', label: 'Indagine' },
+                          { value: 'other', label: 'Altro' },
+                        ]}
+                        onChange={v => upd({ deadline_type: v })}
+                      />
+                      {' · urgenza '}
+                      <EditableSelect
+                        value={dl.urgency}
+                        options={[
+                          { value: 'alta', label: 'alta' }, { value: 'media', label: 'media' }, { value: 'bassa', label: 'bassa' },
+                        ]}
+                        onChange={v => upd({ urgency: v })}
+                      />
+                    </p>
+                    <h3>
+                      <Editable value={dl.title} onChange={v => upd({ title: v })} placeholder="Titolo scadenza…" />
+                    </h3>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <EditableSelect
+                      value={dl.status}
+                      options={[
+                        { value: 'confirmed', label: 'confermato' },
+                        { value: 'candidate', label: 'da confermare' },
+                        { value: 'needs_review', label: 'verifica' },
+                      ]}
+                      onChange={v => upd({ status: v })}
+                      className={`status-chip ${dl.status}`}
+                    />
+                    <RowDelete onClick={del} label={dl.title} />
+                  </div>
                 </div>
-                <span className={`status-chip ${dl.status}`}>{dl.status === 'confirmed' ? 'confermato' : dl.status === 'candidate' ? 'da confermare' : 'verifica'}</span>
-              </div>
-              <p className="deadline-date">{formatDateFull(dl.due_date)}{dl.due_time ? ` · ${dl.due_time}` : ''}</p>
-              <p>{dl.description}</p>
-              {(dl.start_work_date || dl.internal_target_date) && (
+                <p className="deadline-date">
+                  <Editable value={dl.due_date} onChange={v => upd({ due_date: v })} placeholder="data scadenza" />
+                  {' · '}
+                  <Editable value={dl.due_time ?? ''} onChange={v => upd({ due_time: v || null })} placeholder="orario" />
+                </p>
+                <p>
+                  <Editable value={dl.description} onChange={v => upd({ description: v })} placeholder="Descrizione scadenza…" multiline />
+                </p>
                 <div className="workback-grid">
-                  {dl.start_work_date && <div><span>Inizio lavori</span><strong>{formatDate(dl.start_work_date)}</strong></div>}
-                  {dl.internal_target_date && <div><span>Target interno</span><strong>{formatDate(dl.internal_target_date)}</strong></div>}
+                  <div>
+                    <span>Inizio lavori</span>
+                    <strong>
+                      <Editable value={dl.start_work_date ?? ''} onChange={v => upd({ start_work_date: v || null })} placeholder="data" />
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Target interno</span>
+                    <strong>
+                      <Editable value={dl.internal_target_date ?? ''} onChange={v => upd({ internal_target_date: v || null })} placeholder="data" />
+                    </strong>
+                  </div>
                 </div>
-              )}
-              <div className="task-progress">
-                <div className="task-progress-bar">
-                  <div className="task-progress-fill" style={{ width: `${dl.tasks.length ? (doneCount(dl.title, dl.tasks.length) / dl.tasks.length) * 100 : 0}%` }} />
+                <div className="task-progress">
+                  <div className="task-progress-bar">
+                    <div className="task-progress-fill" style={{ width: `${dl.tasks.length ? (doneCount(dl.title, dl.tasks.length) / dl.tasks.length) * 100 : 0}%` }} />
+                  </div>
+                  <span>{doneCount(dl.title, dl.tasks.length)}/{dl.tasks.length} completati</span>
                 </div>
-                <span>{doneCount(dl.title, dl.tasks.length)}/{dl.tasks.length} completati</span>
-              </div>
-              <ul className="task-list">
-                {dl.tasks.map((t, ti) => (
-                  <li key={ti} className={`task-item${isDone(dl.title, ti) ? ' task-done' : ''}`} onClick={() => toggleTask(dl.title, ti)}>
-                    {isDone(dl.title, ti)
-                      ? <CheckSquare size={15} className="task-icon task-icon-done" />
-                      : <Square size={15} className="task-icon" />}
-                    <span>{t}</span>
-                  </li>
-                ))}
-              </ul>
-              <SourceRow refs={dl.source_refs} onSelect={setSelectedSource} />
-            </article>
-          ))}
+                <ul className="task-list">
+                  {dl.tasks.map((t, ti) => (
+                    <li key={ti} className={`task-item${isDone(dl.title, ti) ? ' task-done' : ''}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <button
+                        onClick={() => toggleTask(dl.title, ti)}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', marginTop: 2 }}
+                      >
+                        {isDone(dl.title, ti)
+                          ? <CheckSquare size={15} className="task-icon task-icon-done" />
+                          : <Square size={15} className="task-icon" />}
+                      </button>
+                      <span style={{ flex: 1 }}>
+                        <Editable
+                          value={t}
+                          onChange={v => upd({ tasks: dl.tasks.map((x, idx) => idx === ti ? v : x) })}
+                          placeholder="Task…"
+                          multiline
+                        />
+                      </span>
+                      <RowDelete onClick={() => upd({ tasks: dl.tasks.filter((_, idx) => idx !== ti) })} />
+                    </li>
+                  ))}
+                </ul>
+                <AddRowButton label="Aggiungi task" onClick={() => upd({ tasks: [...dl.tasks, ''] })} />
+                <SourceRow refs={dl.source_refs} onSelect={setSelectedSource} />
+              </article>
+            );
+          })}
+          <AddRowButton
+            label="Aggiungi scadenza"
+            onClick={() => updateCase(c => ({
+              ...c, procedural_deadlines: [...c.procedural_deadlines, {
+                title: '', deadline_type: 'other', due_date: '', due_time: null,
+                status: 'candidate', urgency: 'media', description: '',
+                start_work_date: null, internal_target_date: null, source_refs: [], tasks: [],
+              }],
+            }))}
+          />
         </section>
       )}
 
@@ -1576,21 +2151,73 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         <section className="panel grid-panel">
           <div>
             <h2><Users size={18} /> Persone</h2>
-            {caseData.people.map(p => (
-              <article className="mini-card" key={p.name}>
-                <h3>{p.name}</h3><p className="role">{p.role}</p><p>{p.notes}</p>
+            {caseData.people.length === 0 && <p className="muted">Nessuna persona. Aggiungi un nome.</p>}
+            {caseData.people.map((p, i) => (
+              <article className="mini-card" key={i}>
+                <div className="editable-row-head">
+                  <h3>
+                    <Editable
+                      value={p.name}
+                      onChange={v => updatePerson(i, { name: v })}
+                      placeholder="Nome…"
+                    />
+                  </h3>
+                  <RowDelete onClick={() => deletePerson(i)} label={p.name} />
+                </div>
+                <p className="role">
+                  <Editable
+                    value={p.role}
+                    onChange={v => updatePerson(i, { role: v })}
+                    placeholder="Ruolo…"
+                  />
+                </p>
+                <p>
+                  <Editable
+                    value={p.notes}
+                    onChange={v => updatePerson(i, { notes: v })}
+                    placeholder="Note…"
+                    multiline
+                  />
+                </p>
                 <SourceRow refs={p.source_refs} onSelect={setSelectedSource} />
               </article>
             ))}
+            <AddRowButton label="Aggiungi persona" onClick={addPerson} />
           </div>
           <div>
             <h2><Search size={18} /> Prove</h2>
-            {caseData.evidence.map(ev => (
-              <article className="mini-card" key={ev.title}>
-                <h3>{ev.title}</h3><p className="role">{ev.status}</p><p>{ev.notes}</p>
+            {caseData.evidence.length === 0 && <p className="muted">Nessuna prova. Aggiungi un elemento.</p>}
+            {caseData.evidence.map((ev, i) => (
+              <article className="mini-card" key={i}>
+                <div className="editable-row-head">
+                  <h3>
+                    <Editable
+                      value={ev.title}
+                      onChange={v => updateEvidence(i, { title: v })}
+                      placeholder="Titolo prova…"
+                    />
+                  </h3>
+                  <RowDelete onClick={() => deleteEvidence(i)} label={ev.title} />
+                </div>
+                <p className="role">
+                  <Editable
+                    value={ev.status}
+                    onChange={v => updateEvidence(i, { status: v })}
+                    placeholder="Stato…"
+                  />
+                </p>
+                <p>
+                  <Editable
+                    value={ev.notes}
+                    onChange={v => updateEvidence(i, { notes: v })}
+                    placeholder="Note…"
+                    multiline
+                  />
+                </p>
                 <SourceRow refs={ev.source_refs} onSelect={setSelectedSource} />
               </article>
             ))}
+            <AddRowButton label="Aggiungi prova" onClick={addEvidence} />
           </div>
         </section>
       )}
@@ -1598,34 +2225,139 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       {/* Legal analysis */}
       {activeTab === 'legal' && (
         la
-          ? <LegalAnalysisTab la={la} onSelectSource={setSelectedSource} onOpenChat={onOpenChat} />
-          : <section className="panel"><p className="muted">Analisi legale non disponibile per questo fascicolo.</p></section>
+          ? <LegalAnalysisTab
+              la={la}
+              onSelectSource={setSelectedSource}
+              onOpenChat={onOpenChat}
+              onUpdate={updater => updateCase(c => ({ ...c, legal_analysis: c.legal_analysis ? updater(c.legal_analysis) : null }))}
+            />
+          : (
+            <section className="panel">
+              <p className="muted">Nessuna analisi legale ancora. Avvia l'AI o crea l'analisi manualmente.</p>
+              <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+                <button className="primary-button" onClick={handleAnalyze} disabled={analyzing || rawDocs.length === 0}>
+                  <Sparkles size={14} /> Analizza con AI
+                </button>
+                <button
+                  className="secondary-button"
+                  onClick={() => updateCase(c => ({ ...c, legal_analysis: {
+                    risk_level: 'medium',
+                    risk_summary: '',
+                    immediate_actions: [],
+                    charges: [],
+                    strategies: [],
+                    constitutional_issues: [],
+                    witness_assessments: [],
+                    evidence_balance: { prosecution_strength: 0.5, defense_strength: 0.5, key_prosecution_evidence: [], key_defense_evidence: [], critical_gaps: [], overall_assessment: '' },
+                    client_summary: '',
+                  } }))}
+                >
+                  <Plus size={14} /> Crea analisi manualmente
+                </button>
+              </div>
+            </section>
+          )
       )}
 
       {/* Questions / contradictions */}
       {activeTab === 'questions' && (
         <section className="panel">
           <h2>Domande per colloquio / udienza</h2>
-          {caseData.open_questions.map(q => (
-            <article className="question-card" key={q.question}>
-              <h3>{q.question}</h3><p>{q.why_it_matters}</p>
+          {caseData.open_questions.length === 0 && <p className="muted">Nessuna domanda aperta.</p>}
+          {caseData.open_questions.map((q, i) => (
+            <article className="question-card" key={i}>
+              <div className="editable-row-head">
+                <h3>
+                  <Editable
+                    value={q.question}
+                    onChange={v => updateOpenQuestion(i, { question: v })}
+                    placeholder="Domanda…"
+                  />
+                </h3>
+                <RowDelete onClick={() => deleteOpenQuestion(i)} label={q.question} />
+              </div>
+              <p>
+                <Editable
+                  value={q.why_it_matters}
+                  onChange={v => updateOpenQuestion(i, { why_it_matters: v })}
+                  placeholder="Perché è rilevante…"
+                  multiline
+                />
+              </p>
               <SourceRow refs={q.source_refs} onSelect={setSelectedSource} />
             </article>
           ))}
-          <h2>Documenti mancanti</h2>
-          {caseData.missing_documents.map(doc => (
-            <article className="missing-card" key={doc.title}>
+          <AddRowButton label="Aggiungi domanda" onClick={addOpenQuestion} />
+
+          <h2 style={{ marginTop: 28 }}>Documenti mancanti</h2>
+          {caseData.missing_documents.length === 0 && <p className="muted">Nessun documento segnalato come mancante.</p>}
+          {caseData.missing_documents.map((doc, i) => (
+            <article className="missing-card" key={i}>
               <CheckCircle2 />
-              <div><h3>{doc.title} <span>{doc.priority}</span></h3><p>{doc.reason}</p></div>
+              <div style={{ flex: 1 }}>
+                <div className="editable-row-head">
+                  <h3>
+                    <Editable
+                      value={doc.title}
+                      onChange={v => updateCase(c => ({ ...c, missing_documents: c.missing_documents.map((d, idx) => idx === i ? { ...d, title: v } : d) }))}
+                      placeholder="Documento mancante…"
+                    />
+                    {' '}
+                    <EditableSelect
+                      value={doc.priority}
+                      options={[
+                        { value: 'alta', label: 'alta' }, { value: 'media', label: 'media' }, { value: 'bassa', label: 'bassa' },
+                      ]}
+                      onChange={v => updateCase(c => ({ ...c, missing_documents: c.missing_documents.map((d, idx) => idx === i ? { ...d, priority: v } : d) }))}
+                    />
+                  </h3>
+                  <RowDelete
+                    onClick={() => updateCase(c => ({ ...c, missing_documents: c.missing_documents.filter((_, idx) => idx !== i) }))}
+                    label={doc.title}
+                  />
+                </div>
+                <p>
+                  <Editable
+                    value={doc.reason}
+                    onChange={v => updateCase(c => ({ ...c, missing_documents: c.missing_documents.map((d, idx) => idx === i ? { ...d, reason: v } : d) }))}
+                    placeholder="Motivo…"
+                    multiline
+                  />
+                </p>
+              </div>
             </article>
           ))}
-          <h2 ref={contradictionsRef}>Contraddizioni</h2>
-          {caseData.contradictions.map(c => (
-            <article className="question-card contradiction" key={c.title}>
-              <h3>{c.title}</h3><p>{c.description}</p>
-              <SourceRow refs={c.source_refs} onSelect={setSelectedSource} />
+          <AddRowButton
+            label="Aggiungi documento mancante"
+            onClick={() => updateCase(c => ({ ...c, missing_documents: [...c.missing_documents, { title: '', reason: '', priority: 'media' }] }))}
+          />
+
+          <h2 ref={contradictionsRef} style={{ marginTop: 28 }}>Contraddizioni</h2>
+          {caseData.contradictions.length === 0 && <p className="muted">Nessuna contraddizione segnalata.</p>}
+          {caseData.contradictions.map((ct, i) => (
+            <article className="question-card contradiction" key={i}>
+              <div className="editable-row-head">
+                <h3>
+                  <Editable
+                    value={ct.title}
+                    onChange={v => updateContradiction(i, { title: v })}
+                    placeholder="Contraddizione…"
+                  />
+                </h3>
+                <RowDelete onClick={() => deleteContradiction(i)} label={ct.title} />
+              </div>
+              <p>
+                <Editable
+                  value={ct.description}
+                  onChange={v => updateContradiction(i, { description: v })}
+                  placeholder="Descrizione…"
+                  multiline
+                />
+              </p>
+              <SourceRow refs={ct.source_refs} onSelect={setSelectedSource} />
             </article>
           ))}
+          <AddRowButton label="Aggiungi contraddizione" onClick={addContradiction} />
         </section>
       )}
 
@@ -1637,13 +2369,23 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
             <button className="brief-action-btn" onClick={shareBrief}><Share2 size={14} /> Condividi</button>
             <button className="brief-action-btn" onClick={() => setAulaModeActive(true)}><Gavel size={14} /> Aula Mode</button>
           </div>
-          {markdownToLines(caseData.brief_markdown).map((line, i) => {
-            if (line.startsWith('## ')) return <h2 key={i}>{line.slice(3)}</h2>;
-            if (line.startsWith('### ')) return <h3 key={i}>{line.slice(4)}</h3>;
-            if (line.startsWith('- ')) return <p className="bullet" key={i}>• {line.slice(2)}</p>;
-            if (line.startsWith('**') && line.endsWith('**')) return <p key={i}><strong>{line.slice(2, -2)}</strong></p>;
-            return <p key={i}>{line.replaceAll('**', '')}</p>;
-          })}
+          <textarea
+            className="editable-input editable-input-multi brief-editor"
+            value={caseData.brief_markdown}
+            onChange={e => updateCase(c => ({ ...c, brief_markdown: e.target.value }))}
+            placeholder="Scrivi il promemoria in markdown. Usa ## per i titoli, - per i bullet, **grassetto**."
+            rows={24}
+          />
+          <div className="brief-preview">
+            <p className="eyebrow">Anteprima</p>
+            {markdownToLines(caseData.brief_markdown).map((line, i) => {
+              if (line.startsWith('## ')) return <h2 key={i}>{line.slice(3)}</h2>;
+              if (line.startsWith('### ')) return <h3 key={i}>{line.slice(4)}</h3>;
+              if (line.startsWith('- ')) return <p className="bullet" key={i}>• {line.slice(2)}</p>;
+              if (line.startsWith('**') && line.endsWith('**')) return <p key={i}><strong>{line.slice(2, -2)}</strong></p>;
+              return <p key={i}>{line.replaceAll('**', '')}</p>;
+            })}
+          </div>
           <div className="usage-box">
             <p className="eyebrow">Stima processamento</p>
             <p>
@@ -1655,23 +2397,44 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         </section>
       )}
 
-      {/* Materials */}
+      {/* Raw documents (always visible — the source files in this fascicolo) */}
       <section ref={materialsRef} className="materials-panel">
         <div className="materials-header">
-          <h2>Materiali caricati</h2>
+          <h2>Documenti del fascicolo ({rawDocs.length})</h2>
           <button className="upload-fab" onClick={() => setShowUpload(true)}><Plus size={16} /> Aggiungi</button>
         </div>
-        {caseData.materials.map((m: Material) => (
-          <button key={m.id} className="material-button" onClick={() => setSelectedMaterial(m)}>
-            {m.kind === 'audio' ? <Mic size={17} /> : <FileText size={17} />}
+        {rawDocs.length === 0 && (
+          <p className="muted">Nessun documento. Aggiungi PDF, testi o note manuali.</p>
+        )}
+        {rawDocs.map(d => (
+          <button key={d.doc_id} className="pending-doc-item" onClick={() => setSelectedRawDoc(d)}>
+            <FileText size={18} className="pending-doc-icon" />
             <div>
-              <strong>{m.name}</strong>
-              <p>{m.description}</p>
-              <small>{m.excerpt}</small>
+              <strong>{d.description || d.name}</strong>
+              <small>{d.name} · {new Date(d.added_at).toLocaleDateString('it')}</small>
             </div>
           </button>
         ))}
       </section>
+
+      {/* AI-extracted materials (post-analysis only) */}
+      {caseData.materials.length > 0 && (
+        <section className="materials-panel">
+          <div className="materials-header">
+            <h2>Materiali estratti dall'AI</h2>
+          </div>
+          {caseData.materials.map((m: Material) => (
+            <button key={m.id} className="material-button" onClick={() => setSelectedMaterial(m)}>
+              {m.kind === 'audio' ? <Mic size={17} /> : <FileText size={17} />}
+              <div>
+                <strong>{m.name}</strong>
+                <p>{m.description}</p>
+                <small>{m.excerpt}</small>
+              </div>
+            </button>
+          ))}
+        </section>
+      )}
 
       <SourceDrawer source={selectedSource} onClose={() => setSelectedSource(null)} />
       <MaterialDrawer material={selectedMaterial} onClose={() => setSelectedMaterial(null)} />
