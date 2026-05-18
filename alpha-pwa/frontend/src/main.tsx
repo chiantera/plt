@@ -195,6 +195,61 @@ function issueTypeLabel(t: string) {
 
 function markdownToLines(md: string) { return md.split('\n').filter(l => l.trim()); }
 
+function buildUserContextMaterial(c: CaseAnalysis): { name: string; kind: string; text: string } | null {
+  const lines: string[] = [];
+  if (c.case_summary?.trim()) lines.push(`SINTESI: ${c.case_summary.trim()}`);
+  if (c.people.length) lines.push('PERSONE:\n' + c.people.map(p => `- ${p.name} (${p.role})${p.notes ? ': ' + p.notes : ''}`).join('\n'));
+  if (c.timeline.length) lines.push('TIMELINE:\n' + c.timeline.map(e => `- [${e.date ?? '?'}${e.time ? ' ' + e.time : ''}] ${e.title}${e.description ? ': ' + e.description : ''}`).join('\n'));
+  if (c.evidence.length) lines.push('PROVE:\n' + c.evidence.map(e => `- ${e.title} (${e.status})${e.notes ? ': ' + e.notes : ''}`).join('\n'));
+  if (c.contradictions.length) lines.push('CONTRADDIZIONI:\n' + c.contradictions.map(ct => `- ${ct.title}: ${ct.description}`).join('\n'));
+  if (c.open_questions.length) lines.push('DOMANDE APERTE:\n' + c.open_questions.map(q => `- ${q.question} (${q.why_it_matters})`).join('\n'));
+  if (c.missing_documents.length) lines.push('DOCUMENTI MANCANTI:\n' + c.missing_documents.map(d => `- ${d.title} (priorità ${d.priority}): ${d.reason}`).join('\n'));
+  if (c.procedural_deadlines.length) lines.push('SCADENZE:\n' + c.procedural_deadlines.map(dl => `- [${dl.due_date}] ${dl.title} (urgenza ${dl.urgency})`).join('\n'));
+  if (!lines.length) return null;
+  return {
+    name: 'Annotazioni esistenti (inserite dall\'avvocato — integrare, non sovrascrivere)',
+    kind: 'text',
+    text: lines.join('\n\n'),
+  };
+}
+
+function mergeArrays<T extends Record<string, unknown>>(existing: T[], ai: T[], key: keyof T): T[] {
+  const seen = new Set(existing.map(e => String(e[key] ?? '').toLowerCase().trim()));
+  const novel = ai.filter(a => !seen.has(String(a[key] ?? '').toLowerCase().trim()));
+  return [...existing, ...novel];
+}
+
+function mergeWithAi(existing: CaseAnalysis, ai: CaseAnalysis): CaseAnalysis {
+  const merged: CaseAnalysis = {
+    ...ai,
+    case_id: existing.case_id,
+    raw_documents: existing.raw_documents,
+    is_pending: false,
+    case_title: existing.case_title?.trim() || ai.case_title,
+    case_summary: existing.case_summary?.trim() || ai.case_summary,
+    brief_markdown: existing.brief_markdown?.trim() || ai.brief_markdown,
+    timeline: mergeArrays(existing.timeline, ai.timeline, 'title'),
+    people: mergeArrays(existing.people, ai.people, 'name'),
+    evidence: mergeArrays(existing.evidence, ai.evidence, 'title'),
+    open_questions: mergeArrays(existing.open_questions, ai.open_questions, 'question'),
+    missing_documents: mergeArrays(existing.missing_documents, ai.missing_documents, 'title'),
+    contradictions: mergeArrays(existing.contradictions, ai.contradictions, 'title'),
+    procedural_deadlines: mergeArrays(existing.procedural_deadlines, ai.procedural_deadlines, 'title'),
+    materials: mergeArrays(existing.materials, ai.materials, 'name'),
+  };
+  if (existing.legal_analysis && ai.legal_analysis) {
+    merged.legal_analysis = {
+      ...ai.legal_analysis,
+      risk_level: existing.legal_analysis.risk_level,
+      risk_summary: existing.legal_analysis.risk_summary?.trim() || ai.legal_analysis.risk_summary,
+      immediate_actions: existing.legal_analysis.immediate_actions.length
+        ? existing.legal_analysis.immediate_actions
+        : ai.legal_analysis.immediate_actions,
+    };
+  }
+  return merged;
+}
+
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 function useToast() {
@@ -1774,21 +1829,8 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     setCaseData(updated);
   }, [caseData]);
 
-  const hasUserData = useCallback((c: CaseAnalysis): boolean => {
-    return !!(
-      c.case_summary?.trim() ||
-      c.timeline.length || c.people.length || c.evidence.length ||
-      c.contradictions.length || c.open_questions.length ||
-      c.procedural_deadlines.length || c.legal_analysis
-    );
-  }, []);
-
   const handleAnalyze = useCallback(async () => {
     if (!caseData) return;
-    if (hasUserData(caseData)) {
-      const ok = confirm("L'analisi AI sovrascriverà tutti i campi del fascicolo. Continuare?");
-      if (!ok) return;
-    }
     const docs = caseData.raw_documents ?? [];
     if (docs.length === 0) {
       showToast('Aggiungi almeno un documento prima di analizzare', 'error');
@@ -1797,14 +1839,16 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     setShowUpload(false);
     setAnalyzing(true);
     try {
-      const materials = docs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text }));
+      const docMaterials = docs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text }));
+      const ctxMaterial = buildUserContextMaterial(caseData);
+      const materials = ctxMaterial ? [ctxMaterial, ...docMaterials] : docMaterials;
       const res = await fetch(`${API}/api/analyze-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ case_title: caseData.case_title, materials, mode: 'flash', language: 'it' }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
-      const updated = { ...await res.json() as CaseAnalysis, case_id: caseData.case_id, raw_documents: docs, is_pending: false };
+      const updated = mergeWithAi(caseData, await res.json() as CaseAnalysis);
       await dbSave(updated);
       setCaseData(updated);
       onCaseLoaded(updated);
@@ -1814,7 +1858,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     } finally {
       setAnalyzing(false);
     }
-  }, [caseData, hasUserData, showToast, onCaseLoaded, onCaseAnalyzed]);
+  }, [caseData, showToast, onCaseLoaded, onCaseAnalyzed]);
 
   // ── List edit helpers (Pass 1: timeline, people, evidence, contradictions) ──
   const addTimelineEvent = () => updateCase(c => ({
