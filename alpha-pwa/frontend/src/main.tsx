@@ -557,12 +557,13 @@ function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClos
 // ── Chat ─────────────────────────────────────────────────────────────────────
 
 function ChatDrawer({
-  state, onClose, onSend, onQuickAction, streaming,
+  state, onClose, onSend, onQuickAction, onClear, streaming,
 }: {
   state: ChatState;
   onClose: () => void;
   onSend: (msg: string) => void;
   onQuickAction: (key: string) => void;
+  onClear: () => void;
   streaming: boolean;
 }) {
   const [input, setInput] = useState('');
@@ -609,7 +610,14 @@ function ChatDrawer({
               {state.caseContext && <div className="chat-header-sub">Contesto fascicolo attivo</div>}
             </div>
           </div>
-          <button className="chat-close-btn" onClick={onClose}><X size={20} /></button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {state.messages.length > 0 && (
+              <button className="chat-close-btn" onClick={onClear} title="Pulisci cronologia" style={{ opacity: 0.5 }}>
+                <Trash2 size={16} />
+              </button>
+            )}
+            <button className="chat-close-btn" onClick={onClose}><X size={20} /></button>
+          </div>
         </div>
 
         {/* Quick actions — always visible when there's a case context */}
@@ -1559,8 +1567,17 @@ function App() {
   const [view, setView] = useState<View>('cases');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [activeCaseData, setActiveCaseData] = useState<CaseAnalysis | null>(null);
-  const [chat, setChat] = useState<ChatState>({ open: false, messages: [], caseContext: null });
+  const [chat, setChat] = useState<ChatState>(() => {
+    try {
+      const saved = localStorage.getItem('plt_chat_messages');
+      return { open: false, messages: saved ? JSON.parse(saved) : [], caseContext: null };
+    } catch { return { open: false, messages: [], caseContext: null }; }
+  });
   const [chatStreaming, setChatStreaming] = useState(false);
+
+  useEffect(() => {
+    try { localStorage.setItem('plt_chat_messages', JSON.stringify(chat.messages)); } catch {}
+  }, [chat.messages]);
 
   const handleSelectCase = useCallback((id: string) => {
     setSelectedCaseId(id);
@@ -1679,6 +1696,7 @@ function App() {
         onClose={() => setChat(prev => ({ ...prev, open: false }))}
         onSend={sendMessage}
         onQuickAction={openChat}
+        onClear={() => setChat(prev => ({ ...prev, messages: [] }))}
         streaming={chatStreaming}
       />
     </>
@@ -1686,3 +1704,9 @@ function App() {
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
