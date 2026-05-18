@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SourceRef(BaseModel):
@@ -162,15 +162,15 @@ class EvidenceBalance(BaseModel):
 
 class LegalAnalysis(BaseModel):
     """Full legal analysis container — the engine of the defense triage."""
-    risk_level: Literal["low", "medium", "high", "critical"]
-    risk_summary: str
-    immediate_actions: list[str]
-    charges: list[ChargeAnalysis]
-    strategies: list[DefenseStrategy]
-    constitutional_issues: list[ConstitutionalIssue]
-    witness_assessments: list[WitnessAssessment]
-    evidence_balance: EvidenceBalance
-    client_summary: str
+    risk_level: Literal["low", "medium", "high", "critical"] = "medium"
+    risk_summary: str = ""
+    immediate_actions: list[str] = []
+    charges: list[ChargeAnalysis] = []
+    strategies: list[DefenseStrategy] = []
+    constitutional_issues: list[ConstitutionalIssue] = []
+    witness_assessments: list[WitnessAssessment] = []
+    evidence_balance: EvidenceBalance | None = None
+    client_summary: str = ""
 
 
 # ── Case list model ──────────────────────────────────────────────────────────
@@ -193,6 +193,7 @@ class CaseSummary(BaseModel):
 # ── Root case model ──────────────────────────────────────────────────────────
 
 class CaseAnalysis(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     case_id: str
     case_title: str
     language: Literal["it", "en"] = "it"

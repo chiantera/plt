@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from collections.abc import Generator
 
 from .models import (
@@ -149,8 +150,13 @@ Istruzioni specifiche:
     else:
         raw, usage = _anthropic_complete(model, _SYSTEM_PROMPT, user_message)
 
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+    # Strip markdown fences and extract the outermost JSON object robustly
+    if "```" in raw:
+        raw = re.sub(r"```(?:json)?\s*", "", raw).replace("```", "").strip()
+    match = re.search(r"\{[\s\S]*\}", raw)
+    if not match:
+        raise ValueError(f"No JSON object found in AI response. Raw start: {raw[:200]!r}")
+    raw = match.group(0)
 
     data = json.loads(raw)
     data.setdefault("usage_estimate", {})
