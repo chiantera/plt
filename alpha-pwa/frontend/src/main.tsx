@@ -1221,7 +1221,7 @@ function AuthScreen() {
       } else {
         const { error: err } = await supabase.auth.signUp({ email, password });
         if (err) throw err;
-        setInfo('Controlla la tua email per il link di conferma.');
+        setInfo('Account creato. Puoi accedere subito.');
       }
     } catch (err: unknown) {
       setError((err as Error).message);
@@ -1231,30 +1231,30 @@ function AuthScreen() {
   };
 
   return (
-    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg)' }}>
-      <div style={{ width: '100%', maxWidth: 360 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-          <div style={{ background: 'var(--accent)', borderRadius: 10, padding: 8, display: 'flex' }}><Gavel size={20} color="#fff" /></div>
+    <div className="auth-screen">
+      <div className="auth-card">
+        <div className="auth-brand">
+          <div className="auth-brand-icon"><Scale size={20} /></div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>Pocket Legal Triage</div>
-            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>Accesso riservato</div>
+            <div className="auth-brand-name">Pocket Legal Triage</div>
+            <div className="auth-brand-sub">Accesso riservato</div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'var(--surface)', borderRadius: 10, padding: 4 }}>
+        <div className="auth-tabs">
           {(['login', 'signup'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13, background: tab === t ? 'var(--accent)' : 'transparent', color: tab === t ? '#fff' : 'var(--text-dim)', transition: 'all .15s' }}>
+            <button key={t} className={`auth-tab${tab === t ? ' auth-tab--active' : ''}`} onClick={() => setTab(t)}>
               {t === 'login' ? 'Accedi' : 'Registrati'}
             </button>
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={{ padding: '12px 14px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 15, outline: 'none' }} />
-          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required style={{ padding: '12px 14px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 15, outline: 'none' }} />
-          {error && <div style={{ color: '#f87171', fontSize: 13, padding: '8px 12px', background: 'rgba(248,113,113,0.1)', borderRadius: 8 }}>{error}</div>}
-          {info && <div style={{ color: '#4ade80', fontSize: 13, padding: '8px 12px', background: 'rgba(74,222,128,0.1)', borderRadius: 8 }}>{info}</div>}
-          <button type="submit" disabled={loading} style={{ padding: '13px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4 }}>
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <input className="auth-input" type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
+          <input className="auth-input" type="password" placeholder="Password (min. 6 caratteri)" value={password} onChange={e => setPassword(e.target.value)} required />
+          {error && <div className="auth-error">{error}</div>}
+          {info && <div className="auth-info">{info}</div>}
+          <button className="auth-submit" type="submit" disabled={loading}>
             {loading ? 'Caricamento…' : tab === 'login' ? 'Accedi' : 'Crea account'}
           </button>
         </form>
@@ -1282,28 +1282,28 @@ function ProfileDrawer({ session, onClose }: { session: Session; onClose: () => 
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div style={{ width: '100%', maxWidth: 480, background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '24px 20px 36px', display: 'flex', flexDirection: 'column', gap: 16 }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>Profilo</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 4 }}><X size={20} /></button>
+    <div className="profile-overlay" onClick={onClose}>
+      <div className="profile-drawer" onClick={e => e.stopPropagation()}>
+        <div className="profile-header">
+          <div className="profile-title">Profilo</div>
+          <button className="profile-close" onClick={onClose}><X size={18} /></button>
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: -8 }}>{session.user.email}</div>
+        <div className="profile-email">{session.user.email}</div>
         {[
           { label: 'Nome completo', key: 'full_name' as const, placeholder: 'Avv. Mario Rossi' },
           { label: 'Studio legale', key: 'studio' as const, placeholder: 'Studio Rossi & Associati' },
           { label: 'Telefono', key: 'phone' as const, placeholder: '+39 02 1234567' },
         ].map(({ label, key, placeholder }) => (
-          <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>{label}</label>
-            <input value={profile[key] ?? ''} onChange={e => setProfile(p => ({ ...p, [key]: e.target.value }))} placeholder={placeholder} style={{ padding: '11px 13px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14, outline: 'none' }} />
+          <div key={key} className="profile-field">
+            <label className="profile-label">{label}</label>
+            <input className="profile-input" value={profile[key] ?? ''} onChange={e => setProfile(p => ({ ...p, [key]: e.target.value }))} placeholder={placeholder} />
           </div>
         ))}
-        <button onClick={handleSave} disabled={saving} style={{ padding: '13px', borderRadius: 10, border: 'none', background: saved ? '#22c55e' : 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: 15, cursor: saving ? 'not-allowed' : 'pointer', transition: 'background .3s' }}>
-          {saving ? 'Salvataggio…' : saved ? 'Salvato ✓' : 'Salva'}
+        <button className={`profile-save${saved ? ' profile-save--saved' : ''}`} onClick={handleSave} disabled={saving}>
+          {saving ? 'Salvataggio…' : saved ? 'Salvato ✓' : 'Salva profilo'}
         </button>
-        <button onClick={() => supabase.auth.signOut()} style={{ padding: '11px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-dim)', fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <LogOut size={15} /> Esci
+        <button className="profile-logout" onClick={() => supabase.auth.signOut()}>
+          <LogOut size={15} /> Esci dall'account
         </button>
       </div>
     </div>
@@ -1399,7 +1399,7 @@ function CaseListView({ onSelect, session }: { onSelect: (id: string) => void; s
               <div className="home-brand-tagline">Studio Legale · Milano</div>
             </div>
           </div>
-          <button onClick={() => setShowProfile(true)} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 6 }} title="Profilo">
+          <button onClick={() => setShowProfile(true)} style={{ background: 'rgba(148,163,184,0.1)', border: '1px solid rgba(148,163,184,0.18)', borderRadius: 10, padding: '9px 11px', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center' }} title="Profilo">
             <User size={16} />
           </button>
         </div>

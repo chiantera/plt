@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import uuid
 from typing import Any
 
@@ -95,18 +96,44 @@ async def upload_file(file: UploadFile = File(...)) -> dict[str, Any]:
     mime = file.content_type or ""
     filename = file.filename or "documento"
 
-    # Plain text — read directly, no OCR needed
-    if mime.startswith("text/") or filename.endswith(".txt"):
+    _DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    is_docx = mime == _DOCX_MIME or filename.lower().endswith(".docx")
+    is_text = mime.startswith("text/") or filename.lower().endswith((".txt", ".rtf", ".csv"))
+
+    # Plain text — read directly
+    if is_text:
         extracted_text = content.decode("utf-8", errors="replace")
         engine = "passthrough"
         warnings: list[str] = []
+
+    # DOCX — extract with python-docx
+    elif is_docx:
+        try:
+            from docx import Document  # type: ignore
+            doc = Document(io.BytesIO(content))
+            paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+            # also grab table cell text
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        if cell.text.strip():
+                            paragraphs.append(cell.text.strip())
+            extracted_text = "\n\n".join(paragraphs) or "[Documento Word vuoto]"
+            engine = "python-docx"
+            warnings = []
+        except Exception as exc:
+            extracted_text = f"[Errore estrazione DOCX: {exc}]"
+            engine = "python-docx-error"
+            warnings = [str(exc)]
+
+    # Everything else: pypdf → Mistral OCR
     else:
         ocr_input = OcrInput(content=content, mime_type=mime)
 
         # Try pypdf first (free, instant, local) for native PDFs
         result = _pypdf.extract(ocr_input)
 
-        # Fall back to Mistral OCR for scanned PDFs, images, etc.
+        # Fall back to Mistral OCR for scanned PDFs, images, DOC, etc.
         if not result.success:
             result = _mistral.extract(ocr_input)
 

@@ -4,6 +4,7 @@ httpx
 mistralai
 openai
 pypdf
+python-docx
 pydantic
 pytest
 python-multipart
