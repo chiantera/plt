@@ -422,7 +422,7 @@ function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (do
       <aside className="source-drawer upload-drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div><p className="eyebrow">Fascicolo</p><h2>Aggiungi documento</h2></div>
+          <div><p className="eyebrow">Fascicolo</p><h2>Aggiungi documento o scrivi qualcosa</h2></div>
           <button onClick={onClose} className="ghost-button"><X size={18} /></button>
         </div>
 
@@ -1399,11 +1399,11 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           <div className="panel-header">
             <h2>Documenti ({docs.length})</h2>
             <button className="upload-fab" onClick={() => setShowUpload(true)}>
-              <Plus size={16} /> Aggiungi documento
+              <Plus size={16} /> Aggiungi documento o scrivi qualcosa
             </button>
           </div>
           {docs.length === 0
-            ? <p className="muted pending-empty">Nessun documento ancora. Tocca "Aggiungi documento" per iniziare.</p>
+            ? <p className="muted pending-empty">Nessun documento ancora. Tocca "Aggiungi documento o scrivi qualcosa" per iniziare.</p>
             : docs.map(d => (
                 <button key={d.doc_id} className="pending-doc-item" onClick={() => setSelectedRawDoc(d)}>
                   <FileText size={18} className="pending-doc-icon" />
