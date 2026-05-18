@@ -2125,6 +2125,10 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     }
   }, [caseData, showToast, onCaseLoaded, onCaseAnalyzed]);
 
+  const setCaseRedactionRules = useCallback((rules: RedactionRule[]) => {
+    updateCase(c => ({ ...c, redaction_rules: rules }));
+  }, [updateCase]);
+
   // ── List edit helpers (Pass 1: timeline, people, evidence, contradictions) ──
   const addTimelineEvent = () => updateCase(c => ({
     ...c,
@@ -2199,10 +2203,6 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
   const nextDeadline = [...d.procedural_deadlines].sort((a, b) =>
     `${a.due_date}T${a.due_time ?? '23:59'}`.localeCompare(`${b.due_date}T${b.due_time ?? '23:59'}`)
   )[0];
-
-  const setCaseRedactionRules = useCallback((rules: RedactionRule[]) => {
-    updateCase(c => ({ ...c, redaction_rules: rules }));
-  }, [updateCase]);
 
   return (
     <main className="app-shell">
