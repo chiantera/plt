@@ -65,6 +65,17 @@ type RawDocument = {
   doc_id: string; name: string; description: string; text: string; added_at: string;
 };
 
+type UploadQueueItem = {
+  id: string;
+  file: File;
+  name: string;
+  size: number;
+  status: 'pending' | 'uploading' | 'done' | 'error';
+  text?: string;
+  error?: string;
+  description?: string;
+};
+
 type RedactionRule = {
   id: string; original: string; replacement: string; enabled: boolean;
 };
@@ -760,14 +771,31 @@ function NewCaseDrawer({ onClose, onCreate }: { onClose: () => void; onCreate: (
   );
 }
 
-function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (doc: RawDocument) => void }) {
-  const [description, setDescription] = useState('');
-  const [text, setText] = useState('');
-  const [docName, setDocName] = useState('');
+function MultiFileUploadDrawer({
+  queue,
+  onClose,
+  onAddFiles,
+  onStartProcessing,
+  onSaveAll,
+  onRemoveItem,
+  onRetryItem,
+  onAddTextItem,
+  processing,
+}: {
+  queue: UploadQueueItem[];
+  onClose: () => void;
+  onAddFiles: (files: File[]) => void;
+  onStartProcessing: () => void;
+  onSaveAll: () => void;
+  onRemoveItem: (id: string) => void;
+  onRetryItem: (id: string) => void;
+  onAddTextItem: (text: string, name?: string) => void;
+  processing: boolean;
+}) {
   const [dragging, setDragging] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [pasteText, setPasteText] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -787,11 +815,7 @@ function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (do
           fd.append('file', blob, 'nota_vocale.webm');
           const res = await fetch(`${API}/api/transcribe`, { method: 'POST', body: fd });
           const data = await res.json();
-          if (data.text) {
-            setText(prev => prev ? `${prev}\n\n${data.text}` : data.text);
-            if (!docName) setDocName('Nota vocale');
-            if (!description) setDescription('Nota vocale');
-          }
+          if (data.text) onAddTextItem(data.text, 'Nota vocale');
         } finally {
           setTranscribing(false);
         }
@@ -802,75 +826,43 @@ function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (do
     } catch {
       alert('Microfono non disponibile o accesso negato.');
     }
-  }, [docName, description]);
+  }, [onAddTextItem]);
 
   const stopRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
     setRecording(false);
   }, []);
 
-  const handleFile = useCallback(async (file: File) => {
-    setDocName(file.name);
-    if (!description) setDescription(file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '));
-    if (file.type.startsWith('text/') || file.name.endsWith('.txt')) {
-      setText(await file.text());
-    } else {
-      try {
-        const fd = new FormData();
-        fd.append('file', file);
-        setUploading(true);
-        const res = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
-        const data = await res.json();
-        setText(data.extracted_text ?? '');
-      } finally {
-        setUploading(false);
-      }
-    }
-  }, [description]);
-
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragging(false);
-    const f = e.dataTransfer.files[0];
-    if (f) handleFile(f);
-  }, [handleFile]);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length) onAddFiles(files);
+  }, [onAddFiles]);
 
   const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) handleFile(f);
-  }, [handleFile]);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length) onAddFiles(files);
+    e.target.value = '';
+  }, [onAddFiles]);
 
-  const canSubmit = text.trim();
-
-  const handleAdd = useCallback(() => {
-    if (!canSubmit) return;
-    onAdd({
-      doc_id: crypto.randomUUID(),
-      name: docName || 'documento',
-      description: description.trim() || docName || 'documento',
-      text: text.trim(),
-      added_at: new Date().toISOString(),
-    });
-  }, [canSubmit, docName, description, text, onAdd]);
+  const pendingCount = queue.filter(i => i.status === 'pending' || i.status === 'uploading').length;
+  const doneCount = queue.filter(i => i.status === 'done' && i.text).length;
+  const errorCount = queue.filter(i => i.status === 'error').length;
+  const hasPending = queue.some(i => i.status === 'pending');
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <aside className="source-drawer upload-drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div><p className="eyebrow">Elaborazione locale</p><h2>Elabora documento</h2></div>
+          <div>
+            <p className="eyebrow">Elaborazione locale</p>
+            <h2>Aggiungi documenti</h2>
+          </div>
           <button onClick={onClose} className="ghost-button"><X size={18} /></button>
         </div>
 
-        <div className="upload-field">
-          <label>Descrizione breve</label>
-          <input
-            className="upload-input"
-            placeholder="es. Verbale di arresto, Intercettazione n.3, Perizia balistica…"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-          />
-        </div>
-
+        {/* Drop zone (multi-file) */}
         <label
           className={`drop-zone${dragging ? ' dragging' : ''}`}
           style={{ cursor: 'pointer' }}
@@ -878,22 +870,53 @@ function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (do
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
         >
-          {uploading
-            ? <><Loader2 className="spin" size={28} /><p>Estrazione testo…</p></>
-            : docName
-              ? <><FileText size={28} /><p>{docName}</p><small>Tocca per cambiare</small></>
-              : <><Upload size={28} /><p>Tocca per selezionare un file</p><small>PDF, DOCX, TXT, immagini, audio — elaborato sul tuo dispositivo</small></>
-          }
-          <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={onFileChange} />
+          <Upload size={28} />
+          <p>Trascina i file qui o tocca per selezionarli</p>
+          <small>PDF, DOCX, TXT, immagini — più file alla volta</small>
+          <input ref={fileRef} type="file" style={{ display: 'none' }} multiple onChange={onFileChange} />
         </label>
 
+        {/* Queue */}
+        {queue.length > 0 && (
+          <div className="upload-queue">
+            {queue.map(item => (
+              <div key={item.id} className="upload-queue-item">
+                <div className="upload-queue-icon"><FileText size={18} /></div>
+                <div className="upload-queue-info">
+                  <div className="upload-queue-name">{item.description || item.name}</div>
+                  <div className="upload-queue-size">
+                    {item.name}
+                    {item.size > 0 && ` · ${(item.size / 1024).toFixed(0)} KB`}
+                  </div>
+                </div>
+                <div className={`upload-queue-status ${item.status}`}>
+                  {item.status === 'pending' && <span style={{ color: '#94a3b8' }}>In attesa</span>}
+                  {item.status === 'uploading' && <><Loader2 size={14} className="spin" /><span>Estrazione…</span></>}
+                  {item.status === 'done' && <><CheckCircle2 size={16} style={{ color: '#4ade80' }} /></>}
+                  {item.status === 'error' && (
+                    <span style={{ color: '#f87171', cursor: 'pointer' }} onClick={() => onRetryItem(item.id)} title={item.error}>
+                      <AlertTriangle size={14} /> Riprova
+                    </span>
+                  )}
+                </div>
+                {(item.status === 'pending' || item.status === 'done') && (
+                  <button className="upload-queue-action" onClick={() => onRemoveItem(item.id)} title="Rimuovi">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Voice + Paste section */}
         <div className="upload-field">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <label style={{ margin: 0 }}>Oppure incolla il testo</label>
+            <label style={{ margin: 0 }}>Incolla testo o registra nota vocale</label>
             <button
               type="button"
               onClick={recording ? stopRecording : startRecording}
-              disabled={transcribing || uploading}
+              disabled={transcribing}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '6px 12px', borderRadius: 999, border: 'none', cursor: 'pointer',
@@ -911,25 +934,49 @@ function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (do
               }
             </button>
           </div>
-          <textarea
-            className="upload-textarea"
-            placeholder="Incolla qui il testo del documento, o usa la nota vocale sopra…"
-            value={text}
-            onChange={e => setText(e.target.value)}
-            rows={5}
-          />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <textarea
+              className="upload-textarea"
+              placeholder="Incolla qui il testo del documento o registra una nota vocale…"
+              value={pasteText}
+              onChange={e => setPasteText(e.target.value)}
+              rows={3}
+              style={{ flex: 1, minHeight: 80 }}
+            />
+            <button
+              className="primary-button"
+              disabled={!pasteText.trim()}
+              onClick={() => { onAddTextItem(pasteText.trim()); setPasteText(''); }}
+              style={{ alignSelf: 'flex-end', whiteSpace: 'nowrap', padding: '10px 14px', fontSize: '0.78rem' }}
+            >
+              Aggiungi testo
+            </button>
+          </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0 2px', color: '#475569', fontSize: '0.74rem' }}>
           <ShieldCheck size={12} style={{ flexShrink: 0, color: '#22c55e' }} />
-          Il file originale resta sul tuo dispositivo. Solo il testo estratto viene inviato all'AI per l'analisi.
+          I file originali restano sul tuo dispositivo. Solo il testo estratto viene inviato all'AI per l'analisi.
         </div>
 
         <div className="upload-actions">
           <button className="ghost-button" onClick={onClose}>Annulla</button>
-          <button className="primary-button" disabled={!canSubmit || uploading || transcribing} onClick={handleAdd}>
-            <Plus size={15} /> Aggiungi al fascicolo
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {errorCount > 0 && <span style={{ fontSize: '0.75rem', color: '#f87171' }}>{errorCount} errore{errorCount > 1 ? 'i' : ''}</span>}
+            {hasPending && !processing && (
+              <button className="secondary-button" onClick={onStartProcessing}>
+                <Zap size={14} /> Elabora {pendingCount > 0 ? `(${pendingCount})` : ''}
+              </button>
+            )}
+            {processing && (
+              <button className="secondary-button" disabled>
+                <Loader2 size={14} className="spin" /> Elaborazione…
+              </button>
+            )}
+            <button className="primary-button" disabled={doneCount === 0} onClick={onSaveAll}>
+              <Plus size={15} /> Salva {doneCount > 0 ? `(${doneCount})` : ''}
+            </button>
+          </div>
         </div>
       </aside>
     </div>
@@ -1217,8 +1264,9 @@ function ChatDrawer({
 
 function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasContext: boolean }) {
   return (
-    <button className={`chat-fab ${hasContext ? 'chat-fab--context' : ''}`} onClick={onClick} aria-label="Apri assistente legale">
-      <MessageSquare size={22} />
+    <button className={`chat-fab ${hasContext ? 'chat-fab--context' : ''}`} onClick={onClick} aria-label="Apri GiulIA">
+      <MessageSquare size={26} />
+      <span className="chat-fab-label">GiulIA</span>
       {hasContext && <span className="chat-fab-dot" />}
     </button>
   );
@@ -2252,6 +2300,8 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [selectedRawDoc, setSelectedRawDoc] = useState<RawDocument | null>(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
+  const [uploadProcessing, setUploadProcessing] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [aulaModeActive, setAulaModeActive] = useState(false);
   const [redactionActive, setRedactionActive] = useState(false);
@@ -2330,14 +2380,107 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
   };
 
-  const handleAddDocument = useCallback(async (doc: RawDocument) => {
+  // ── Upload queue callbacks ──────────────────────────────────────────────
+  const handleAddFiles = useCallback((files: File[]) => {
+    const newItems: UploadQueueItem[] = files.map(f => ({
+      id: crypto.randomUUID(),
+      file: f,
+      name: f.name,
+      size: f.size,
+      status: 'pending' as const,
+      description: f.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
+    }));
+    setUploadQueue(prev => [...prev, ...newItems]);
+  }, []);
+
+  const handleAddTextItem = useCallback((text: string, name?: string) => {
+    const item: UploadQueueItem = {
+      id: crypto.randomUUID(),
+      file: new File([text], name || 'testo', { type: 'text/plain' }),
+      name: name || 'Testo incollato',
+      size: text.length,
+      status: 'done',
+      text,
+      description: name || 'Testo incollato',
+    };
+    setUploadQueue(prev => [...prev, item]);
+  }, []);
+
+  const processQueue = useCallback(async () => {
+    const pending = uploadQueue.filter(i => i.status === 'pending');
+    if (pending.length === 0) return;
+
+    setUploadProcessing(true);
+    setUploadQueue(prev => prev.map(i =>
+      i.status === 'pending' ? { ...i, status: 'uploading' as const } : i
+    ));
+
+    for (const item of pending) {
+      try {
+        let text = '';
+        if (item.file.type.startsWith('text/') || item.file.name.endsWith('.txt')) {
+          text = await item.file.text();
+        } else {
+          const fd = new FormData();
+          fd.append('file', item.file);
+          const res = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
+          if (!res.ok) throw new Error(`Upload fallito (${res.status})`);
+          const data = await res.json();
+          text = data.extracted_text ?? '';
+        }
+        setUploadQueue(prev => prev.map(i =>
+          i.id === item.id ? { ...i, status: 'done' as const, text } : i
+        ));
+      } catch (e) {
+        setUploadQueue(prev => prev.map(i =>
+          i.id === item.id ? { ...i, status: 'error' as const, error: (e as Error).message } : i
+        ));
+      }
+    }
+
+    setUploadProcessing(false);
+  }, [uploadQueue]);
+
+  const handleSaveAll = useCallback(async () => {
     if (!caseData) return;
-    const updated = { ...caseData, raw_documents: [...(caseData.raw_documents ?? []), doc] };
+    const doneItems = uploadQueue.filter(i => i.status === 'done' && i.text);
+    if (doneItems.length === 0) return;
+
+    const newDocs: RawDocument[] = doneItems.map(i => ({
+      doc_id: i.id,
+      name: i.description || i.name,
+      description: i.description || i.name,
+      text: i.text!,
+      added_at: new Date().toISOString(),
+    }));
+
+    const updated = {
+      ...caseData,
+      raw_documents: [...(caseData.raw_documents ?? []), ...newDocs],
+    };
     await dbSave(updated);
     setCaseData(updated);
-    setShowUpload(false);
-    showToast('Documento aggiunto al fascicolo');
-  }, [caseData, showToast]);
+    setUploadQueue(prev => prev.filter(i => !doneItems.find(d => d.id === i.id)));
+    showToast(`${doneItems.length} documento${doneItems.length > 1 ? 'i' : ''} aggiunto/i al fascicolo`);
+  }, [caseData, uploadQueue, showToast]);
+
+  const handleRemoveQueueItem = useCallback((id: string) => {
+    setUploadQueue(prev => prev.filter(i => i.id !== id));
+  }, []);
+
+  const handleRetryQueueItem = useCallback((id: string) => {
+    setUploadQueue(prev => prev.map(i =>
+      i.id === id ? { ...i, status: 'pending' as const, error: undefined } : i
+    ));
+  }, []);
+
+  // Auto-start processing when drawer opens with pending items
+  useEffect(() => {
+    if (showUpload && uploadQueue.some(i => i.status === 'pending')) {
+      processQueue();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showUpload]);
 
   const handleDeleteDoc = useCallback(async (docId: string) => {
     if (!caseData) return;
@@ -2593,8 +2736,15 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           />
         </p>
         <div className="hero-actions">
-          <button className="primary-button" onClick={() => setShowUpload(true)}>
+          <button className="primary-button" onClick={() => setShowUpload(true)} style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
             <Upload size={15} /> Aggiungi documento
+            {uploadQueue.length > 0 && (
+              <span className="upload-badge-hero">
+                {uploadProcessing
+                  ? <><Loader2 size={11} className="spin" /> {uploadQueue.filter(i => i.status === 'uploading' || i.status === 'pending').length} in elaborazione</>
+                  : `${uploadQueue.length} in coda`}
+              </span>
+            )}
           </button>
           <button
             className="secondary-button"
@@ -3101,7 +3251,10 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       <section ref={materialsRef} className="materials-panel">
         <div className="materials-header">
           <h2>Documenti del fascicolo ({rawDocs.length})</h2>
-          <button className="upload-fab" onClick={() => setShowUpload(true)}><Plus size={16} /> Aggiungi</button>
+          <button className="upload-fab" onClick={() => setShowUpload(true)}>
+            <Plus size={16} /> Aggiungi
+            {uploadQueue.length > 0 && <span className="upload-badge">{uploadQueue.length}</span>}
+          </button>
         </div>
         {rawDocs.length === 0 && (
           <p className="muted">Nessun documento. Aggiungi PDF, testi o note manuali.</p>
@@ -3168,7 +3321,19 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         />
       )}
       {anonModal !== null && <AnonModal text={anonModal} onClose={() => setAnonModal(null)} />}
-      {showUpload && <AddDocumentDrawer onClose={() => setShowUpload(false)} onAdd={handleAddDocument} />}
+      {showUpload && (
+        <MultiFileUploadDrawer
+          queue={uploadQueue}
+          onClose={() => setShowUpload(false)}
+          onAddFiles={handleAddFiles}
+          onStartProcessing={processQueue}
+          onSaveAll={handleSaveAll}
+          onRemoveItem={handleRemoveQueueItem}
+          onRetryItem={handleRetryQueueItem}
+          onAddTextItem={handleAddTextItem}
+          processing={uploadProcessing}
+        />
+      )}
       {aulaModeActive && <AulaModeOverlay caseData={caseData} onClose={() => setAulaModeActive(false)} />}
       {toast && <ToastNotification message={toast.message} type={toast.type} onDismiss={dismissToast} />}
     </main>

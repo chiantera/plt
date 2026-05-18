@@ -245,6 +245,46 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .drop-zone small { color: #94a3b8; }
 .upload-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 
+/* ── Upload queue ────────────────────────────────────────────────────────── */
+.upload-queue { margin: 14px 0; max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.upload-queue-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 12px;
+  background: rgba(30,41,59,0.6); border: 1px solid rgba(148,163,184,0.12);
+}
+.upload-queue-icon { color: #7dd3fc; flex: none; }
+.upload-queue-info { flex: 1; min-width: 0; }
+.upload-queue-name {
+  font-size: 0.85rem; color: #e2e8f0; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.upload-queue-size { font-size: 0.7rem; color: #64748b; margin-top: 1px; }
+.upload-queue-status { flex: none; display: flex; align-items: center; gap: 5px; font-size: 0.75rem; }
+.upload-queue-status.done { color: #4ade80; }
+.upload-queue-status.error { color: #f87171; }
+.upload-queue-status.uploading { color: #38bdf8; }
+.upload-queue-action {
+  background: none; border: none; cursor: pointer; color: #64748b;
+  padding: 4px; border-radius: 6px; display: flex;
+  transition: color 0.12s, background 0.12s;
+}
+.upload-queue-action:hover { color: #f87171; background: rgba(248,113,113,0.1); }
+
+/* ── Upload badge (background indicator) ─────────────────────────────────── */
+.upload-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(56,189,248,0.15); color: #bae6fd;
+  font-size: 0.68rem; font-weight: 700;
+  border-radius: 999px; padding: 2px 7px; margin-left: 4px;
+}
+.upload-badge-hero {
+  display: inline-flex; align-items: center; gap: 5px;
+  position: absolute; bottom: -10px; right: 0;
+  background: rgba(15,23,42,0.95); border: 1px solid rgba(56,189,248,0.3);
+  padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+  font-size: 0.68rem; color: #bae6fd; font-weight: 600;
+}
+
 /* ── Banners ─────────────────────────────────────────────────────────────── */
 .analyzing-banner {
   display: flex; align-items: center; gap: 10px;
@@ -800,16 +840,26 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 
 /* ── Chat FAB ────────────────────────────────────────────────────────────── */
 .chat-fab {
-  position: fixed; bottom: 24px; right: 20px; z-index: 200;
-  width: 54px; height: 54px; border-radius: 50%;
+  position: fixed; bottom: 28px; right: 24px; z-index: 200;
+  width: 64px; height: 64px; border-radius: 50%;
   background: linear-gradient(135deg, #0ea5e9, #6366f1);
   border: none; color: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4px 24px rgba(99,102,241,0.45);
   transition: transform 0.18s, box-shadow 0.18s;
+  animation: giulia-float 4s ease-in-out infinite;
 }
-.chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 32px rgba(99,102,241,0.6); }
+.chat-fab:hover { animation: none; transform: scale(1.08); box-shadow: 0 6px 32px rgba(99,102,241,0.6); }
 .chat-fab--context { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+@keyframes giulia-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+.chat-fab-label {
+  position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+  font-size: 0.6rem; font-weight: 700; color: #8b5cf6; letter-spacing: 0.5px;
+  white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
 .chat-fab-dot {
   position: absolute; top: 10px; right: 10px;
   width: 9px; height: 9px; border-radius: 50%;
