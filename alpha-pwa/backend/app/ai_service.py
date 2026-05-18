@@ -175,7 +175,7 @@ def _deepseek_complete(model: str, system: str, user: str) -> tuple[str, dict]:
     client = _get_openai_client()
     resp = client.chat.completions.create(
         model=model,
-        max_tokens=8192,
+        max_tokens=16000,
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
     )
     text = resp.choices[0].message.content or ""

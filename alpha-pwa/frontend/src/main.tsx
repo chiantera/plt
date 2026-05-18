@@ -823,7 +823,7 @@ function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (do
       <aside className="source-drawer upload-drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div><p className="eyebrow">Fascicolo</p><h2>Aggiungi documento o scrivi qualcosa</h2></div>
+          <div><p className="eyebrow">Elaborazione locale</p><h2>Elabora documento</h2></div>
           <button onClick={onClose} className="ghost-button"><X size={18} /></button>
         </div>
 
@@ -848,7 +848,7 @@ function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (do
             ? <><Loader2 className="spin" size={28} /><p>Estrazione testo…</p></>
             : docName
               ? <><FileText size={28} /><p>{docName}</p><small>Tocca per cambiare</small></>
-              : <><Upload size={28} /><p>Tocca per selezionare un file</p><small>PDF, TXT, immagini, audio</small></>
+              : <><Upload size={28} /><p>Tocca per selezionare un file</p><small>PDF, DOCX, TXT, immagini, audio — elaborato sul tuo dispositivo</small></>
           }
           <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={onFileChange} />
         </label>
@@ -884,6 +884,11 @@ function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (do
             onChange={e => setText(e.target.value)}
             rows={5}
           />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0 2px', color: '#475569', fontSize: '0.74rem' }}>
+          <ShieldCheck size={12} style={{ flexShrink: 0, color: '#22c55e' }} />
+          Il file originale resta sul tuo dispositivo. Solo il testo estratto viene inviato all'AI per l'analisi.
         </div>
 
         <div className="upload-actions">
@@ -2301,6 +2306,14 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     showToast("Documento eliminato");
   }, [caseData, showToast]);
 
+  const handleDeleteMaterial = useCallback(async (materialId: string) => {
+    if (!caseData) return;
+    const updated = { ...caseData, materials: caseData.materials.filter(m => m.id !== materialId) };
+    await dbSave(updated);
+    setCaseData(updated);
+    showToast("Materiale eliminato");
+  }, [caseData, showToast]);
+
   const updateCase = useCallback(async (updater: (c: CaseAnalysis) => CaseAnalysis) => {
     if (!caseData) return;
     const updated = updater(caseData);
@@ -3064,14 +3077,23 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
             <h2>Materiali estratti dall'AI</h2>
           </div>
           {d.materials.map((m: Material) => (
-            <button key={m.id} className="material-button" onClick={() => setSelectedMaterial(m)}>
-              {m.kind === 'audio' ? <Mic size={17} /> : <FileText size={17} />}
-              <div>
-                <strong>{m.name}</strong>
-                <p>{m.description}</p>
-                <small>{m.excerpt}</small>
-              </div>
-            </button>
+            <div key={m.id} className="pending-doc-row">
+              <button className="material-button pending-doc-item-flex" onClick={() => setSelectedMaterial(m)}>
+                {m.kind === 'audio' ? <Mic size={17} /> : <FileText size={17} />}
+                <div>
+                  <strong>{m.name}</strong>
+                  <p>{m.description}</p>
+                  <small>{m.excerpt}</small>
+                </div>
+              </button>
+              <button
+                className="ghost-button pending-doc-anon-btn"
+                title="Elimina questo materiale"
+                onClick={() => handleDeleteMaterial(m.id)}
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
           ))}
         </section>
       )}
