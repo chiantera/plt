@@ -63,7 +63,7 @@ type CaseAnalysis = {
   evidence: EvidenceItem[]; open_questions: OpenQuestion[]; missing_documents: MissingDocument[];
   contradictions: Contradiction[]; procedural_deadlines: ProceduralDeadline[];
   brief_markdown: string; usage_estimate: UsageEstimate; legal_analysis: LegalAnalysis | null;
-  is_pending?: boolean; raw_documents?: RawDocument[]; redaction_rules?: RedactionRule[];
+  is_pending?: boolean; raw_documents?: RawDocument[]; redaction_rules?: RedactionRule[]; analyzed_doc_ids?: string[];
 };
 
 type CaseSummary = {
@@ -200,6 +200,7 @@ function issueTypeLabel(t: string) {
 function markdownToLines(md: string) { return md.split('\n').filter(l => l.trim()); }
 
 function buildUserContextMaterial(c: CaseAnalysis): { name: string; kind: string; text: string } | null {
+  const isIncremental = c.legal_analysis != null && (c.analyzed_doc_ids?.length ?? 0) > 0;
   const lines: string[] = [];
   if (c.case_summary?.trim()) lines.push(`SINTESI: ${c.case_summary.trim()}`);
   if (c.people.length) lines.push('PERSONE:\n' + c.people.map(p => `- ${p.name} (${p.role})${p.notes ? ': ' + p.notes : ''}`).join('\n'));
@@ -211,7 +212,9 @@ function buildUserContextMaterial(c: CaseAnalysis): { name: string; kind: string
   if (c.procedural_deadlines.length) lines.push('SCADENZE:\n' + c.procedural_deadlines.map(dl => `- [${dl.due_date}] ${dl.title} (urgenza ${dl.urgency})`).join('\n'));
   if (!lines.length) return null;
   return {
-    name: 'Annotazioni esistenti (inserite dall\'avvocato — integrare, non sovrascrivere)',
+    name: isIncremental
+      ? 'Analisi esistente consolidata — NON rianalizzare questi elementi. Integra SOLO i nuovi documenti che seguono.'
+      : 'Annotazioni esistenti (inserite dall\'avvocato — integrare, non sovrascrivere)',
     kind: 'text',
     text: lines.join('\n\n'),
   };
@@ -228,6 +231,7 @@ function mergeWithAi(existing: CaseAnalysis, ai: CaseAnalysis): CaseAnalysis {
     ...ai,
     case_id: existing.case_id,
     raw_documents: existing.raw_documents,
+    analyzed_doc_ids: existing.analyzed_doc_ids,
     is_pending: false,
     case_title: existing.case_title?.trim() || ai.case_title,
     case_summary: existing.case_summary?.trim() || ai.case_summary,
@@ -2132,10 +2136,21 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       showToast('Aggiungi almeno un documento prima di analizzare', 'error');
       return;
     }
+
+    const analyzedIds = new Set(caseData.analyzed_doc_ids ?? []);
+    const newDocs = docs.filter(d => !analyzedIds.has(d.doc_id));
+    const isIncremental = caseData.legal_analysis != null && newDocs.length < docs.length;
+
+    if (isIncremental && newDocs.length === 0) {
+      showToast('Tutti i documenti sono già stati analizzati', 'info');
+      return;
+    }
+
     setShowUpload(false);
     setAnalyzing(true);
     try {
-      const docMaterials = docs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text }));
+      const sourceDocs = isIncremental ? newDocs : docs;
+      const docMaterials = sourceDocs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text }));
       const ctxMaterial = buildUserContextMaterial(caseData);
       const materials = ctxMaterial ? [ctxMaterial, ...docMaterials] : docMaterials;
       const res = await fetch(`${API}/api/analyze-text`, {
@@ -2144,7 +2159,8 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         body: JSON.stringify({ case_title: caseData.case_title, materials, mode: 'flash', language: 'it' }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
-      const updated = mergeWithAi(caseData, await res.json() as CaseAnalysis);
+      const merged = mergeWithAi(caseData, await res.json() as CaseAnalysis);
+      const updated = { ...merged, analyzed_doc_ids: docs.map(d => d.doc_id) };
       await dbSave(updated);
       setCaseData(updated);
       onCaseLoaded(updated);
@@ -2226,6 +2242,9 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
   );
 
   const rawDocs = caseData.raw_documents ?? [];
+  const analyzedIdsSet = new Set(caseData.analyzed_doc_ids ?? []);
+  const unanalyzedCount = rawDocs.filter(d => !analyzedIdsSet.has(d.doc_id)).length;
+  const hasExistingAnalysis = caseData.legal_analysis != null;
   const caseRedactionRules = caseData.redaction_rules ?? [];
   const mergedRules = mergeRedactionRules(globalRules, caseRedactionRules);
   const d = (redactionActive && mergedRules.some(r => r.enabled && r.original.trim()))
@@ -2294,8 +2313,16 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           <button className="primary-button" onClick={() => setShowUpload(true)}>
             <Upload size={15} /> Aggiungi documento
           </button>
-          <button className="secondary-button" onClick={handleAnalyze} disabled={analyzing || rawDocs.length === 0}>
-            <Sparkles size={14} /> Analizza con AI
+          <button
+            className="secondary-button"
+            onClick={handleAnalyze}
+            disabled={analyzing || rawDocs.length === 0 || (hasExistingAnalysis && unanalyzedCount === 0)}
+            title={hasExistingAnalysis && unanalyzedCount === 0 ? 'Tutti i documenti sono già stati analizzati' : undefined}
+          >
+            <Sparkles size={14} />
+            {hasExistingAnalysis && unanalyzedCount > 0
+              ? `Incorpora ${unanalyzedCount} documento${unanalyzedCount === 1 ? '' : '/i'}`
+              : 'Analizza con AI'}
           </button>
           <button className="aula-trigger-btn" onClick={() => setAulaModeActive(true)}>
             <Gavel size={14} /> Aula
