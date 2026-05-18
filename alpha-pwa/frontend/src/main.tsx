@@ -8,6 +8,9 @@ import {
   Square, Upload, Users, X, Zap,
 } from 'lucide-react';
 import './styles.css';
+import { installMockApi } from './data/mockApi';
+
+installMockApi();
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

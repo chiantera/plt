@@ -1,0 +1,12 @@
+{
+  "appId": "com.chiantera.plt.alpha",
+  "appName": "Pocket Legal Triage",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
