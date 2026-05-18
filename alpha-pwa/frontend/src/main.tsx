@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   AlertTriangle, ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness,
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
-  Clock, Copy, FileText, FolderPlus, Gavel, Loader2, MapPin, MessageSquare, Mic, Plus,
+  Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, MapPin, MessageSquare, Mic, Plus,
   Scale, Search, Send, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles,
   Square, Trash2, Upload, Users, X, Zap,
 } from 'lucide-react';
@@ -53,13 +53,17 @@ type RawDocument = {
   doc_id: string; name: string; description: string; text: string; added_at: string;
 };
 
+type RedactionRule = {
+  id: string; original: string; replacement: string; enabled: boolean;
+};
+
 type CaseAnalysis = {
   case_id: string; case_title: string; language: string; case_summary: string;
   materials: Material[]; timeline: TimelineEvent[]; people: Person[];
   evidence: EvidenceItem[]; open_questions: OpenQuestion[]; missing_documents: MissingDocument[];
   contradictions: Contradiction[]; procedural_deadlines: ProceduralDeadline[];
   brief_markdown: string; usage_estimate: UsageEstimate; legal_analysis: LegalAnalysis | null;
-  is_pending?: boolean; raw_documents?: RawDocument[];
+  is_pending?: boolean; raw_documents?: RawDocument[]; redaction_rules?: RedactionRule[];
 };
 
 type CaseSummary = {
@@ -250,6 +254,47 @@ function mergeWithAi(existing: CaseAnalysis, ai: CaseAnalysis): CaseAnalysis {
   return merged;
 }
 
+// ── Redaction helpers ─────────────────────────────────────────────────────────
+
+function redactString(text: string, rules: RedactionRule[]): string {
+  return rules.reduce((t, r) => {
+    if (!r.enabled || !r.original.trim()) return t;
+    const escaped = r.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return t.replace(new RegExp(escaped, 'gi'), r.replacement);
+  }, text);
+}
+
+function redactObj<T>(obj: T, rules: RedactionRule[]): T {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'string') return redactString(obj, rules) as unknown as T;
+  if (Array.isArray(obj)) return (obj as unknown[]).map(item => redactObj(item, rules)) as unknown as T;
+  if (typeof obj === 'object') {
+    const result = {} as T;
+    for (const key of Object.keys(obj as object) as (keyof T)[]) {
+      (result as Record<string, unknown>)[key as string] = redactObj((obj as Record<string, unknown>)[key as string], rules);
+    }
+    return result;
+  }
+  return obj;
+}
+
+function applyRedactionToCase(c: CaseAnalysis, rules: RedactionRule[]): CaseAnalysis {
+  const active = rules.filter(r => r.enabled && r.original.trim());
+  if (!active.length) return c;
+  return redactObj(c, active);
+}
+
+function mergeRedactionRules(global: RedactionRule[], perCase: RedactionRule[]): RedactionRule[] {
+  const seen = new Set(global.map(r => r.id));
+  return [...global, ...perCase.filter(r => !seen.has(r.id))];
+}
+
+const REDACT_DETECT_PROMPT = (caseCtx: string) =>
+  `${caseCtx}\n\n---\nIdentifica tutti i dati personali sensibili presenti nel fascicolo (nomi propri di persone fisiche, indirizzi specifici, numeri di procedimento, nomi di luoghi non generici che possono identificare le parti). Per ciascuno, restituisci UNA riga nel formato esatto:\nORIGINALE → SOSTITUZIONE\n\nEsempio:\nMario Rossi → [NOME_1]\nVia Roma 14, Milano → [INDIRIZZO_1]\n\nElenca solo le coppie, una per riga. Nulla altro.`;
+
+const REDACT_APPLY_PROMPT = (text: string) =>
+  `Anonimizza il seguente testo giuridico italiano. Regole:\n- Nomi propri di persone → [NOME_N] (progressivo per persona, coerente)\n- Indirizzi specifici → [INDIRIZZO]\n- Date specifiche identificative → [DATA]\n- Numeri procedimento → [N.PROC.]\n- Dati di contatto → [CONTATTO]\nRestituisci SOLO il testo anonimizzato, senza spiegazioni né prefissi.\n\nTESTO:\n${text}`;
+
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 function useToast() {
@@ -284,6 +329,18 @@ function useCompletedTasks(caseId: string) {
     return n;
   }, [completed, caseId]);
   return { toggle, isDone, doneCount };
+}
+
+function useRedactionRules() {
+  const [globalRules, setGlobalRulesState] = useState<RedactionRule[]>(() => {
+    try { return JSON.parse(localStorage.getItem('plt_redaction_rules') ?? '[]'); }
+    catch { return []; }
+  });
+  const setGlobalRules = useCallback((rules: RedactionRule[]) => {
+    setGlobalRulesState(rules);
+    try { localStorage.setItem('plt_redaction_rules', JSON.stringify(rules)); } catch {}
+  }, []);
+  return { globalRules, setGlobalRules };
 }
 
 // ── Small components ─────────────────────────────────────────────────────────
@@ -323,12 +380,13 @@ function StrengthBar({ value, label, color }: { value: number; label: string; co
   );
 }
 
-function Editable({ value, onChange, placeholder, multiline, className }: {
+function Editable({ value, onChange, placeholder, multiline, className, readOnly }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   multiline?: boolean;
   className?: string;
+  readOnly?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -385,6 +443,9 @@ function Editable({ value, onChange, placeholder, multiline, className }: {
   }
 
   const display = value || (placeholder ?? 'Tocca per scrivere…');
+  if (readOnly) {
+    return <span className={`editable ${className ?? ''}`}>{display}</span>;
+  }
   return (
     <span
       className={`editable${value ? '' : ' editable-empty'} ${className ?? ''}`}
@@ -1726,6 +1787,163 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
   );
 }
 
+// ── Redaction components ──────────────────────────────────────────────────────
+
+function RedactionDrawer({
+  globalRules, setGlobalRules,
+  caseRules, setCaseRules,
+  onClose, caseCtx, apiBase,
+}: {
+  globalRules: RedactionRule[]; setGlobalRules: (r: RedactionRule[]) => void;
+  caseRules: RedactionRule[]; setCaseRules: (r: RedactionRule[]) => void;
+  onClose: () => void; caseCtx: string; apiBase: string;
+}) {
+  const [origInput, setOrigInput] = useState('');
+  const [replInput, setReplInput] = useState('');
+  const [detecting, setDetecting] = useState(false);
+  const [suggested, setSuggested] = useState<RedactionRule[]>([]);
+
+  const addRule = (target: 'global' | 'case') => {
+    if (!origInput.trim()) return;
+    const rule: RedactionRule = { id: crypto.randomUUID(), original: origInput.trim(), replacement: replInput.trim() || '[OMISSIS]', enabled: true };
+    if (target === 'global') setGlobalRules([...globalRules, rule]);
+    else setCaseRules([...caseRules, rule]);
+    setOrigInput(''); setReplInput('');
+  };
+
+  const handleDetect = async () => {
+    setDetecting(true); setSuggested([]);
+    try {
+      const res = await fetch(`${apiBase}/api/chat`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: REDACT_DETECT_PROMPT(caseCtx) }], mode: 'flash' }),
+      });
+      if (!res.ok || !res.body) return;
+      const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = ''; let full = '';
+      while (true) {
+        const { done, value } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n'); buf = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const p = line.slice(6).trim(); if (p === '[DONE]') break;
+          try { full += (JSON.parse(p) as { text: string }).text; } catch {}
+        }
+      }
+      const rules: RedactionRule[] = full.split('\n').flatMap(line => {
+        const m = line.match(/^(.+?)\s*→\s*(.+)$/);
+        if (!m) return [];
+        return [{ id: crypto.randomUUID(), original: m[1].trim(), replacement: m[2].trim(), enabled: true }];
+      });
+      setSuggested(rules);
+    } finally { setDetecting(false); }
+  };
+
+  const RuleList = ({ rules, onChange, title }: { rules: RedactionRule[]; onChange: (r: RedactionRule[]) => void; title: string }) => (
+    <div className="redact-section">
+      <p className="eyebrow">{title}</p>
+      {rules.length === 0 && <p className="muted" style={{ fontSize: '0.8rem', marginBottom: 8 }}>Nessuna regola.</p>}
+      {rules.map((r, i) => (
+        <div key={r.id} className="redact-rule-item">
+          <span className="redact-original">{r.original}</span>
+          <span className="redact-arrow">→</span>
+          <span className="redact-replacement">{r.replacement}</span>
+          <button className="redact-toggle-chip" onClick={() => onChange(rules.map((x, j) => j === i ? { ...x, enabled: !x.enabled } : x))}>
+            {r.enabled ? <Eye size={12} /> : <EyeOff size={12} />}
+          </button>
+          <button className="redact-delete-btn" onClick={() => onChange(rules.filter((_, j) => j !== i))}><X size={12} /></button>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="drawer-backdrop" onClick={onClose}>
+      <aside className="source-drawer redact-drawer" onClick={e => e.stopPropagation()}>
+        <div className="drawer-handle" />
+        <div className="drawer-header">
+          <div><p className="eyebrow">Privacy</p><h2>Gestione redazione</h2></div>
+          <button onClick={onClose} className="ghost-button">Chiudi</button>
+        </div>
+
+        <div className="redact-add-form">
+          <p className="eyebrow">Aggiungi regola</p>
+          <div className="redact-add-row">
+            <input className="upload-input" placeholder="Parola originale (es. Mario Rossi)" value={origInput} onChange={e => setOrigInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRule('global')} />
+            <span style={{ color: '#64748b', flexShrink: 0 }}>→</span>
+            <input className="upload-input" placeholder="[OMISSIS]" value={replInput} onChange={e => setReplInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRule('global')} />
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('global')} disabled={!origInput.trim()}>+ Globale</button>
+            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('case')} disabled={!origInput.trim()}>+ Solo questo caso</button>
+          </div>
+        </div>
+
+        <RuleList rules={globalRules} onChange={setGlobalRules} title="Regole globali (tutti i fascicoli)" />
+        <RuleList rules={caseRules} onChange={setCaseRules} title="Regole per questo fascicolo" />
+
+        <div className="redact-section">
+          <p className="eyebrow">Rilevamento AI</p>
+          <button className="ghost-button" style={{ width: '100%', justifyContent: 'center', gap: 8 }} onClick={handleDetect} disabled={detecting}>
+            {detecting ? <><Loader2 size={14} className="spin" /> Analisi in corso…</> : <><Sparkles size={14} /> Rileva dati sensibili con AI</>}
+          </button>
+          {suggested.length > 0 && (
+            <div className="redact-suggested">
+              <p className="eyebrow" style={{ marginTop: 12 }}>Suggeriti ({suggested.length})</p>
+              {suggested.map(r => (
+                <div key={r.id} className="redact-rule-item">
+                  <span className="redact-original">{r.original}</span>
+                  <span className="redact-arrow">→</span>
+                  <span className="redact-replacement">{r.replacement}</span>
+                  <button className="ghost-button" style={{ fontSize: '0.7rem', padding: '4px 8px', borderRadius: 6 }}
+                    onClick={() => { setCaseRules([...caseRules, r]); setSuggested(suggested.filter(s => s.id !== r.id)); }}>
+                    + Aggiungi
+                  </button>
+                </div>
+              ))}
+              <button className="primary-button" style={{ marginTop: 8, width: '100%', justifyContent: 'center' }}
+                onClick={() => { setCaseRules([...caseRules, ...suggested]); setSuggested([]); }}>
+                Accetta tutte
+              </button>
+            </div>
+          )}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function AnonModal({ text, onClose }: { text: string; onClose: () => void }) {
+  const lines = markdownToLines(text);
+  return (
+    <div className="drawer-backdrop" onClick={onClose}>
+      <aside className="source-drawer anon-modal" onClick={e => e.stopPropagation()}>
+        <div className="drawer-handle" />
+        <div className="drawer-header">
+          <div><p className="eyebrow">Versione anonimizzata</p><h2>Testo redatto</h2></div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="ghost-button" onClick={() => navigator.clipboard.writeText(text).catch(() => {})}><Copy size={15} /></button>
+            {typeof navigator.share === 'function' && (
+              <button className="ghost-button" onClick={() => navigator.share({ title: 'Testo anonimizzato', text }).catch(() => {})}><Share2 size={15} /></button>
+            )}
+            <button className="ghost-button" onClick={onClose}>Chiudi</button>
+          </div>
+        </div>
+        <div className="material-content anon-content">
+          {text
+            ? lines.map((line, i) => {
+                if (line.startsWith('## ')) return <h2 key={i}>{line.slice(3)}</h2>;
+                if (line.startsWith('- ')) return <p className="bullet" key={i}>• {line.slice(2)}</p>;
+                return <p key={i}>{line.replaceAll('**', '')}</p>;
+              })
+            : <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '40px 0' }}><Loader2 className="spin" size={28} /><p>Anonimizzazione in corso…</p></div>
+          }
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 // ── Case detail view ──────────────────────────────────────────────────────────
 
 const tabs: Array<{ id: TabId; label: string }> = [
@@ -1747,9 +1965,14 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
   const [showUpload, setShowUpload] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [aulaModeActive, setAulaModeActive] = useState(false);
+  const [redactionActive, setRedactionActive] = useState(false);
+  const [showRedactionDrawer, setShowRedactionDrawer] = useState(false);
+  const [anonModal, setAnonModal] = useState<string | null>(null);
+  const [anonymizingDocId, setAnonymizingDocId] = useState<string | null>(null);
 
   const { toast, showToast, dismissToast } = useToast();
   const { toggle: toggleTask, isDone, doneCount } = useCompletedTasks(caseId);
+  const { globalRules, setGlobalRules } = useRedactionRules();
 
   const exportBrief = useCallback(async () => {
     if (!caseData) return;
@@ -1793,14 +2016,6 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     })();
   }, [caseId]);
 
-  const nextDeadline = useMemo(() => {
-    return [...(caseData?.procedural_deadlines ?? [])].sort((a, b) => {
-      const as_ = `${a.due_date}T${a.due_time ?? '23:59'}`;
-      const bs = `${b.due_date}T${b.due_time ?? '23:59'}`;
-      return as_.localeCompare(bs);
-    })[0];
-  }, [caseData]);
-
   const scrollTo = (ref: React.RefObject<HTMLElement | HTMLHeadingElement | null>) => {
     setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
   };
@@ -1828,6 +2043,56 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     await dbSave(updated);
     setCaseData(updated);
   }, [caseData]);
+
+  const fetchChatFull = useCallback(async (userMessage: string): Promise<string> => {
+    const res = await fetch(`${API}/api/chat`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: userMessage }], mode: 'flash' }),
+    });
+    if (!res.ok || !res.body) throw new Error(`${res.status}`);
+    const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = ''; let full = '';
+    while (true) {
+      const { done, value } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const p = line.slice(6).trim(); if (p === '[DONE]') break;
+        try { full += (JSON.parse(p) as { text: string }).text; } catch {}
+      }
+    }
+    return full;
+  }, []);
+
+  const handleAnonymizeBrief = useCallback(async () => {
+    if (!caseData) return;
+    setAnonModal(''); // empty = loading
+    try {
+      const result = await fetchChatFull(REDACT_APPLY_PROMPT(caseData.brief_markdown));
+      setAnonModal(result);
+    } catch (e) {
+      setAnonModal(null);
+      showToast(`Errore: ${(e as Error).message}`, 'error');
+    }
+  }, [caseData, fetchChatFull, showToast]);
+
+  const handleAnonymizeDoc = useCallback(async (docId: string) => {
+    if (!caseData) return;
+    const doc = (caseData.raw_documents ?? []).find(d => d.doc_id === docId);
+    if (!doc) return;
+    setAnonymizingDocId(docId);
+    try {
+      const anonText = await fetchChatFull(REDACT_APPLY_PROMPT(doc.text));
+      const updated = { ...caseData, raw_documents: (caseData.raw_documents ?? []).map(d => d.doc_id === docId ? { ...d, text: anonText, name: d.name.startsWith('[ANONIMIZZATO] ') ? d.name : `[ANONIMIZZATO] ${d.name}` } : d) };
+      await dbSave(updated);
+      setCaseData(updated);
+      showToast('Documento anonimizzato');
+    } catch (e) {
+      showToast(`Errore: ${(e as Error).message}`, 'error');
+    } finally {
+      setAnonymizingDocId(null);
+    }
+  }, [caseData, fetchChatFull, showToast]);
 
   const handleAnalyze = useCallback(async () => {
     if (!caseData) return;
@@ -1925,8 +2190,19 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     </main>
   );
 
-  const la = caseData.legal_analysis;
   const rawDocs = caseData.raw_documents ?? [];
+  const caseRedactionRules = caseData.redaction_rules ?? [];
+  const mergedRules = mergeRedactionRules(globalRules, caseRedactionRules);
+  const d = (redactionActive && mergedRules.some(r => r.enabled && r.original.trim()))
+    ? applyRedactionToCase(caseData, mergedRules) : caseData;
+  const la = d.legal_analysis;
+  const nextDeadline = [...d.procedural_deadlines].sort((a, b) =>
+    `${a.due_date}T${a.due_time ?? '23:59'}`.localeCompare(`${b.due_date}T${b.due_time ?? '23:59'}`)
+  )[0];
+
+  const setCaseRedactionRules = useCallback((rules: RedactionRule[]) => {
+    updateCase(c => ({ ...c, redaction_rules: rules }));
+  }, [updateCase]);
 
   return (
     <main className="app-shell">
@@ -1941,25 +2217,46 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       <section className="hero-card">
         <div className="hero-topline">
           <span><Gavel size={14} /> Pocket Legal Triage</span>
-          {la && (
-            <div className="risk-pill" style={{ background: riskColor(la.risk_level) + '22', border: `1px solid ${riskColor(la.risk_level)}55`, color: riskColor(la.risk_level) }}>
-              {riskIcon(la.risk_level)} Rischio {riskLabel(la.risk_level)}
-            </div>
-          )}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {la && (
+              <div className="risk-pill" style={{ background: riskColor(la.risk_level) + '22', border: `1px solid ${riskColor(la.risk_level)}55`, color: riskColor(la.risk_level) }}>
+                {riskIcon(la.risk_level)} Rischio {riskLabel(la.risk_level)}
+              </div>
+            )}
+            <button
+              className={`ghost-button redact-toggle-btn${redactionActive ? ' redact-toggle-active' : ''}`}
+              onClick={() => setShowRedactionDrawer(true)}
+              title="Gestione redazione dati"
+            >
+              {redactionActive ? <EyeOff size={13} /> : <Eye size={13} />}
+              {redactionActive ? 'Redatto' : 'Redigi'}
+            </button>
+            {mergedRules.some(r => r.enabled) && (
+              <button
+                className={`ghost-button redact-toggle-btn${redactionActive ? ' redact-toggle-active' : ''}`}
+                onClick={() => setRedactionActive(v => !v)}
+                title={redactionActive ? 'Mostra dati originali' : 'Attiva modalità redatta'}
+              >
+                {redactionActive ? <Eye size={13} /> : <EyeOff size={13} />}
+              </button>
+            )}
+          </div>
         </div>
         <h1>
           <Editable
-            value={caseData.case_title}
+            value={d.case_title}
             onChange={t => updateCase(c => ({ ...c, case_title: t }))}
             placeholder="Titolo del fascicolo…"
+            readOnly={redactionActive}
           />
         </h1>
         <p>
           <Editable
-            value={caseData.case_summary}
+            value={d.case_summary}
             onChange={t => updateCase(c => ({ ...c, case_summary: t }))}
             placeholder="Sintesi del caso (tocca per scrivere)…"
             multiline
+            readOnly={redactionActive}
           />
         </p>
         <div className="hero-actions">
@@ -1978,13 +2275,13 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       {/* Stats */}
       <section className="stats-grid">
         <button className="stats-card" onClick={() => { scrollTo(materialsRef); }}>
-          <FileText /><strong>{caseData.materials.length}</strong><span>materiali</span>
+          <FileText /><strong>{d.materials.length}</strong><span>materiali</span>
         </button>
         <button className="stats-card" onClick={() => { setActiveTab('timeline'); scrollTo(timelineRef); }}>
-          <MapPin /><strong>{caseData.timeline.length}</strong><span>eventi</span>
+          <MapPin /><strong>{d.timeline.length}</strong><span>eventi</span>
         </button>
         <button className="stats-card" onClick={() => { setActiveTab('questions'); scrollTo(contradictionsRef); }}>
-          <AlertTriangle /><strong>{caseData.contradictions.length}</strong><span>contraddizioni</span>
+          <AlertTriangle /><strong>{d.contradictions.length}</strong><span>contraddizioni</span>
         </button>
         <button className="stats-card" onClick={() => { setActiveTab('deadlines'); scrollTo(deadlinesRef); }}>
           <BriefcaseBusiness /><strong>{nextDeadline ? formatShortDate(nextDeadline.due_date) : '—'}</strong><span>priorità</span>
@@ -2019,10 +2316,10 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       {/* Timeline */}
       {activeTab === 'timeline' && (
         <section ref={timelineRef} className="panel timeline-panel">
-          {caseData.timeline.length === 0 && (
+          {d.timeline.length === 0 && (
             <p className="muted">Nessun evento ancora. Aggiungi il primo evento.</p>
           )}
-          {caseData.timeline.map((ev, i) => (
+          {d.timeline.map((ev, i) => (
             <article className="timeline-item" key={i}>
               <div className="time-dot" />
               <div className="timeline-content">
@@ -2070,10 +2367,10 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         <section ref={deadlinesRef} className="panel deadline-list-panel">
           <h2><CalendarClock size={18} /> Agenda difensiva</h2>
           <p className="muted">Scadenze del fascicolo. Le candidate vanno confermate prima di essere trattate come operative.</p>
-          {caseData.procedural_deadlines.length === 0 && (
+          {d.procedural_deadlines.length === 0 && (
             <p className="muted">Nessuna scadenza. Aggiungi la prima.</p>
           )}
-          {caseData.procedural_deadlines.map((dl, i) => {
+          {d.procedural_deadlines.map((dl, i) => {
             const upd = (patch: Partial<ProceduralDeadline>) => updateCase(c => ({
               ...c, procedural_deadlines: c.procedural_deadlines.map((d, idx) => idx === i ? { ...d, ...patch } : d),
             }));
@@ -2195,8 +2492,8 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         <section className="panel grid-panel">
           <div>
             <h2><Users size={18} /> Persone</h2>
-            {caseData.people.length === 0 && <p className="muted">Nessuna persona. Aggiungi un nome.</p>}
-            {caseData.people.map((p, i) => (
+            {d.people.length === 0 && <p className="muted">Nessuna persona. Aggiungi un nome.</p>}
+            {d.people.map((p, i) => (
               <article className="mini-card" key={i}>
                 <div className="editable-row-head">
                   <h3>
@@ -2230,8 +2527,8 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           </div>
           <div>
             <h2><Search size={18} /> Prove</h2>
-            {caseData.evidence.length === 0 && <p className="muted">Nessuna prova. Aggiungi un elemento.</p>}
-            {caseData.evidence.map((ev, i) => (
+            {d.evidence.length === 0 && <p className="muted">Nessuna prova. Aggiungi un elemento.</p>}
+            {d.evidence.map((ev, i) => (
               <article className="mini-card" key={i}>
                 <div className="editable-row-head">
                   <h3>
@@ -2307,8 +2604,8 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       {activeTab === 'questions' && (
         <section className="panel">
           <h2>Domande per colloquio / udienza</h2>
-          {caseData.open_questions.length === 0 && <p className="muted">Nessuna domanda aperta.</p>}
-          {caseData.open_questions.map((q, i) => (
+          {d.open_questions.length === 0 && <p className="muted">Nessuna domanda aperta.</p>}
+          {d.open_questions.map((q, i) => (
             <article className="question-card" key={i}>
               <div className="editable-row-head">
                 <h3>
@@ -2334,8 +2631,8 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           <AddRowButton label="Aggiungi domanda" onClick={addOpenQuestion} />
 
           <h2 style={{ marginTop: 28 }}>Documenti mancanti</h2>
-          {caseData.missing_documents.length === 0 && <p className="muted">Nessun documento segnalato come mancante.</p>}
-          {caseData.missing_documents.map((doc, i) => (
+          {d.missing_documents.length === 0 && <p className="muted">Nessun documento segnalato come mancante.</p>}
+          {d.missing_documents.map((doc, i) => (
             <article className="missing-card" key={i}>
               <CheckCircle2 />
               <div style={{ flex: 1 }}>
@@ -2377,8 +2674,8 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           />
 
           <h2 ref={contradictionsRef} style={{ marginTop: 28 }}>Contraddizioni</h2>
-          {caseData.contradictions.length === 0 && <p className="muted">Nessuna contraddizione segnalata.</p>}
-          {caseData.contradictions.map((ct, i) => (
+          {d.contradictions.length === 0 && <p className="muted">Nessuna contraddizione segnalata.</p>}
+          {d.contradictions.map((ct, i) => (
             <article className="question-card contradiction" key={i}>
               <div className="editable-row-head">
                 <h3>
@@ -2411,6 +2708,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           <div className="brief-toolbar">
             <button className="brief-action-btn" onClick={exportBrief}><Copy size={14} /> Copia</button>
             <button className="brief-action-btn" onClick={shareBrief}><Share2 size={14} /> Condividi</button>
+            <button className="brief-action-btn" onClick={handleAnonymizeBrief}><EyeOff size={14} /> Anonimizza</button>
             <button className="brief-action-btn" onClick={() => setAulaModeActive(true)}><Gavel size={14} /> Aula Mode</button>
           </div>
           <textarea
@@ -2422,7 +2720,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           />
           <div className="brief-preview">
             <p className="eyebrow">Anteprima</p>
-            {markdownToLines(caseData.brief_markdown).map((line, i) => {
+            {markdownToLines(d.brief_markdown).map((line, i) => {
               if (line.startsWith('## ')) return <h2 key={i}>{line.slice(3)}</h2>;
               if (line.startsWith('### ')) return <h3 key={i}>{line.slice(4)}</h3>;
               if (line.startsWith('- ')) return <p className="bullet" key={i}>• {line.slice(2)}</p>;
@@ -2450,24 +2748,34 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         {rawDocs.length === 0 && (
           <p className="muted">Nessun documento. Aggiungi PDF, testi o note manuali.</p>
         )}
-        {rawDocs.map(d => (
-          <button key={d.doc_id} className="pending-doc-item" onClick={() => setSelectedRawDoc(d)}>
-            <FileText size={18} className="pending-doc-icon" />
-            <div>
-              <strong>{d.description || d.name}</strong>
-              <small>{d.name} · {new Date(d.added_at).toLocaleDateString('it')}</small>
-            </div>
-          </button>
+        {rawDocs.map(doc => (
+          <div key={doc.doc_id} className="pending-doc-row">
+            <button className="pending-doc-item pending-doc-item-flex" onClick={() => setSelectedRawDoc(doc)}>
+              <FileText size={18} className="pending-doc-icon" />
+              <div>
+                <strong>{doc.description || doc.name}</strong>
+                <small>{doc.name} · {new Date(doc.added_at).toLocaleDateString('it')}</small>
+              </div>
+            </button>
+            <button
+              className="ghost-button pending-doc-anon-btn"
+              title="Anonimizza questo documento con AI"
+              disabled={anonymizingDocId === doc.doc_id}
+              onClick={() => handleAnonymizeDoc(doc.doc_id)}
+            >
+              {anonymizingDocId === doc.doc_id ? <Loader2 size={13} className="spin" /> : <EyeOff size={13} />}
+            </button>
+          </div>
         ))}
       </section>
 
       {/* AI-extracted materials (post-analysis only) */}
-      {caseData.materials.length > 0 && (
+      {d.materials.length > 0 && (
         <section className="materials-panel">
           <div className="materials-header">
             <h2>Materiali estratti dall'AI</h2>
           </div>
-          {caseData.materials.map((m: Material) => (
+          {d.materials.map((m: Material) => (
             <button key={m.id} className="material-button" onClick={() => setSelectedMaterial(m)}>
               {m.kind === 'audio' ? <Mic size={17} /> : <FileText size={17} />}
               <div>
@@ -2483,6 +2791,16 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       <SourceDrawer source={selectedSource} onClose={() => setSelectedSource(null)} />
       <MaterialDrawer material={selectedMaterial} onClose={() => setSelectedMaterial(null)} />
       <RawDocDrawer doc={selectedRawDoc} onClose={() => setSelectedRawDoc(null)} onDelete={handleDeleteDoc} />
+      {showRedactionDrawer && (
+        <RedactionDrawer
+          globalRules={globalRules} setGlobalRules={setGlobalRules}
+          caseRules={caseRedactionRules} setCaseRules={setCaseRedactionRules}
+          onClose={() => setShowRedactionDrawer(false)}
+          caseCtx={buildCaseContext(caseData)}
+          apiBase={API}
+        />
+      )}
+      {anonModal !== null && <AnonModal text={anonModal} onClose={() => setAnonModal(null)} />}
       {showUpload && <AddDocumentDrawer onClose={() => setShowUpload(false)} onAdd={handleAddDocument} />}
       {aulaModeActive && <AulaModeOverlay caseData={caseData} onClose={() => setAulaModeActive(false)} />}
       {toast && <ToastNotification message={toast.message} type={toast.type} onDismiss={dismissToast} />}

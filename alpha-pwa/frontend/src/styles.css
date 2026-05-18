@@ -1008,3 +1008,101 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .onboarding-features li span { font-size: 0.8rem; color: #64748b; line-height: 1.4; }
 .onboarding-btn { width: 100%; max-width: 380px; padding: 16px; font-size: 1.05rem; border-radius: 999px; gap: 10px; }
 .onboarding-version { font-size: 0.72rem; color: #334155; margin: 0; }
+
+/* ── Redazione dati sensibili ──────────────────────────────────────────── */
+.redact-toggle-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.75rem; padding: 5px 10px; border-radius: 999px;
+  color: #94a3b8; background: rgba(148,163,184,0.08);
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.redact-toggle-btn:hover { color: #e2e8f0; background: rgba(148,163,184,0.18); }
+.redact-toggle-active {
+  color: #fbbf24 !important;
+  background: rgba(251,191,36,0.14) !important;
+  box-shadow: 0 0 0 1px rgba(251,191,36,0.35);
+}
+
+.redact-drawer { max-height: 88vh; }
+
+.redact-section { margin: 16px 0; }
+.redact-section h4 {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: #475569; margin: 0 0 10px; font-weight: 600;
+}
+
+.redact-add-form { margin: 14px 0; }
+.redact-add-row {
+  display: grid; grid-template-columns: 1fr auto 1fr auto;
+  gap: 6px; align-items: center;
+}
+.redact-add-row input {
+  background: rgba(30,41,59,0.9); border: 1px solid rgba(148,163,184,0.2);
+  border-radius: 8px; padding: 7px 10px; color: #e2e8f0; font-size: 0.82rem;
+  outline: none; width: 100%;
+  transition: border-color 0.15s;
+}
+.redact-add-row input:focus { border-color: rgba(96,165,250,0.55); }
+.redact-add-row span { color: #475569; font-size: 1rem; text-align: center; }
+
+.redact-rule-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 10px; border-radius: 10px;
+  background: rgba(15,23,42,0.6); border: 1px solid rgba(148,163,184,0.1);
+  margin-bottom: 5px; flex-wrap: wrap;
+}
+.redact-original {
+  font-size: 0.8rem; color: #f87171; font-family: monospace;
+  background: rgba(248,113,113,0.08); border-radius: 4px; padding: 2px 6px;
+  flex-shrink: 0;
+}
+.redact-arrow { color: #475569; font-size: 0.85rem; flex-shrink: 0; }
+.redact-replacement {
+  font-size: 0.8rem; color: #34d399; font-family: monospace;
+  background: rgba(52,211,153,0.08); border-radius: 4px; padding: 2px 6px;
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.redact-toggle-chip {
+  font-size: 0.67rem; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid rgba(148,163,184,0.25); color: #64748b;
+  background: transparent; cursor: pointer; flex-shrink: 0;
+  transition: color 0.12s, border-color 0.12s;
+}
+.redact-toggle-chip.active { color: #34d399; border-color: rgba(52,211,153,0.4); }
+.redact-delete-btn {
+  color: #475569; background: transparent; border: none;
+  cursor: pointer; padding: 3px; border-radius: 4px; flex-shrink: 0;
+  display: flex; align-items: center;
+  transition: color 0.12s;
+}
+.redact-delete-btn:hover { color: #f87171; }
+
+.redact-suggested {
+  border: 1px solid rgba(251,191,36,0.25); border-radius: 12px;
+  padding: 10px 12px; background: rgba(251,191,36,0.04);
+  margin-top: 8px;
+}
+.redact-suggested p { font-size: 0.78rem; color: #94a3b8; margin: 0 0 8px; }
+
+/* ── Modale testo anonimizzato ─────────────────────────────────────────── */
+.anon-modal { max-height: 88vh; }
+.anon-content {
+  max-height: 58vh; overflow-y: auto; margin: 12px 0;
+  font-size: 0.88rem; line-height: 1.65; color: #cbd5e1;
+  white-space: pre-wrap; word-break: break-word;
+}
+
+/* ── Riga documento con pulsante anonimizza ────────────────────────────── */
+.pending-doc-row {
+  display: flex; align-items: flex-start; gap: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.pending-doc-row:last-child { border-bottom: none; }
+.pending-doc-item-flex { flex: 1; min-width: 0; border-bottom: none !important; }
+.pending-doc-anon-btn {
+  flex-shrink: 0; margin-top: 12px; padding: 5px 7px;
+  color: #64748b; font-size: 0.72rem;
+  border-radius: 8px; gap: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.pending-doc-anon-btn:hover { color: #fbbf24; background: rgba(251,191,36,0.1); }
