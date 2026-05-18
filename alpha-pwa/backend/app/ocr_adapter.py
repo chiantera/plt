@@ -129,7 +129,7 @@ class MistralOcrAdapter(OcrAdapter):
             )
 
         try:
-            from mistralai import Mistral  # noqa: PLC0415
+            from mistralai.client import Mistral  # noqa: PLC0415
         except ImportError:
             return OcrResult(
                 success=False, engine=self.engine, pages=[],
