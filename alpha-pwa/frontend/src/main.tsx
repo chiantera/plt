@@ -357,20 +357,19 @@ function UploadDrawer({ onClose, onAnalyze }: { onClose: () => void; onAnalyze: 
           />
         </div>
 
-        <div
+        <label
           className={`drop-zone${dragging ? ' dragging' : ''}`}
+          style={{ cursor: 'pointer' }}
           onDragOver={e => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
-          onClick={() => fileRef.current?.click()}
         >
           {uploading
             ? <><Loader2 className="spin" size={28} /><p>Estrazione testo…</p></>
             : <><Upload size={28} /><p>Trascina un file o clicca per selezionarlo</p><small>TXT, PDF, immagini, audio</small></>
           }
-          <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={onFileChange}
-            accept="*/*" />
-        </div>
+          <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={onFileChange} />
+        </label>
 
         <div className="upload-field">
           <label>Oppure incolla il testo</label>
