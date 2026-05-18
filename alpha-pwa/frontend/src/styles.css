@@ -245,6 +245,12 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
   border-radius: 16px; padding: 12px 16px; color: #fca5a5; margin-bottom: 14px;
 }
+.warming-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.28);
+  border-radius: 14px; padding: 10px 14px; color: #fde68a;
+  font-size: 0.86rem; margin-bottom: 14px;
+}
 
 /* ── Back button ─────────────────────────────────────────────────────────── */
 .back-button {

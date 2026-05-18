@@ -1,0 +1,15 @@
+name: Keep backend warm
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        run: |
+          curl -fsS --retry 3 --retry-delay 10 --max-time 60 \
+            https://plt-backend.onrender.com/api/health

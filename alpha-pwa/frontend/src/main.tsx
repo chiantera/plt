@@ -811,10 +811,30 @@ function HomepageStats({ cases }: { cases: CaseSummary[] }) {
   );
 }
 
+async function fetchWithWakeup(
+  url: string,
+  opts: { firstTimeoutMs: number; retryTimeoutMs: number; onSlow: () => void }
+): Promise<Response> {
+  const attempt = (timeoutMs: number) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+  };
+  try {
+    const r = await attempt(opts.firstTimeoutMs);
+    if (r.ok) return r;
+    throw new Error(`${r.status}`);
+  } catch {
+    opts.onSlow();
+    return attempt(opts.retryTimeoutMs);
+  }
+}
+
 function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
   const [localIds, setLocalIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [warming, setWarming] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [search, setSearch] = useState('');
@@ -838,16 +858,21 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
       const localSummaries = local.map(caseAnalysisToSummary);
       const localIdSet = new Set(local.map(c => c.case_id));
       setLocalIds(localIdSet);
+      setCases(localSummaries);
 
-      // Backend demo cases — merge, skip duplicates already in IndexedDB
+      // Backend demo cases — patient retry to absorb Render free-tier cold start
       try {
-        const r = await fetch(`${API}/api/cases`);
+        const r = await fetchWithWakeup(`${API}/api/cases`, {
+          firstTimeoutMs: 5000,
+          retryTimeoutMs: 45000,
+          onSlow: () => setWarming(true),
+        });
         if (!r.ok) throw new Error(`${r.status}`);
         const demo = await r.json() as CaseSummary[];
         setCases([...localSummaries, ...demo.filter(c => !localIdSet.has(c.case_id))]);
+        setWarming(false);
       } catch {
-        // Backend unreachable — show only local cases
-        setCases(localSummaries);
+        setWarming(false);
         if (localSummaries.length === 0) setError('Backend non raggiungibile e nessun fascicolo locale');
       }
     })();
@@ -922,6 +947,13 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
       )}
 
       {error && <div className="error-banner"><AlertTriangle size={16} /> {error}</div>}
+
+      {warming && (
+        <div className="warming-banner">
+          <Loader2 className="spin" size={16} />
+          Sto svegliando il server — può richiedere qualche secondo…
+        </div>
+      )}
 
       {cases === null && !error && (
         <div className="cases-loading"><Loader2 className="spin" size={32} /></div>
