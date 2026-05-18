@@ -268,6 +268,102 @@ function StrengthBar({ value, label, color }: { value: number; label: string; co
   );
 }
 
+function Editable({ value, onChange, placeholder, multiline, className }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => {
+    if (!editing) return;
+    const el = multiline ? textareaRef.current : inputRef.current;
+    el?.focus();
+    if (el instanceof HTMLInputElement) el.select();
+  }, [editing, multiline]);
+
+  const commit = () => {
+    setEditing(false);
+    const next = draft.trim();
+    if (next !== value) onChange(next);
+  };
+  const cancel = () => { setDraft(value); setEditing(false); };
+
+  if (editing) {
+    if (multiline) {
+      return (
+        <textarea
+          ref={textareaRef}
+          className={`editable-input editable-input-multi ${className ?? ''}`}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => {
+            if (e.key === 'Escape') cancel();
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) commit();
+          }}
+          rows={Math.max(2, Math.min(10, draft.split('\n').length + 1))}
+          placeholder={placeholder}
+        />
+      );
+    }
+    return (
+      <input
+        ref={inputRef}
+        className={`editable-input ${className ?? ''}`}
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') cancel();
+        }}
+        placeholder={placeholder}
+      />
+    );
+  }
+
+  const display = value || (placeholder ?? 'Tocca per scrivere…');
+  return (
+    <span
+      className={`editable${value ? '' : ' editable-empty'} ${className ?? ''}`}
+      onClick={() => setEditing(true)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditing(true); } }}
+      title="Tocca per modificare"
+    >
+      {display}
+    </span>
+  );
+}
+
+function RowDelete({ onClick, label }: { onClick: () => void; label?: string }) {
+  return (
+    <button
+      className="row-delete-btn"
+      onClick={e => { e.stopPropagation(); if (confirm(label ? `Eliminare "${label}"?` : 'Eliminare questa voce?')) onClick(); }}
+      title="Elimina voce"
+    >
+      <Trash2 size={13} />
+    </button>
+  );
+}
+
+function AddRowButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button className="add-row-btn" onClick={onClick}>
+      <Plus size={14} /> {label}
+    </button>
+  );
+}
+
 // ── Drawers ──────────────────────────────────────────────────────────────────
 
 function SourceDrawer({ source, onClose }: { source: SourceRef | null; onClose: () => void }) {
@@ -1375,12 +1471,36 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     showToast("Documento eliminato");
   }, [caseData, showToast]);
 
+  const updateCase = useCallback(async (updater: (c: CaseAnalysis) => CaseAnalysis) => {
+    if (!caseData) return;
+    const updated = updater(caseData);
+    await dbSave(updated);
+    setCaseData(updated);
+  }, [caseData]);
+
+  const hasUserData = useCallback((c: CaseAnalysis): boolean => {
+    return !!(
+      c.case_summary?.trim() ||
+      c.timeline.length || c.people.length || c.evidence.length ||
+      c.contradictions.length || c.open_questions.length ||
+      c.procedural_deadlines.length || c.legal_analysis
+    );
+  }, []);
+
   const handleAnalyze = useCallback(async () => {
     if (!caseData) return;
+    if (hasUserData(caseData)) {
+      const ok = confirm("L'analisi AI sovrascriverà tutti i campi del fascicolo. Continuare?");
+      if (!ok) return;
+    }
+    const docs = caseData.raw_documents ?? [];
+    if (docs.length === 0) {
+      showToast('Aggiungi almeno un documento prima di analizzare', 'error');
+      return;
+    }
     setShowUpload(false);
     setAnalyzing(true);
     try {
-      const docs = caseData.raw_documents ?? [];
       const materials = docs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text }));
       const res = await fetch(`${API}/api/analyze-text`, {
         method: 'POST',
@@ -1398,7 +1518,59 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     } finally {
       setAnalyzing(false);
     }
-  }, [caseData, showToast, onCaseLoaded]);
+  }, [caseData, hasUserData, showToast, onCaseLoaded, onCaseAnalyzed]);
+
+  // ── List edit helpers (Pass 1: timeline, people, evidence, contradictions) ──
+  const addTimelineEvent = () => updateCase(c => ({
+    ...c,
+    timeline: [...c.timeline, { date: '', time: null, title: '', description: '', source_refs: [], confidence: 1 }],
+  }));
+  const updateTimelineEvent = (i: number, patch: Partial<TimelineEvent>) => updateCase(c => ({
+    ...c, timeline: c.timeline.map((ev, idx) => idx === i ? { ...ev, ...patch } : ev),
+  }));
+  const deleteTimelineEvent = (i: number) => updateCase(c => ({
+    ...c, timeline: c.timeline.filter((_, idx) => idx !== i),
+  }));
+
+  const addPerson = () => updateCase(c => ({
+    ...c, people: [...c.people, { name: '', role: '', notes: '', source_refs: [] }],
+  }));
+  const updatePerson = (i: number, patch: Partial<Person>) => updateCase(c => ({
+    ...c, people: c.people.map((p, idx) => idx === i ? { ...p, ...patch } : p),
+  }));
+  const deletePerson = (i: number) => updateCase(c => ({
+    ...c, people: c.people.filter((_, idx) => idx !== i),
+  }));
+
+  const addEvidence = () => updateCase(c => ({
+    ...c, evidence: [...c.evidence, { title: '', status: '', notes: '', source_refs: [] }],
+  }));
+  const updateEvidence = (i: number, patch: Partial<EvidenceItem>) => updateCase(c => ({
+    ...c, evidence: c.evidence.map((ev, idx) => idx === i ? { ...ev, ...patch } : ev),
+  }));
+  const deleteEvidence = (i: number) => updateCase(c => ({
+    ...c, evidence: c.evidence.filter((_, idx) => idx !== i),
+  }));
+
+  const addContradiction = () => updateCase(c => ({
+    ...c, contradictions: [...c.contradictions, { title: '', description: '', source_refs: [] }],
+  }));
+  const updateContradiction = (i: number, patch: Partial<Contradiction>) => updateCase(c => ({
+    ...c, contradictions: c.contradictions.map((ct, idx) => idx === i ? { ...ct, ...patch } : ct),
+  }));
+  const deleteContradiction = (i: number) => updateCase(c => ({
+    ...c, contradictions: c.contradictions.filter((_, idx) => idx !== i),
+  }));
+
+  const addOpenQuestion = () => updateCase(c => ({
+    ...c, open_questions: [...c.open_questions, { question: '', why_it_matters: '', source_refs: [] }],
+  }));
+  const updateOpenQuestion = (i: number, patch: Partial<OpenQuestion>) => updateCase(c => ({
+    ...c, open_questions: c.open_questions.map((q, idx) => idx === i ? { ...q, ...patch } : q),
+  }));
+  const deleteOpenQuestion = (i: number) => updateCase(c => ({
+    ...c, open_questions: c.open_questions.filter((_, idx) => idx !== i),
+  }));
 
   if (error) return (
     <main className="app-shell loading-shell">
@@ -1413,59 +1585,8 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     </main>
   );
 
-  if (caseData.is_pending) {
-    const docs = caseData.raw_documents ?? [];
-    return (
-      <main className="app-shell">
-        <button className="back-button" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
-        <div className="case-header">
-          <h1 className="case-title">{caseData.case_title}</h1>
-          <p className="muted">Aggiungi i documenti del fascicolo, poi avvia l'analisi AI.</p>
-        </div>
-
-        {analyzing && (
-          <div className="analyzing-banner"><Loader2 className="spin" size={18} /> Analisi AI in corso — attendere…</div>
-        )}
-
-        <section className="panel pending-docs-panel">
-          <div className="panel-header">
-            <h2>Documenti ({docs.length})</h2>
-            <button className="upload-fab" onClick={() => setShowUpload(true)}>
-              <Plus size={16} /> Aggiungi documento o scrivi qualcosa
-            </button>
-          </div>
-          {docs.length === 0
-            ? <p className="muted pending-empty">Nessun documento ancora. Tocca "Aggiungi documento o scrivi qualcosa" per iniziare.</p>
-            : docs.map(d => (
-                <button key={d.doc_id} className="pending-doc-item" onClick={() => setSelectedRawDoc(d)}>
-                  <FileText size={18} className="pending-doc-icon" />
-                  <div>
-                    <strong>{d.description || d.name}</strong>
-                    <small>{d.name} · {new Date(d.added_at).toLocaleDateString('it')}</small>
-                  </div>
-                </button>
-              ))
-          }
-        </section>
-
-        <div className="pending-analyze-row">
-          <button
-            className="primary-button pending-analyze-btn"
-            disabled={docs.length === 0 || analyzing}
-            onClick={handleAnalyze}
-          >
-            <Zap size={16} /> Analizza fascicolo con AI
-          </button>
-        </div>
-
-        <RawDocDrawer doc={selectedRawDoc} onClose={() => setSelectedRawDoc(null)} onDelete={handleDeleteDoc} />
-        {showUpload && <AddDocumentDrawer onClose={() => setShowUpload(false)} onAdd={handleAddDocument} />}
-        {toast && <ToastNotification message={toast.message} type={toast.type} onDismiss={dismissToast} />}
-      </main>
-    );
-  }
-
   const la = caseData.legal_analysis;
+  const rawDocs = caseData.raw_documents ?? [];
 
   return (
     <main className="app-shell">
@@ -1486,14 +1607,27 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
             </div>
           )}
         </div>
-        <h1>{caseData.case_title}</h1>
-        <p>{caseData.case_summary}</p>
+        <h1>
+          <Editable
+            value={caseData.case_title}
+            onChange={t => updateCase(c => ({ ...c, case_title: t }))}
+            placeholder="Titolo del fascicolo…"
+          />
+        </h1>
+        <p>
+          <Editable
+            value={caseData.case_summary}
+            onChange={t => updateCase(c => ({ ...c, case_summary: t }))}
+            placeholder="Sintesi del caso (tocca per scrivere)…"
+            multiline
+          />
+        </p>
         <div className="hero-actions">
           <button className="primary-button" onClick={() => setShowUpload(true)}>
-            <Upload size={15} /> Carica materiale
+            <Upload size={15} /> Aggiungi documento
           </button>
-          <button className="secondary-button" onClick={() => { setActiveTab('legal'); scrollTo(timelineRef); }}>
-            <Sparkles size={14} /> Analisi legale
+          <button className="secondary-button" onClick={handleAnalyze} disabled={analyzing || rawDocs.length === 0}>
+            <Sparkles size={14} /> Analizza con AI
           </button>
           <button className="aula-trigger-btn" onClick={() => setAulaModeActive(true)}>
             <Gavel size={14} /> Aula
@@ -1545,17 +1679,49 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       {/* Timeline */}
       {activeTab === 'timeline' && (
         <section ref={timelineRef} className="panel timeline-panel">
+          {caseData.timeline.length === 0 && (
+            <p className="muted">Nessun evento ancora. Aggiungi il primo evento.</p>
+          )}
           {caseData.timeline.map((ev, i) => (
             <article className="timeline-item" key={i}>
               <div className="time-dot" />
               <div className="timeline-content">
-                <p className="eyebrow">{ev.date} · {ev.time ?? 'orario da chiarire'} · confidenza {pct(ev.confidence)}</p>
-                <h3>{ev.title}</h3>
-                <p>{ev.description}</p>
+                <div className="editable-row-head">
+                  <p className="eyebrow">
+                    <Editable
+                      value={ev.date ?? ''}
+                      onChange={v => updateTimelineEvent(i, { date: v || null })}
+                      placeholder="data"
+                    />
+                    {' · '}
+                    <Editable
+                      value={ev.time ?? ''}
+                      onChange={v => updateTimelineEvent(i, { time: v || null })}
+                      placeholder="orario"
+                    />
+                  </p>
+                  <RowDelete onClick={() => deleteTimelineEvent(i)} label={ev.title} />
+                </div>
+                <h3>
+                  <Editable
+                    value={ev.title}
+                    onChange={v => updateTimelineEvent(i, { title: v })}
+                    placeholder="Titolo evento…"
+                  />
+                </h3>
+                <p>
+                  <Editable
+                    value={ev.description}
+                    onChange={v => updateTimelineEvent(i, { description: v })}
+                    placeholder="Descrizione evento…"
+                    multiline
+                  />
+                </p>
                 <SourceRow refs={ev.source_refs} onSelect={setSelectedSource} />
               </div>
             </article>
           ))}
+          <AddRowButton label="Aggiungi evento" onClick={addTimelineEvent} />
         </section>
       )}
 
@@ -1608,21 +1774,73 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         <section className="panel grid-panel">
           <div>
             <h2><Users size={18} /> Persone</h2>
-            {caseData.people.map(p => (
-              <article className="mini-card" key={p.name}>
-                <h3>{p.name}</h3><p className="role">{p.role}</p><p>{p.notes}</p>
+            {caseData.people.length === 0 && <p className="muted">Nessuna persona. Aggiungi un nome.</p>}
+            {caseData.people.map((p, i) => (
+              <article className="mini-card" key={i}>
+                <div className="editable-row-head">
+                  <h3>
+                    <Editable
+                      value={p.name}
+                      onChange={v => updatePerson(i, { name: v })}
+                      placeholder="Nome…"
+                    />
+                  </h3>
+                  <RowDelete onClick={() => deletePerson(i)} label={p.name} />
+                </div>
+                <p className="role">
+                  <Editable
+                    value={p.role}
+                    onChange={v => updatePerson(i, { role: v })}
+                    placeholder="Ruolo…"
+                  />
+                </p>
+                <p>
+                  <Editable
+                    value={p.notes}
+                    onChange={v => updatePerson(i, { notes: v })}
+                    placeholder="Note…"
+                    multiline
+                  />
+                </p>
                 <SourceRow refs={p.source_refs} onSelect={setSelectedSource} />
               </article>
             ))}
+            <AddRowButton label="Aggiungi persona" onClick={addPerson} />
           </div>
           <div>
             <h2><Search size={18} /> Prove</h2>
-            {caseData.evidence.map(ev => (
-              <article className="mini-card" key={ev.title}>
-                <h3>{ev.title}</h3><p className="role">{ev.status}</p><p>{ev.notes}</p>
+            {caseData.evidence.length === 0 && <p className="muted">Nessuna prova. Aggiungi un elemento.</p>}
+            {caseData.evidence.map((ev, i) => (
+              <article className="mini-card" key={i}>
+                <div className="editable-row-head">
+                  <h3>
+                    <Editable
+                      value={ev.title}
+                      onChange={v => updateEvidence(i, { title: v })}
+                      placeholder="Titolo prova…"
+                    />
+                  </h3>
+                  <RowDelete onClick={() => deleteEvidence(i)} label={ev.title} />
+                </div>
+                <p className="role">
+                  <Editable
+                    value={ev.status}
+                    onChange={v => updateEvidence(i, { status: v })}
+                    placeholder="Stato…"
+                  />
+                </p>
+                <p>
+                  <Editable
+                    value={ev.notes}
+                    onChange={v => updateEvidence(i, { notes: v })}
+                    placeholder="Note…"
+                    multiline
+                  />
+                </p>
                 <SourceRow refs={ev.source_refs} onSelect={setSelectedSource} />
               </article>
             ))}
+            <AddRowButton label="Aggiungi prova" onClick={addEvidence} />
           </div>
         </section>
       )}
@@ -1638,26 +1856,94 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       {activeTab === 'questions' && (
         <section className="panel">
           <h2>Domande per colloquio / udienza</h2>
-          {caseData.open_questions.map(q => (
-            <article className="question-card" key={q.question}>
-              <h3>{q.question}</h3><p>{q.why_it_matters}</p>
+          {caseData.open_questions.length === 0 && <p className="muted">Nessuna domanda aperta.</p>}
+          {caseData.open_questions.map((q, i) => (
+            <article className="question-card" key={i}>
+              <div className="editable-row-head">
+                <h3>
+                  <Editable
+                    value={q.question}
+                    onChange={v => updateOpenQuestion(i, { question: v })}
+                    placeholder="Domanda…"
+                  />
+                </h3>
+                <RowDelete onClick={() => deleteOpenQuestion(i)} label={q.question} />
+              </div>
+              <p>
+                <Editable
+                  value={q.why_it_matters}
+                  onChange={v => updateOpenQuestion(i, { why_it_matters: v })}
+                  placeholder="Perché è rilevante…"
+                  multiline
+                />
+              </p>
               <SourceRow refs={q.source_refs} onSelect={setSelectedSource} />
             </article>
           ))}
-          <h2>Documenti mancanti</h2>
-          {caseData.missing_documents.map(doc => (
-            <article className="missing-card" key={doc.title}>
+          <AddRowButton label="Aggiungi domanda" onClick={addOpenQuestion} />
+
+          <h2 style={{ marginTop: 28 }}>Documenti mancanti</h2>
+          {caseData.missing_documents.length === 0 && <p className="muted">Nessun documento segnalato come mancante.</p>}
+          {caseData.missing_documents.map((doc, i) => (
+            <article className="missing-card" key={i}>
               <CheckCircle2 />
-              <div><h3>{doc.title} <span>{doc.priority}</span></h3><p>{doc.reason}</p></div>
+              <div style={{ flex: 1 }}>
+                <div className="editable-row-head">
+                  <h3>
+                    <Editable
+                      value={doc.title}
+                      onChange={v => updateCase(c => ({ ...c, missing_documents: c.missing_documents.map((d, idx) => idx === i ? { ...d, title: v } : d) }))}
+                      placeholder="Documento mancante…"
+                    />
+                    {' '}<span>{doc.priority}</span>
+                  </h3>
+                  <RowDelete
+                    onClick={() => updateCase(c => ({ ...c, missing_documents: c.missing_documents.filter((_, idx) => idx !== i) }))}
+                    label={doc.title}
+                  />
+                </div>
+                <p>
+                  <Editable
+                    value={doc.reason}
+                    onChange={v => updateCase(c => ({ ...c, missing_documents: c.missing_documents.map((d, idx) => idx === i ? { ...d, reason: v } : d) }))}
+                    placeholder="Motivo…"
+                    multiline
+                  />
+                </p>
+              </div>
             </article>
           ))}
-          <h2 ref={contradictionsRef}>Contraddizioni</h2>
-          {caseData.contradictions.map(c => (
-            <article className="question-card contradiction" key={c.title}>
-              <h3>{c.title}</h3><p>{c.description}</p>
-              <SourceRow refs={c.source_refs} onSelect={setSelectedSource} />
+          <AddRowButton
+            label="Aggiungi documento mancante"
+            onClick={() => updateCase(c => ({ ...c, missing_documents: [...c.missing_documents, { title: '', reason: '', priority: 'media' }] }))}
+          />
+
+          <h2 ref={contradictionsRef} style={{ marginTop: 28 }}>Contraddizioni</h2>
+          {caseData.contradictions.length === 0 && <p className="muted">Nessuna contraddizione segnalata.</p>}
+          {caseData.contradictions.map((ct, i) => (
+            <article className="question-card contradiction" key={i}>
+              <div className="editable-row-head">
+                <h3>
+                  <Editable
+                    value={ct.title}
+                    onChange={v => updateContradiction(i, { title: v })}
+                    placeholder="Contraddizione…"
+                  />
+                </h3>
+                <RowDelete onClick={() => deleteContradiction(i)} label={ct.title} />
+              </div>
+              <p>
+                <Editable
+                  value={ct.description}
+                  onChange={v => updateContradiction(i, { description: v })}
+                  placeholder="Descrizione…"
+                  multiline
+                />
+              </p>
+              <SourceRow refs={ct.source_refs} onSelect={setSelectedSource} />
             </article>
           ))}
+          <AddRowButton label="Aggiungi contraddizione" onClick={addContradiction} />
         </section>
       )}
 
@@ -1687,23 +1973,44 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         </section>
       )}
 
-      {/* Materials */}
+      {/* Raw documents (always visible — the source files in this fascicolo) */}
       <section ref={materialsRef} className="materials-panel">
         <div className="materials-header">
-          <h2>Materiali caricati</h2>
+          <h2>Documenti del fascicolo ({rawDocs.length})</h2>
           <button className="upload-fab" onClick={() => setShowUpload(true)}><Plus size={16} /> Aggiungi</button>
         </div>
-        {caseData.materials.map((m: Material) => (
-          <button key={m.id} className="material-button" onClick={() => setSelectedMaterial(m)}>
-            {m.kind === 'audio' ? <Mic size={17} /> : <FileText size={17} />}
+        {rawDocs.length === 0 && (
+          <p className="muted">Nessun documento. Aggiungi PDF, testi o note manuali.</p>
+        )}
+        {rawDocs.map(d => (
+          <button key={d.doc_id} className="pending-doc-item" onClick={() => setSelectedRawDoc(d)}>
+            <FileText size={18} className="pending-doc-icon" />
             <div>
-              <strong>{m.name}</strong>
-              <p>{m.description}</p>
-              <small>{m.excerpt}</small>
+              <strong>{d.description || d.name}</strong>
+              <small>{d.name} · {new Date(d.added_at).toLocaleDateString('it')}</small>
             </div>
           </button>
         ))}
       </section>
+
+      {/* AI-extracted materials (post-analysis only) */}
+      {caseData.materials.length > 0 && (
+        <section className="materials-panel">
+          <div className="materials-header">
+            <h2>Materiali estratti dall'AI</h2>
+          </div>
+          {caseData.materials.map((m: Material) => (
+            <button key={m.id} className="material-button" onClick={() => setSelectedMaterial(m)}>
+              {m.kind === 'audio' ? <Mic size={17} /> : <FileText size={17} />}
+              <div>
+                <strong>{m.name}</strong>
+                <p>{m.description}</p>
+                <small>{m.excerpt}</small>
+              </div>
+            </button>
+          ))}
+        </section>
+      )}
 
       <SourceDrawer source={selectedSource} onClose={() => setSelectedSource(null)} />
       <MaterialDrawer material={selectedMaterial} onClose={() => setSelectedMaterial(null)} />
