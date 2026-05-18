@@ -5,11 +5,20 @@
 ![Alpha](https://img.shields.io/badge/alpha-working-ff5a5f?style=for-the-badge)
 ![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-646cff?style=for-the-badge)
 ![Backend](https://img.shields.io/badge/backend-FastAPI-009688?style=for-the-badge)
-![Models](https://img.shields.io/badge/models-DeepSeek%20%2F%20Claude-111827?style=for-the-badge)
+![Models](https://img.shields.io/badge/models-DeepSeek%20V4%20Flash%20%2F%20Mistral-111827?style=for-the-badge)
 
-This folder contains the working PLT alpha: a FastAPI backend plus a React/Vite PWA for turning messy criminal-defense case material into a structured, source-aware workspace.
+**Pocket Legal Triage (PLT)** is a mobile-first PWA for Italian criminal-defense lawyers. It takes raw case materials — documents, notes, transcripts — and turns them into a structured triage workspace: timeline, deadlines, contradictions, witness assessments, defense strategies, and a draft brief, all with source references back to the original documents.
 
-The product is **not** an AI lawyer. It is a case triage cockpit for a lawyer who remains in control.
+The product is **not** an AI lawyer. It is a case triage cockpit — the lawyer stays in control, the AI does the structuring work.
+
+### Branch and deploy
+
+We work on `main`. Push to `main` triggers an automatic Netlify deploy of the frontend.
+
+| Layer | Service | URL |
+|---|---|---|
+| Frontend | Netlify | `pocket-legal-triage.netlify.app` |
+| Backend | Render | `plt-backend.onrender.com` |
 
 ---
 
@@ -34,20 +43,24 @@ The product is **not** an AI lawyer. It is a case triage cockpit for a lawyer wh
 
 A working alpha with three fictional demo cases:
 
-- **Caso Bianchi** — furto aggravato in concorso;
-- **Caso Conti** — truffa online / e-commerce;
-- **Caso Ferrari** — omicidio stradale aggravato.
+- **Caso Bianchi** — furto aggravato in concorso (Roma)
+- **Caso Conti** — truffa online / e-commerce (Napoli)
+- **Caso Ferrari** — omicidio stradale aggravato (Milano)
 
 Core app surfaces:
 
-- 🏠 **Homepage** — case list with live stats: risk, deadlines, contradictions, materials.
+- 🏠 **Homepage** — case list with live stats: risk level, active deadlines, contradictions, materials count.
 - 📁 **Case detail** — 6-tab workspace: timeline, scadenze, fatti, analisi legale, domande aperte, memoria.
-- ⚖️ **Legal analysis** — charge elements, defense strategies, constitutional issues, witness credibility, evidence balance.
-- 🧑‍⚖️ **Aula Mode** — hearing-day overlay with keyboard/swipe navigation and live clock.
-- 🤖 **AI chat** — floating case-aware assistant with streaming responses.
-- ✍️ **Document drafting** — memoria difensiva, ricorso Cassazione, eccezione procedurale, controesame schema, analisi strategica.
+- ⚖️ **Legal analysis** — charge elements with proven/disputed/weak/missing status, defense strategies, constitutional issues, witness credibility scores, evidence balance.
+- 🧑‍⚖️ **Aula Mode** — hearing-day full-screen overlay with 5-slide structure, keyboard/swipe navigation, live clock.
+- 🤖 **AI chat** — floating case-aware assistant, streaming, full dossier injected as context, quick-action chips.
+- ✍️ **Document drafting** — memoria difensiva, ricorso Cassazione, eccezione procedurale, schema controesame, analisi strategica.
+- ✏️ **Inline editing** — every field (timeline, people, evidence, deadlines, legal analysis) is editable in place; changes persist in IndexedDB.
+- 🔀 **AI merge** — re-analyze and merge new AI output non-destructively into existing edits.
+- 🔒 **Sensitive data redaction** — define manual rules or auto-detect PII with AI; render-time only, IndexedDB never touched; global rules + per-case rules.
+- 📄 **OCR upload** — drag-and-drop PDF/image upload; pypdf for native PDFs, Mistral OCR for scanned documents.
 - ✅ **Task tracking** — procedural deadline tasks persisted in localStorage.
-- 📤 **Brief export** — clipboard copy plus Web Share API where supported.
+- 📤 **Brief export** — clipboard copy plus Web Share API; AI anonymization of brief text for sharing.
 
 ---
 
@@ -109,16 +122,26 @@ Open **http://localhost:5173**. Vite proxies all `/api/*` requests to port `8000
 
 ---
 
-## 🔀 API key routing
+## 🔀 Model routing
 
-The backend auto-detects the provider from environment variables.
+Default stack: **DeepSeek V4 Flash** for everything, **Mistral** for OCR on scanned files.
 
-| Env var | Flash model | Pro model |
-|---|---|---|
-| `DEEPSEEK_API_KEY` | `deepseek-v4-flash` | `deepseek-v4-pro` |
-| `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` | `claude-opus-4-7` |
+| Task | Model |
+|---|---|
+| Chat, analysis, redaction, anonymization | `deepseek-v4-flash` |
+| Deep legal drafting (pro mode) | `deepseek-v4-pro` |
+| OCR — native PDF | pypdf (local, free) |
+| OCR — scanned PDF / image | Mistral OCR |
 
-If both are set, DeepSeek takes priority.
+The backend auto-detects the provider from environment variables. Override model names via `.env`:
+
+| Env var | Default |
+|---|---|
+| `DEEPSEEK_DEFAULT_MODEL` | `deepseek-v4-flash` |
+| `DEEPSEEK_PRO_MODEL` | `deepseek-v4-pro` |
+| `ANTHROPIC_API_KEY` | fallback if no DeepSeek key — uses `claude-haiku-4-5` / `claude-opus-4-7` |
+
+If both `DEEPSEEK_API_KEY` and `ANTHROPIC_API_KEY` are set, DeepSeek takes priority.
 
 ---
 
