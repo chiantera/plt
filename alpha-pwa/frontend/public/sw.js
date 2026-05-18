@@ -1,4 +1,4 @@
-const CACHE = 'plt-v1';
+const CACHE = 'plt-v2';
 
 // Cache app shell on install
 self.addEventListener('install', e => {
