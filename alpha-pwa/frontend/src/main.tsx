@@ -89,7 +89,7 @@ type CaseSummary = {
 type TabId = 'timeline' | 'deadlines' | 'facts' | 'legal' | 'questions' | 'brief';
 
 type ChatMsg = { role: 'user' | 'assistant'; content: string; id: string; };
-type ChatState = { open: boolean; messages: ChatMsg[]; caseContext: string | null; };
+type ChatState = { open: boolean; messages: ChatMsg[]; caseContext: string | null; activeCaseId: string | null; };
 
 type UserProfile = { id: string; full_name: string | null; studio: string | null; phone: string | null; };
 
@@ -3235,8 +3235,8 @@ function App() {
   const [chat, setChat] = useState<ChatState>(() => {
     try {
       const saved = localStorage.getItem('plt_chat_messages');
-      return { open: false, messages: saved ? JSON.parse(saved) : [], caseContext: null };
-    } catch { return { open: false, messages: [], caseContext: null }; }
+      return { open: false, messages: saved ? JSON.parse(saved) : [], caseContext: null, activeCaseId: null };
+    } catch { return { open: false, messages: [], caseContext: null, activeCaseId: null }; }
   });
   const [chatStreaming, setChatStreaming] = useState(false);
   const [listRefreshKey, setListRefreshKey] = useState(0);
@@ -3261,7 +3261,15 @@ function App() {
 
   const handleCaseLoaded = useCallback((data: CaseAnalysis) => {
     setActiveCaseData(data);
-    setChat(prev => ({ ...prev, caseContext: buildCaseContext(data) }));
+    const newCtx = buildCaseContext(data);
+    setChat(prev => {
+      if (prev.activeCaseId === data.case_id) {
+        // stesso caso — aggiorna solo il contesto, tieni i messaggi
+        return { ...prev, caseContext: newCtx };
+      }
+      // fascicolo diverso — resetta la chat
+      return { open: prev.open, messages: [], caseContext: newCtx, activeCaseId: data.case_id };
+    });
   }, []);
 
   const openChat = useCallback((initialKeyOrText?: string) => {
