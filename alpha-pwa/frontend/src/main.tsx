@@ -369,7 +369,7 @@ function UploadDrawer({ onClose, onAnalyze }: { onClose: () => void; onAnalyze: 
             : <><Upload size={28} /><p>Trascina un file o clicca per selezionarlo</p><small>TXT, PDF, immagini, audio</small></>
           }
           <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={onFileChange}
-            accept=".txt,.pdf,.jpg,.jpeg,.png,.mp3,.mp4,.m4a,.wav,.ogg" />
+            accept=".txt,.pdf,.jpg,.jpeg,.png,.mp3,.mp4,.m4a,.wav,.ogg,application/pdf,text/plain,image/*,audio/*,video/*" />
         </div>
 
         <div className="upload-field">
