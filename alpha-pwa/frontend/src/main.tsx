@@ -731,7 +731,48 @@ function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (do
   const [docName, setDocName] = useState('');
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      chunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        setTranscribing(true);
+        try {
+          const fd = new FormData();
+          fd.append('file', blob, 'nota_vocale.webm');
+          const res = await fetch(`${API}/api/transcribe`, { method: 'POST', body: fd });
+          const data = await res.json();
+          if (data.text) {
+            setText(prev => prev ? `${prev}\n\n${data.text}` : data.text);
+            if (!docName) setDocName('Nota vocale');
+            if (!description) setDescription('Nota vocale');
+          }
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+    } catch {
+      alert('Microfono non disponibile o accesso negato.');
+    }
+  }, [docName, description]);
+
+  const stopRecording = useCallback(() => {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+  }, []);
 
   const handleFile = useCallback(async (file: File) => {
     setDocName(file.name);
@@ -812,10 +853,32 @@ function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (do
         </label>
 
         <div className="upload-field">
-          <label>Oppure incolla il testo</label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <label style={{ margin: 0 }}>Oppure incolla il testo</label>
+            <button
+              type="button"
+              onClick={recording ? stopRecording : startRecording}
+              disabled={transcribing || uploading}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 12px', borderRadius: 999, border: 'none', cursor: 'pointer',
+                fontWeight: 600, fontSize: 12,
+                background: recording ? 'rgba(239,68,68,0.15)' : 'rgba(148,163,184,0.12)',
+                color: recording ? '#f87171' : '#94a3b8',
+                transition: 'all .15s',
+              }}
+            >
+              {transcribing
+                ? <><Loader2 size={13} className="spin" /> Trascrivo…</>
+                : recording
+                  ? <><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block', animation: 'pulse 1s infinite' }} /> Stop</>
+                  : <><Mic size={13} /> Nota vocale</>
+              }
+            </button>
+          </div>
           <textarea
             className="upload-textarea"
-            placeholder="Incolla qui il testo del documento…"
+            placeholder="Incolla qui il testo del documento, o usa la nota vocale sopra…"
             value={text}
             onChange={e => setText(e.target.value)}
             rows={5}
@@ -824,7 +887,7 @@ function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (do
 
         <div className="upload-actions">
           <button className="ghost-button" onClick={onClose}>Annulla</button>
-          <button className="primary-button" disabled={!canSubmit || uploading} onClick={handleAdd}>
+          <button className="primary-button" disabled={!canSubmit || uploading || transcribing} onClick={handleAdd}>
             <Plus size={15} /> Aggiungi al fascicolo
           </button>
         </div>

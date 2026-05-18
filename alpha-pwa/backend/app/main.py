@@ -157,3 +157,29 @@ async def upload_file(file: UploadFile = File(...)) -> dict[str, Any]:
         "warnings": warnings,
         "status": "ready" if extracted_text and not extracted_text.startswith("[") else "needs_ocr",
     }
+
+
+# ── Voice transcription ───────────────────────────────────────────────────────
+
+@app.post("/api/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)) -> dict[str, Any]:
+    """Transcribe audio via Groq Whisper. Accepts webm, mp4, mp3, wav, ogg, m4a."""
+    import os
+    groq_key = os.environ.get("GROQ_API_KEY")
+    if not groq_key:
+        raise HTTPException(status_code=503, detail="GROQ_API_KEY non configurata")
+
+    content = await file.read()
+    filename = file.filename or "audio.webm"
+
+    from groq import Groq  # type: ignore
+    client = Groq(api_key=groq_key)
+
+    transcription = client.audio.transcriptions.create(
+        file=(filename, content),
+        model="whisper-large-v3-turbo",
+        language="it",
+        response_format="text",
+    )
+
+    return {"text": transcription if isinstance(transcription, str) else transcription.text}

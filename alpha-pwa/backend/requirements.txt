@@ -1,5 +1,6 @@
 anthropic
 fastapi
+groq
 httpx
 mistralai
 openai

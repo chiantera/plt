@@ -23,6 +23,7 @@ h4 { color: #e2e8f0; font-size: 0.82rem; text-transform: uppercase; letter-spaci
 
 .spin { animation: spin 1s linear infinite; margin: 0 auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 /* ── Glass panels ─────────────────────────────────────────────────────────── */
 .hero-card, .deadline-card, .panel, .materials-panel, .stats-card {
