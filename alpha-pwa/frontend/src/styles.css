@@ -861,3 +861,20 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .legal-drafting-card-label { font-size: 0.83rem; font-weight: 700; color: #e2e8f0; margin-bottom: 4px; }
 .legal-drafting-card-desc { font-size: 0.72rem; color: #64748b; line-height: 1.3; }
 .legal-drafting-note { font-size: 0.74rem; color: #475569; margin: 0; text-align: center; }
+
+/* ── Pending case (pre-analysis) ── */
+.pending-docs-panel { margin: 16px; }
+.pending-empty { padding: 24px 0; text-align: center; }
+.pending-doc-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.pending-doc-item:last-child { border-bottom: none; }
+.pending-doc-icon { color: #60a5fa; flex-shrink: 0; margin-top: 2px; }
+.pending-doc-item strong { display: block; font-size: 0.9rem; color: #e2e8f0; }
+.pending-doc-item small { color: #64748b; font-size: 0.75rem; }
+.pending-analyze-row {
+  position: sticky; bottom: 24px; display: flex; justify-content: center;
+  padding: 16px;
+}
+.pending-analyze-btn { font-size: 1rem; padding: 14px 32px; border-radius: 999px; gap: 8px; }

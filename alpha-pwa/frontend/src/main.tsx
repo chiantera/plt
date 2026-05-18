@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   AlertTriangle, ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness,
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
-  Clock, Copy, FileText, Gavel, Loader2, MapPin, MessageSquare, Mic, Plus,
+  Clock, Copy, FileText, FolderPlus, Gavel, Loader2, MapPin, MessageSquare, Mic, Plus,
   Scale, Search, Send, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles,
   Square, Trash2, Upload, Users, X, Zap,
 } from 'lucide-react';
@@ -47,12 +47,17 @@ type LegalAnalysis = {
   witness_assessments: WitnessAssessment[]; evidence_balance: EvidenceBalance; client_summary: string;
 };
 
+type RawDocument = {
+  doc_id: string; name: string; description: string; text: string; added_at: string;
+};
+
 type CaseAnalysis = {
   case_id: string; case_title: string; language: string; case_summary: string;
   materials: Material[]; timeline: TimelineEvent[]; people: Person[];
   evidence: EvidenceItem[]; open_questions: OpenQuestion[]; missing_documents: MissingDocument[];
   contradictions: Contradiction[]; procedural_deadlines: ProceduralDeadline[];
   brief_markdown: string; usage_estimate: UsageEstimate; legal_analysis: LegalAnalysis | null;
+  is_pending?: boolean; raw_documents?: RawDocument[];
 };
 
 type CaseSummary = {
@@ -60,6 +65,7 @@ type CaseSummary = {
   charge_summary: string; next_deadline_date: string | null; next_deadline_title: string | null;
   contradiction_count: number; material_count: number;
   risk_level: 'low' | 'medium' | 'high' | 'critical' | null; status: string; created_at: string;
+  is_pending?: boolean;
 };
 
 type TabId = 'timeline' | 'deadlines' | 'facts' | 'legal' | 'questions' | 'brief';
@@ -85,24 +91,28 @@ function buildCaseContext(c: CaseAnalysis): string {
 }
 
 function caseAnalysisToSummary(c: CaseAnalysis): CaseSummary {
+  if (c.is_pending) {
+    const n = c.raw_documents?.length ?? 0;
+    return {
+      case_id: c.case_id, case_title: c.case_title, client_name: '—',
+      case_summary: n === 0 ? 'Fascicolo vuoto — aggiungi documenti' : `${n} documento${n !== 1 ? 'i' : ''} caricato${n !== 1 ? 'i' : ''}, analisi non avviata`,
+      charge_summary: '— da analizzare —', next_deadline_date: null, next_deadline_title: null,
+      contradiction_count: 0, material_count: n, risk_level: null, status: 'pending',
+      created_at: new Date().toISOString(), is_pending: true,
+    };
+  }
   const la = c.legal_analysis;
   const nextDeadline = [...c.procedural_deadlines].sort((a, b) =>
     `${a.due_date}T${a.due_time ?? '23:59'}`.localeCompare(`${b.due_date}T${b.due_time ?? '23:59'}`)
   )[0];
   const client = c.people.find(p => /imputat|accusat|defendant|client/i.test(p.role));
   return {
-    case_id: c.case_id,
-    case_title: c.case_title,
-    client_name: client?.name ?? '—',
+    case_id: c.case_id, case_title: c.case_title, client_name: client?.name ?? '—',
     case_summary: c.case_summary,
     charge_summary: la?.charges.map(ch => ch.charge_name).join(', ') || 'Accuse da determinare',
-    next_deadline_date: nextDeadline?.due_date ?? null,
-    next_deadline_title: nextDeadline?.title ?? null,
-    contradiction_count: c.contradictions.length,
-    material_count: c.materials.length,
-    risk_level: la?.risk_level ?? null,
-    status: 'active',
-    created_at: new Date().toISOString(),
+    next_deadline_date: nextDeadline?.due_date ?? null, next_deadline_title: nextDeadline?.title ?? null,
+    contradiction_count: c.contradictions.length, material_count: c.materials.length,
+    risk_level: la?.risk_level ?? null, status: 'active', created_at: new Date().toISOString(),
   };
 }
 
@@ -299,16 +309,49 @@ function MaterialDrawer({ material, onClose }: { material: Material | null; onCl
   );
 }
 
-function UploadDrawer({ onClose, onAnalyze }: { onClose: () => void; onAnalyze: (title: string, text: string, name: string) => void }) {
+function NewCaseDrawer({ onClose, onCreate }: { onClose: () => void; onCreate: (title: string) => void }) {
   const [title, setTitle] = useState('');
+  return (
+    <div className="drawer-backdrop" onClick={onClose}>
+      <aside className="source-drawer upload-drawer" onClick={e => e.stopPropagation()}>
+        <div className="drawer-handle" />
+        <div className="drawer-header">
+          <div><p className="eyebrow">Fascicolo</p><h2>Nuovo fascicolo</h2></div>
+          <button onClick={onClose} className="ghost-button"><X size={18} /></button>
+        </div>
+        <div className="upload-field">
+          <label>Titolo del caso</label>
+          <input
+            className="upload-input"
+            placeholder="es. Caso Rossi — Furto aggravato"
+            value={title}
+            autoFocus
+            onChange={e => setTitle(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && title.trim()) onCreate(title.trim()); }}
+          />
+        </div>
+        <div className="upload-actions">
+          <button className="ghost-button" onClick={onClose}>Annulla</button>
+          <button className="primary-button" disabled={!title.trim()} onClick={() => title.trim() && onCreate(title.trim())}>
+            <FolderPlus size={15} /> Crea fascicolo
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (doc: RawDocument) => void }) {
+  const [description, setDescription] = useState('');
   const [text, setText] = useState('');
-  const [docName, setDocName] = useState('documento.txt');
+  const [docName, setDocName] = useState('');
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(async (file: File) => {
     setDocName(file.name);
+    if (!description) setDescription(file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '));
     if (file.type.startsWith('text/') || file.name.endsWith('.txt')) {
       setText(await file.text());
     } else {
@@ -323,7 +366,7 @@ function UploadDrawer({ onClose, onAnalyze }: { onClose: () => void; onAnalyze: 
         setUploading(false);
       }
     }
-  }, []);
+  }, [description]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragging(false);
@@ -336,24 +379,35 @@ function UploadDrawer({ onClose, onAnalyze }: { onClose: () => void; onAnalyze: 
     if (f) handleFile(f);
   }, [handleFile]);
 
-  const canSubmit = title.trim() && text.trim();
+  const canSubmit = text.trim();
+
+  const handleAdd = useCallback(() => {
+    if (!canSubmit) return;
+    onAdd({
+      doc_id: crypto.randomUUID(),
+      name: docName || 'documento',
+      description: description.trim() || docName || 'documento',
+      text: text.trim(),
+      added_at: new Date().toISOString(),
+    });
+  }, [canSubmit, docName, description, text, onAdd]);
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <aside className="source-drawer upload-drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div><p className="eyebrow">Nuovo materiale</p><h2>Carica documento</h2></div>
+          <div><p className="eyebrow">Fascicolo</p><h2>Aggiungi documento</h2></div>
           <button onClick={onClose} className="ghost-button"><X size={18} /></button>
         </div>
 
         <div className="upload-field">
-          <label>Titolo del caso</label>
+          <label>Descrizione breve</label>
           <input
             className="upload-input"
-            placeholder="es. Caso Rossi — Furto aggravato"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
+            placeholder="es. Verbale di arresto, Intercettazione n.3, Perizia balistica…"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
           />
         </div>
 
@@ -366,7 +420,9 @@ function UploadDrawer({ onClose, onAnalyze }: { onClose: () => void; onAnalyze: 
         >
           {uploading
             ? <><Loader2 className="spin" size={28} /><p>Estrazione testo…</p></>
-            : <><Upload size={28} /><p>Trascina un file o clicca per selezionarlo</p><small>TXT, PDF, immagini, audio</small></>
+            : docName
+              ? <><FileText size={28} /><p>{docName}</p><small>Tocca per cambiare</small></>
+              : <><Upload size={28} /><p>Tocca per selezionare un file</p><small>PDF, TXT, immagini, audio</small></>
           }
           <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={onFileChange} />
         </label>
@@ -378,18 +434,14 @@ function UploadDrawer({ onClose, onAnalyze }: { onClose: () => void; onAnalyze: 
             placeholder="Incolla qui il testo del documento…"
             value={text}
             onChange={e => setText(e.target.value)}
-            rows={7}
+            rows={5}
           />
         </div>
 
         <div className="upload-actions">
           <button className="ghost-button" onClick={onClose}>Annulla</button>
-          <button
-            className="primary-button"
-            disabled={!canSubmit}
-            onClick={() => canSubmit && onAnalyze(title, text, docName)}
-          >
-            <Zap size={15} /> Analizza con AI
+          <button className="primary-button" disabled={!canSubmit || uploading} onClick={handleAdd}>
+            <Plus size={15} /> Aggiungi al fascicolo
           </button>
         </div>
       </aside>
@@ -776,31 +828,22 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
     })();
   }, []);
 
-  const handleAnalyze = useCallback(async (title: string, text: string, name: string) => {
+  const handleCreate = useCallback(async (title: string) => {
+    const newCase: CaseAnalysis = {
+      case_id: crypto.randomUUID(), case_title: title, is_pending: true, raw_documents: [],
+      language: 'it', case_summary: '', materials: [], timeline: [], people: [],
+      evidence: [], open_questions: [], missing_documents: [], contradictions: [],
+      procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, legal_analysis: null,
+    };
+    await dbSave(newCase);
     setShowUpload(false);
-    setAnalyzing(true);
-    try {
-      const res = await fetch('/api/analyze-text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ case_title: title, materials: [{ name, kind: 'text', text }], mode: 'flash', language: 'it' }),
-      });
-      if (!res.ok) throw new Error(`Analisi fallita: ${res.status}`);
-      const newCase = await res.json() as CaseAnalysis;
-      await dbSave(newCase);
-      setCases(prev => {
-        const summary = caseAnalysisToSummary(newCase);
-        if (!prev) return [summary];
-        return [summary, ...prev.filter(c => c.case_id !== newCase.case_id)];
-      });
-      setLocalIds(prev => new Set([...prev, newCase.case_id]));
-      (window as any).__newCase = newCase;
-      onSelect('__new__');
-    } catch (e) {
-      alert(`Errore: ${(e as Error).message}`);
-    } finally {
-      setAnalyzing(false);
-    }
+    setCases(prev => {
+      const summary = caseAnalysisToSummary(newCase);
+      return prev ? [summary, ...prev] : [summary];
+    });
+    setLocalIds(prev => new Set([...prev, newCase.case_id]));
+    (window as any).__newCase = newCase;
+    onSelect(newCase.case_id);
   }, [onSelect]);
 
   const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
@@ -903,7 +946,7 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
         ))}
       </div>
 
-      {showUpload && <UploadDrawer onClose={() => setShowUpload(false)} onAnalyze={handleAnalyze} />}
+      {showUpload && <NewCaseDrawer onClose={() => setShowUpload(false)} onCreate={handleCreate} />}
     </main>
   );
 }
@@ -1259,25 +1302,38 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded }: { caseId: 
     setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
   };
 
-  const handleAnalyze = useCallback(async (title: string, text: string, name: string) => {
+  const handleAddDocument = useCallback(async (doc: RawDocument) => {
+    if (!caseData) return;
+    const updated = { ...caseData, raw_documents: [...(caseData.raw_documents ?? []), doc] };
+    await dbSave(updated);
+    setCaseData(updated);
+    setShowUpload(false);
+    showToast('Documento aggiunto al fascicolo');
+  }, [caseData, showToast]);
+
+  const handleAnalyze = useCallback(async () => {
+    if (!caseData) return;
     setShowUpload(false);
     setAnalyzing(true);
     try {
+      const docs = caseData.raw_documents ?? [];
+      const materials = docs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text }));
       const res = await fetch('/api/analyze-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ case_title: title, materials: [{ name, kind: 'text', text }], mode: 'flash', language: 'it' }),
+        body: JSON.stringify({ case_title: caseData.case_title, materials, mode: 'flash', language: 'it' }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
-      const updated = await res.json() as CaseAnalysis;
+      const updated = { ...await res.json() as CaseAnalysis, raw_documents: docs, is_pending: false };
       await dbSave(updated);
       setCaseData(updated);
+      onCaseLoaded(updated);
     } catch (e) {
-      alert(`Errore analisi: ${(e as Error).message}`);
+      showToast(`Errore analisi: ${(e as Error).message}`, 'error');
     } finally {
       setAnalyzing(false);
     }
-  }, []);
+  }, [caseData, showToast, onCaseLoaded]);
 
   if (error) return (
     <main className="app-shell loading-shell">
@@ -1291,6 +1347,57 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded }: { caseId: 
       <Loader2 className="spin" size={40} /><p>Carico fascicolo…</p>
     </main>
   );
+
+  if (caseData.is_pending) {
+    const docs = caseData.raw_documents ?? [];
+    return (
+      <main className="app-shell">
+        <button className="back-button" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
+        <div className="case-header">
+          <h1 className="case-title">{caseData.case_title}</h1>
+          <p className="muted">Aggiungi i documenti del fascicolo, poi avvia l'analisi AI.</p>
+        </div>
+
+        {analyzing && (
+          <div className="analyzing-banner"><Loader2 className="spin" size={18} /> Analisi AI in corso — attendere…</div>
+        )}
+
+        <section className="panel pending-docs-panel">
+          <div className="panel-header">
+            <h2>Documenti ({docs.length})</h2>
+            <button className="upload-fab" onClick={() => setShowUpload(true)}>
+              <Plus size={16} /> Aggiungi documento
+            </button>
+          </div>
+          {docs.length === 0
+            ? <p className="muted pending-empty">Nessun documento ancora. Tocca "Aggiungi documento" per iniziare.</p>
+            : docs.map(d => (
+                <div key={d.doc_id} className="pending-doc-item">
+                  <FileText size={18} className="pending-doc-icon" />
+                  <div>
+                    <strong>{d.description || d.name}</strong>
+                    <small>{d.name} · {new Date(d.added_at).toLocaleDateString('it')}</small>
+                  </div>
+                </div>
+              ))
+          }
+        </section>
+
+        <div className="pending-analyze-row">
+          <button
+            className="primary-button pending-analyze-btn"
+            disabled={docs.length === 0 || analyzing}
+            onClick={handleAnalyze}
+          >
+            <Zap size={16} /> Analizza fascicolo con AI
+          </button>
+        </div>
+
+        {showUpload && <AddDocumentDrawer onClose={() => setShowUpload(false)} onAdd={handleAddDocument} />}
+        {toast && <ToastNotification message={toast.message} type={toast.type} onDismiss={dismissToast} />}
+      </main>
+    );
+  }
 
   const la = caseData.legal_analysis;
 
@@ -1534,7 +1641,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded }: { caseId: 
 
       <SourceDrawer source={selectedSource} onClose={() => setSelectedSource(null)} />
       <MaterialDrawer material={selectedMaterial} onClose={() => setSelectedMaterial(null)} />
-      {showUpload && <UploadDrawer onClose={() => setShowUpload(false)} onAnalyze={handleAnalyze} />}
+      {showUpload && <AddDocumentDrawer onClose={() => setShowUpload(false)} onAdd={handleAddDocument} />}
       {aulaModeActive && <AulaModeOverlay caseData={caseData} onClose={() => setAulaModeActive(false)} />}
       {toast && <ToastNotification message={toast.message} type={toast.type} onDismiss={dismissToast} />}
     </main>
