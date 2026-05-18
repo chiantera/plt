@@ -5,9 +5,10 @@ import {
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
   Clock, Copy, FileText, Gavel, Loader2, MapPin, MessageSquare, Mic, Plus,
   Scale, Search, Send, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles,
-  Square, Upload, Users, X, Zap,
+  Square, Trash2, Upload, Users, X, Zap,
 } from 'lucide-react';
 import './styles.css';
+import { dbSave, dbList, dbGet, dbDelete } from './db';
 import { installMockApi } from './data/mockApi';
 
 installMockApi();
@@ -81,6 +82,28 @@ function buildCaseContext(c: CaseAnalysis): string {
     ctx += `BILANCIAMENTO PROVE:\n  Accusa: ${Math.round(la.evidence_balance.prosecution_strength * 100)}% — ${la.evidence_balance.key_prosecution_evidence.join('; ')}\n  Difesa: ${Math.round(la.evidence_balance.defense_strength * 100)}% — ${la.evidence_balance.key_defense_evidence.join('; ')}\n  Lacune: ${la.evidence_balance.critical_gaps.join('; ')}`;
   }
   return ctx;
+}
+
+function caseAnalysisToSummary(c: CaseAnalysis): CaseSummary {
+  const la = c.legal_analysis;
+  const nextDeadline = [...c.procedural_deadlines].sort((a, b) =>
+    `${a.due_date}T${a.due_time ?? '23:59'}`.localeCompare(`${b.due_date}T${b.due_time ?? '23:59'}`)
+  )[0];
+  const client = c.people.find(p => /imputat|accusat|defendant|client/i.test(p.role));
+  return {
+    case_id: c.case_id,
+    case_title: c.case_title,
+    client_name: client?.name ?? '—',
+    case_summary: c.case_summary,
+    charge_summary: la?.charges.map(ch => ch.charge_name).join(', ') || 'Accuse da determinare',
+    next_deadline_date: nextDeadline?.due_date ?? null,
+    next_deadline_title: nextDeadline?.title ?? null,
+    contradiction_count: c.contradictions.length,
+    material_count: c.materials.length,
+    risk_level: la?.risk_level ?? null,
+    status: 'active',
+    created_at: new Date().toISOString(),
+  };
 }
 
 const DOC_PROMPTS: Record<string, (ctx: string) => string> = {
@@ -706,6 +729,7 @@ function HomepageStats({ cases }: { cases: CaseSummary[] }) {
 
 function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
+  const [localIds, setLocalIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -724,10 +748,25 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
   }, [cases, search]);
 
   useEffect(() => {
-    fetch('/api/cases')
-      .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<CaseSummary[]>; })
-      .then(setCases)
-      .catch(e => setError(e.message));
+    (async () => {
+      // Local cases from IndexedDB — always available, even offline
+      const local = (await dbList()) as CaseAnalysis[];
+      const localSummaries = local.map(caseAnalysisToSummary);
+      const localIdSet = new Set(local.map(c => c.case_id));
+      setLocalIds(localIdSet);
+
+      // Backend demo cases — merge, skip duplicates already in IndexedDB
+      try {
+        const r = await fetch('/api/cases');
+        if (!r.ok) throw new Error(`${r.status}`);
+        const demo = await r.json() as CaseSummary[];
+        setCases([...localSummaries, ...demo.filter(c => !localIdSet.has(c.case_id))]);
+      } catch {
+        // Backend unreachable — show only local cases
+        setCases(localSummaries);
+        if (localSummaries.length === 0) setError('Backend non raggiungibile e nessun fascicolo locale');
+      }
+    })();
   }, []);
 
   const handleAnalyze = useCallback(async (title: string, text: string, name: string) => {
@@ -741,6 +780,13 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
       });
       if (!res.ok) throw new Error(`Analisi fallita: ${res.status}`);
       const newCase = await res.json() as CaseAnalysis;
+      await dbSave(newCase);
+      setCases(prev => {
+        const summary = caseAnalysisToSummary(newCase);
+        if (!prev) return [summary];
+        return [summary, ...prev.filter(c => c.case_id !== newCase.case_id)];
+      });
+      setLocalIds(prev => new Set([...prev, newCase.case_id]));
       (window as any).__newCase = newCase;
       onSelect('__new__');
     } catch (e) {
@@ -749,6 +795,14 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
       setAnalyzing(false);
     }
   }, [onSelect]);
+
+  const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Eliminare il fascicolo? I dati sono conservati solo sul tuo dispositivo.')) return;
+    await dbDelete(id);
+    setCases(prev => prev?.filter(c => c.case_id !== id) ?? null);
+    setLocalIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+  }, []);
 
   return (
     <main className="app-shell home-shell">
@@ -808,12 +862,22 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
           </p>
         )}
         {filtered.map(c => (
-          <button key={c.case_id} className="case-card" onClick={() => onSelect(c.case_id)}>
+          <button key={c.case_id} className={`case-card${localIds.has(c.case_id) ? ' case-card-local' : ''}`} onClick={() => onSelect(c.case_id)}>
             <div className="case-card-header">
               <div className="case-card-risk" style={{ background: riskColor(c.risk_level) + '22', border: `1px solid ${riskColor(c.risk_level)}55` }}>
                 <span style={{ color: riskColor(c.risk_level) }}>{riskIcon(c.risk_level)} {riskLabel(c.risk_level)}</span>
               </div>
-              <ChevronRight size={18} className="case-card-arrow" />
+              <div className="case-card-actions">
+                {localIds.has(c.case_id) && (
+                  <span className="case-local-badge">locale</span>
+                )}
+                {localIds.has(c.case_id) && (
+                  <span className="case-delete-btn" onClick={e => handleDelete(c.case_id, e)} title="Elimina fascicolo">
+                    <Trash2 size={14} />
+                  </span>
+                )}
+                <ChevronRight size={18} className="case-card-arrow" />
+              </div>
             </div>
             <h3 className="case-card-title">{c.case_title}</h3>
             <p className="case-card-charges">{c.charge_summary}</p>
@@ -1162,10 +1226,18 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded }: { caseId: 
       const nc = (window as any).__newCase as CaseAnalysis | undefined;
       if (nc) { setCaseData(nc); onCaseLoaded(nc); return; }
     }
-    fetch(`/api/cases/${caseId}`)
-      .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<CaseAnalysis>; })
-      .then(d => { setCaseData(d); onCaseLoaded(d); })
-      .catch(e => setError(e.message));
+    (async () => {
+      // Check IndexedDB first — data stays local
+      const local = await dbGet(caseId) as CaseAnalysis | null;
+      if (local) { setCaseData(local); onCaseLoaded(local); return; }
+      // Fall back to backend demo cases
+      try {
+        const r = await fetch(`/api/cases/${caseId}`);
+        if (!r.ok) throw new Error(`${r.status}`);
+        const d = await r.json() as CaseAnalysis;
+        setCaseData(d); onCaseLoaded(d);
+      } catch (e) { setError((e as Error).message); }
+    })();
   }, [caseId]);
 
   const nextDeadline = useMemo(() => {
@@ -1190,7 +1262,9 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded }: { caseId: 
         body: JSON.stringify({ case_title: title, materials: [{ name, kind: 'text', text }], mode: 'flash', language: 'it' }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
-      setCaseData(await res.json());
+      const updated = await res.json() as CaseAnalysis;
+      await dbSave(updated);
+      setCaseData(updated);
     } catch (e) {
       alert(`Errore analisi: ${(e as Error).message}`);
     } finally {

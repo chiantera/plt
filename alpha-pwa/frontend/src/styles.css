@@ -337,6 +337,10 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .case-card-meta { display: flex; gap: 10px; flex-wrap: wrap; }
 .case-card-meta span { display: flex; align-items: center; gap: 5px; color: #64748b; font-size: 0.76rem; }
 .case-card-open { display: flex; align-items: center; gap: 3px; font-size: 0.76rem; font-weight: 600; color: #38bdf8; white-space: nowrap; flex: none; }
+.case-card-actions { display: flex; align-items: center; gap: 8px; }
+.case-local-badge { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #34d399; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.3); border-radius: 999px; padding: 2px 7px; }
+.case-delete-btn { display: flex; align-items: center; color: #475569; padding: 4px; border-radius: 4px; transition: color 0.15s, background 0.15s; }
+.case-delete-btn:hover { color: #ef4444; background: rgba(239,68,68,0.12); }
 
 /* ── Legal analysis ──────────────────────────────────────────────────────── */
 .legal-panel { display: flex; flex-direction: column; gap: 0; }
