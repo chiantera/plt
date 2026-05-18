@@ -5,3 +5,4 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  VITE_API_URL  = "https://plt-backend.onrender.com"

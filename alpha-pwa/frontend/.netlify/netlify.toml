@@ -1,0 +1,30 @@
+plugins = []
+headers = []
+redirects = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "/home/deckard/plt/alpha-pwa/frontend/dist"
+publishOrigin = "config"
+commandOrigin = "config"
+base = "/home/deckard/plt/alpha-pwa/frontend"
+command = "npm run build"
+
+[build.environment]
+NODE_VERSION = "20"
+VITE_API_URL = "https://plt-backend.onrender.com"
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]

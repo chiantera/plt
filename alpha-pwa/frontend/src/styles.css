@@ -878,3 +878,22 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   padding: 16px;
 }
 .pending-analyze-btn { font-size: 1rem; padding: 14px 32px; border-radius: 999px; gap: 8px; }
+
+/* ── Onboarding ── */
+.onboarding-shell {
+  min-height: 100dvh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 40px 28px 32px; gap: 32px; background: var(--bg-base);
+}
+.onboarding-logo { text-align: center; color: #60a5fa; }
+.onboarding-logo h1 { font-size: 1.6rem; font-weight: 800; color: #f1f5f9; margin: 12px 0 6px; letter-spacing: -0.5px; }
+.onboarding-tagline { font-size: 0.9rem; color: #64748b; margin: 0; }
+.onboarding-features {
+  list-style: none; padding: 0; margin: 0; width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 20px;
+}
+.onboarding-features li { display: flex; align-items: flex-start; gap: 14px; color: #60a5fa; }
+.onboarding-features li div { display: flex; flex-direction: column; gap: 2px; }
+.onboarding-features li strong { font-size: 0.95rem; color: #e2e8f0; font-weight: 700; }
+.onboarding-features li span { font-size: 0.8rem; color: #64748b; line-height: 1.4; }
+.onboarding-btn { width: 100%; max-width: 380px; padding: 16px; font-size: 1.05rem; border-radius: 999px; gap: 10px; }
+.onboarding-version { font-size: 0.72rem; color: #334155; margin: 0; }

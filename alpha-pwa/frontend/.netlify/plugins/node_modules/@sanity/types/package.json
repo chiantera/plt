@@ -1,0 +1,69 @@
+{
+  "name": "@sanity/types",
+  "version": "3.99.0",
+  "description": "Type definitions for common Sanity data structures",
+  "keywords": [
+    "sanity",
+    "cms",
+    "headless",
+    "realtime",
+    "content",
+    "types",
+    "typescript"
+  ],
+  "homepage": "https://www.sanity.io/",
+  "bugs": {
+    "url": "https://github.com/sanity-io/sanity/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sanity-io/sanity.git",
+    "directory": "packages/@sanity/types"
+  },
+  "license": "MIT",
+  "author": "Sanity.io <hello@sanity.io>",
+  "sideEffects": false,
+  "type": "commonjs",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "import": "./lib/index.mjs",
+      "require": "./lib/index.js",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./lib/index.js",
+  "module": "./lib/index.mjs",
+  "types": "./lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
+  "dependencies": {
+    "@sanity/client": "^7.6.0",
+    "@sanity/media-library-types": "^1.0.0"
+  },
+  "devDependencies": {
+    "@sanity/insert-menu": "1.1.12",
+    "@types/react": "^19.1.0",
+    "@vitejs/plugin-react": "^4.6.0",
+    "react": "^18.3.1",
+    "rimraf": "^5.0.10",
+    "vitest": "^3.2.3",
+    "@repo/package.config": "3.99.0",
+    "@repo/test-config": "3.99.0",
+    "@repo/eslint-config": "3.99.0"
+  },
+  "peerDependencies": {
+    "@types/react": "18 || 19"
+  },
+  "scripts": {
+    "build": "pkg-utils build --strict --check --clean",
+    "check:types": "(cd ../../.. && tsc --project packages/@sanity/types/tsconfig.lib.json --erasableSyntaxOnly)",
+    "clean": "rimraf lib",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "watch": "pkg-utils watch"
+  }
+}

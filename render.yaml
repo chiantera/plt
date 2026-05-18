@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: plt-backend
+    runtime: python
+    rootDir: alpha-pwa/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: DEEPSEEK_DEFAULT_MODEL
+        value: deepseek-v4-flash
+      - key: DEEPSEEK_PRO_MODEL
+        value: deepseek-v4-pro
+      - key: PYTHON_VERSION
+        value: "3.11"

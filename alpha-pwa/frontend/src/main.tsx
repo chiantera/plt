@@ -11,7 +11,9 @@ import './styles.css';
 import { dbSave, dbList, dbGet, dbDelete } from './db';
 import { installMockApi } from './data/mockApi';
 
-installMockApi();
+if (import.meta.env.VITE_MOCK_DATA === 'true') installMockApi();
+
+const API = import.meta.env.VITE_API_URL ?? '';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -359,7 +361,7 @@ function AddDocumentDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (do
         const fd = new FormData();
         fd.append('file', file);
         setUploading(true);
-        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        const res = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
         const data = await res.json();
         setText(data.extracted_text ?? '');
       } finally {
@@ -816,7 +818,7 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
 
       // Backend demo cases — merge, skip duplicates already in IndexedDB
       try {
-        const r = await fetch('/api/cases');
+        const r = await fetch(`${API}/api/cases`);
         if (!r.ok) throw new Error(`${r.status}`);
         const demo = await r.json() as CaseSummary[];
         setCases([...localSummaries, ...demo.filter(c => !localIdSet.has(c.case_id))]);
@@ -1318,7 +1320,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded }: { caseId: 
     try {
       const docs = caseData.raw_documents ?? [];
       const materials = docs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text }));
-      const res = await fetch('/api/analyze-text', {
+      const res = await fetch(`${API}/api/analyze-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ case_title: caseData.case_title, materials, mode: 'flash', language: 'it' }),
@@ -1669,7 +1671,30 @@ Quando redigi atti processuali usa il formato standard italiano:
 
 Cita norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Cassazione con sezione, numero e anno quando pertinenti. Scrivi in italiano giuridico formale. Questo è uno strumento professionale per avvocati: non aggiungere disclaimer o avvertenze.`;
 
+function OnboardingScreen({ onDone }: { onDone: () => void }) {
+  return (
+    <main className="onboarding-shell">
+      <div className="onboarding-logo">
+        <Scale size={36} />
+        <h1>Pocket Legal Triage</h1>
+        <p className="onboarding-tagline">L'assistente AI per avvocati penalisti italiani</p>
+      </div>
+      <ul className="onboarding-features">
+        <li><ShieldCheck size={18} /><div><strong>Privacy totale</strong><span>I tuoi fascicoli restano sul dispositivo. Solo il testo inviato all'AI esce dal telefono.</span></div></li>
+        <li><FileText size={18} /><div><strong>Carica qualsiasi documento</strong><span>PDF, foto di atti, trascrizioni audio. OCR automatico integrato.</span></div></li>
+        <li><Zap size={18} /><div><strong>Analisi AI in secondi</strong><span>Timeline, contraddizioni, scadenze processuali, strategia difensiva.</span></div></li>
+        <li><MessageSquare size={18} /><div><strong>Assistente legale 24/7</strong><span>Redige memorie, ricorsi per Cassazione, eccezioni procedurali.</span></div></li>
+      </ul>
+      <button className="primary-button onboarding-btn" onClick={onDone}>
+        <ArrowRight size={18} /> Inizia
+      </button>
+      <p className="onboarding-version">Beta · Pocket Legal Triage</p>
+    </main>
+  );
+}
+
 function App() {
+  const [onboarded, setOnboarded] = useState(() => !!localStorage.getItem('plt_onboarded'));
   const [view, setView] = useState<View>('cases');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [activeCaseData, setActiveCaseData] = useState<CaseAnalysis | null>(null);
@@ -1739,7 +1764,7 @@ function App() {
         ? `${SYSTEM_PROMPT_IT}\n\n---\n${caseCtx}`
         : SYSTEM_PROMPT_IT;
 
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${API}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1789,6 +1814,10 @@ function App() {
       setChatStreaming(false);
     }
   }, [activeCaseData]);
+
+  if (!onboarded) return (
+    <OnboardingScreen onDone={() => { localStorage.setItem('plt_onboarded', '1'); setOnboarded(true); }} />
+  );
 
   return (
     <>

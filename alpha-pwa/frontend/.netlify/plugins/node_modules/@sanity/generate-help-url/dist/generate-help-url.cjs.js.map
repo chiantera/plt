@@ -1,0 +1,1 @@
+{"version":3,"file":"generate-help-url.cjs.js","sources":["../src/index.ts"],"sourcesContent":null,"names":["BASE_URL","generateHelpUrl","slug"],"mappings":"4GAAA,MAAMA,EAAW,mCAEV,SAASC,EAAgBC,EAAsB,CACpD,OAAOF,EAAWE,CACpB"}
