@@ -312,6 +312,51 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 }
 .add-row-btn:hover { background: rgba(56,189,248,0.16); }
 
+.editable-select {
+  font: inherit;
+  color: inherit;
+  background: rgba(15,23,42,0.6);
+  border: 1px solid rgba(148,163,184,0.32);
+  border-radius: 6px;
+  padding: 2px 6px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 18px;
+  background-image: linear-gradient(45deg, transparent 50%, #94a3b8 50%), linear-gradient(135deg, #94a3b8 50%, transparent 50%);
+  background-position: calc(100% - 9px) 50%, calc(100% - 4px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+.editable-select:hover { border-color: rgba(56,189,248,0.6); }
+.editable-select:focus { outline: 2px solid rgba(56,189,248,0.6); outline-offset: 2px; }
+.editable-select option { background: #0f172a; color: #f8fafc; }
+
+.editable-percent-input { width: 70px; padding: 2px 6px; display: inline-block; }
+
+.editable-string-list { list-style: none; padding: 0; margin: 6px 0; }
+.editable-string-list li {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(148,163,184,0.10);
+}
+.editable-string-list li:last-child { border-bottom: none; }
+.editable-string-list li.muted { color: #94a3b8; font-style: italic; border-bottom: none; }
+.editable-string-list svg { flex: none; margin-top: 4px; color: #94a3b8; }
+
+.brief-editor {
+  width: 100%;
+  min-height: 240px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.86rem;
+}
+.brief-preview {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148,163,184,0.2);
+}
+
 /* ── Back button ─────────────────────────────────────────────────────────── */
 .back-button {
   background: none; border: none; color: #7dd3fc; cursor: pointer;
