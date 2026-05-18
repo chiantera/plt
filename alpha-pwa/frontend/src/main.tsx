@@ -3,13 +3,19 @@ import { createRoot } from 'react-dom/client';
 import {
   AlertTriangle, ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness,
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
-  Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, MapPin, MessageSquare, Mic, Plus,
+  Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, LogOut, MapPin, MessageSquare, Mic, Plus,
   Scale, Search, Send, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles,
-  Square, Trash2, Upload, Users, X, Zap,
+  Square, Trash2, Upload, User, Users, X, Zap,
 } from 'lucide-react';
 import './styles.css';
 import { dbSave, dbList, dbGet, dbDelete } from './db';
 import { installMockApi } from './data/mockApi';
+import { createClient, type Session } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL as string,
+  import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+);
 
 if (import.meta.env.VITE_MOCK_DATA === 'true') installMockApi();
 
@@ -78,6 +84,8 @@ type TabId = 'timeline' | 'deadlines' | 'facts' | 'legal' | 'questions' | 'brief
 
 type ChatMsg = { role: 'user' | 'assistant'; content: string; id: string; };
 type ChatState = { open: boolean; messages: ChatMsg[]; caseContext: string | null; };
+
+type UserProfile = { id: string; full_name: string | null; studio: string | null; phone: string | null; };
 
 function buildCaseContext(c: CaseAnalysis): string {
   const la = c.legal_analysis;
@@ -1175,7 +1183,130 @@ async function fetchWithWakeup(
   }
 }
 
-function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+function useAuth() {
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => setSession(s));
+    return () => subscription.unsubscribe();
+  }, []);
+  return session;
+}
+
+function AuthScreen() {
+  const [tab, setTab] = useState<'login' | 'signup'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setInfo(null);
+    setLoading(true);
+    try {
+      if (tab === 'login') {
+        const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+        if (err) throw err;
+      } else {
+        const { error: err } = await supabase.auth.signUp({ email, password });
+        if (err) throw err;
+        setInfo('Controlla la tua email per il link di conferma.');
+      }
+    } catch (err: unknown) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg)' }}>
+      <div style={{ width: '100%', maxWidth: 360 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
+          <div style={{ background: 'var(--accent)', borderRadius: 10, padding: 8, display: 'flex' }}><Gavel size={20} color="#fff" /></div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>Pocket Legal Triage</div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>Accesso riservato</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'var(--surface)', borderRadius: 10, padding: 4 }}>
+          {(['login', 'signup'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13, background: tab === t ? 'var(--accent)' : 'transparent', color: tab === t ? '#fff' : 'var(--text-dim)', transition: 'all .15s' }}>
+              {t === 'login' ? 'Accedi' : 'Registrati'}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={{ padding: '12px 14px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 15, outline: 'none' }} />
+          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required style={{ padding: '12px 14px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 15, outline: 'none' }} />
+          {error && <div style={{ color: '#f87171', fontSize: 13, padding: '8px 12px', background: 'rgba(248,113,113,0.1)', borderRadius: 8 }}>{error}</div>}
+          {info && <div style={{ color: '#4ade80', fontSize: 13, padding: '8px 12px', background: 'rgba(74,222,128,0.1)', borderRadius: 8 }}>{info}</div>}
+          <button type="submit" disabled={loading} style={{ padding: '13px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4 }}>
+            {loading ? 'Caricamento…' : tab === 'login' ? 'Accedi' : 'Crea account'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ProfileDrawer({ session, onClose }: { session: Session; onClose: () => void }) {
+  const [profile, setProfile] = useState<Omit<UserProfile, 'id'>>({ full_name: null, studio: null, phone: null });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    supabase.from('profiles').select('full_name,studio,phone').eq('id', session.user.id).single()
+      .then(({ data }) => { if (data) setProfile(data); });
+  }, [session.user.id]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await supabase.from('profiles').upsert({ id: session.user.id, ...profile });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
+      <div style={{ width: '100%', maxWidth: 480, background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '24px 20px 36px', display: 'flex', flexDirection: 'column', gap: 16 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>Profilo</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 4 }}><X size={20} /></button>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: -8 }}>{session.user.email}</div>
+        {[
+          { label: 'Nome completo', key: 'full_name' as const, placeholder: 'Avv. Mario Rossi' },
+          { label: 'Studio legale', key: 'studio' as const, placeholder: 'Studio Rossi & Associati' },
+          { label: 'Telefono', key: 'phone' as const, placeholder: '+39 02 1234567' },
+        ].map(({ label, key, placeholder }) => (
+          <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>{label}</label>
+            <input value={profile[key] ?? ''} onChange={e => setProfile(p => ({ ...p, [key]: e.target.value }))} placeholder={placeholder} style={{ padding: '11px 13px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14, outline: 'none' }} />
+          </div>
+        ))}
+        <button onClick={handleSave} disabled={saving} style={{ padding: '13px', borderRadius: 10, border: 'none', background: saved ? '#22c55e' : 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: 15, cursor: saving ? 'not-allowed' : 'pointer', transition: 'background .3s' }}>
+          {saving ? 'Salvataggio…' : saved ? 'Salvato ✓' : 'Salva'}
+        </button>
+        <button onClick={() => supabase.auth.signOut()} style={{ padding: '11px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-dim)', fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <LogOut size={15} /> Esci
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Case list ─────────────────────────────────────────────────────────────────
+
+function CaseListView({ onSelect, session }: { onSelect: (id: string) => void; session: Session }) {
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
   const [localIds, setLocalIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -1183,6 +1314,7 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
   const [showUpload, setShowUpload] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [search, setSearch] = useState('');
+  const [showProfile, setShowProfile] = useState(false);
 
   const filtered = useMemo(() => {
     if (!cases) return [];
@@ -1253,18 +1385,24 @@ function CaseListView({ onSelect }: { onSelect: (id: string) => void }) {
 
       {/* ── Hero ── */}
       <header className="home-hero">
-        <div className="home-brand">
-          <div className="home-brand-icon"><Gavel size={22} /></div>
-          <div>
-            <div className="home-brand-name">Pocket Legal Triage</div>
-            <div className="home-brand-tagline">Studio Legale · Milano</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="home-brand">
+            <div className="home-brand-icon"><Gavel size={22} /></div>
+            <div>
+              <div className="home-brand-name">Pocket Legal Triage</div>
+              <div className="home-brand-tagline">Studio Legale · Milano</div>
+            </div>
           </div>
+          <button onClick={() => setShowProfile(true)} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 6 }} title="Profilo">
+            <User size={16} />
+          </button>
         </div>
         <h1 className="home-headline">
           I tuoi<br /><span className="home-headline-accent">fascicoli</span>
         </h1>
         {cases && <HomepageStats cases={cases} />}
       </header>
+      {showProfile && <ProfileDrawer session={session} onClose={() => setShowProfile(false)} />}
 
       {/* ── Actions bar ── */}
       <div className="home-actions-bar">
@@ -2910,6 +3048,7 @@ function OnboardingScreen({ onDone }: { onDone: () => void }) {
 }
 
 function App() {
+  const session = useAuth();
   const [onboarded, setOnboarded] = useState(() => !!localStorage.getItem('plt_onboarded'));
   const [view, setView] = useState<View>('cases');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
@@ -3032,6 +3171,14 @@ function App() {
     }
   }, [activeCaseData]);
 
+  if (session === undefined) return (
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+      <Loader2 size={28} className="spin" style={{ color: 'var(--accent)' }} />
+    </div>
+  );
+
+  if (!session) return <AuthScreen />;
+
   if (!onboarded) return (
     <OnboardingScreen onDone={() => { localStorage.setItem('plt_onboarded', '1'); setOnboarded(true); }} />
   );
@@ -3040,7 +3187,7 @@ function App() {
     <>
       {view === 'case' && selectedCaseId
         ? <CaseDetailView caseId={selectedCaseId} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
-        : <CaseListView key={listRefreshKey} onSelect={handleSelectCase} />
+        : <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} />
       }
       <FloatingChatButton onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))} hasContext={!!activeCaseData} />
       <ChatDrawer
