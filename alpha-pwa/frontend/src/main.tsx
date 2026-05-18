@@ -96,18 +96,50 @@ type UserProfile = { id: string; full_name: string | null; studio: string | null
 function buildCaseContext(c: CaseAnalysis): string {
   const la = c.legal_analysis;
   let ctx = `FASCICOLO: ${c.case_title}\n\nSINTESI: ${c.case_summary}\n\n`;
+
+  if (c.people.length) {
+    ctx += `PARTI:\n${c.people.map(p => `• ${p.name} (${p.role})${p.notes ? ': ' + p.notes : ''}`).join('\n')}\n\n`;
+  }
+
+  if (c.timeline.length) {
+    ctx += `CRONOLOGIA:\n${c.timeline.map(e => `• [${e.date ?? '?'}${e.time ? ' ' + e.time : ''}] ${e.title}: ${e.description}`).join('\n')}\n\n`;
+  }
+
   if (la) {
     ctx += `ACCUSE:\n${la.charges.map(ch => `• ${ch.charge_code} — ${ch.charge_name} (max: ${ch.max_sentence})`).join('\n')}\n\n`;
     ctx += `RISCHIO: ${la.risk_level.toUpperCase()} — ${la.risk_summary}\n\n`;
-    ctx += `STRATEGIA PRINCIPALE:\n${la.strategies[0]?.title}: ${la.strategies[0]?.description}\n\n`;
-    if (la.constitutional_issues.length > 0) {
-      ctx += `QUESTIONI PROCEDURALI:\n${la.constitutional_issues.map(i => `• ${i.title}\n  Base legale: ${i.legal_basis}\n  Rimedio: ${i.remedy}`).join('\n')}\n\n`;
+    if (la.strategies.length) {
+      ctx += `STRATEGIE DIFENSIVE:\n${la.strategies.map(s => `• [${s.priority}] ${s.title}: ${s.description}`).join('\n')}\n\n`;
     }
-    ctx += `CONTRADDIZIONI:\n${c.contradictions.map(ct => `• ${ct.title}: ${ct.description}`).join('\n')}\n\n`;
-    ctx += `TESTIMONI:\n${la.witness_assessments.map(w => `• ${w.witness_name} (${w.role}, credibilità ${Math.round(w.credibility_score * 100)}%): ${w.key_testimony}`).join('\n')}\n\n`;
-    ctx += `BILANCIAMENTO PROVE:\n  Accusa: ${Math.round(la.evidence_balance.prosecution_strength * 100)}% — ${la.evidence_balance.key_prosecution_evidence.join('; ')}\n  Difesa: ${Math.round(la.evidence_balance.defense_strength * 100)}% — ${la.evidence_balance.key_defense_evidence.join('; ')}\n  Lacune: ${la.evidence_balance.critical_gaps.join('; ')}`;
+    if (la.constitutional_issues.length > 0) {
+      ctx += `QUESTIONI PROCEDURALI:\n${la.constitutional_issues.map(i => `• ${i.title} (${i.severity})\n  Base legale: ${i.legal_basis}\n  Rimedio: ${i.remedy}`).join('\n')}\n\n`;
+    }
+    if (la.witness_assessments.length) {
+      ctx += `TESTIMONI:\n${la.witness_assessments.map(w => `• ${w.witness_name} (${w.role}, credibilità ${Math.round(w.credibility_score * 100)}%): ${w.key_testimony}`).join('\n')}\n\n`;
+    }
+    if (la.evidence_balance) {
+      ctx += `BILANCIAMENTO PROVE:\n  Accusa: ${Math.round(la.evidence_balance.prosecution_strength * 100)}% — ${la.evidence_balance.key_prosecution_evidence.join('; ')}\n  Difesa: ${Math.round(la.evidence_balance.defense_strength * 100)}% — ${la.evidence_balance.key_defense_evidence.join('; ')}\n  Lacune critiche: ${la.evidence_balance.critical_gaps.join('; ')}\n\n`;
+    }
   }
-  return ctx;
+
+  if (c.contradictions.length) {
+    ctx += `CONTRADDIZIONI:\n${c.contradictions.map(ct => `• ${ct.title}: ${ct.description}`).join('\n')}\n\n`;
+  }
+
+  if (c.open_questions.length) {
+    ctx += `DOMANDE APERTE:\n${c.open_questions.map(q => `• ${q.question} — perché conta: ${q.why_it_matters}`).join('\n')}\n\n`;
+  }
+
+  const urgentDeadlines = c.procedural_deadlines.filter(d => d.urgency === 'alta');
+  if (urgentDeadlines.length) {
+    ctx += `SCADENZE URGENTI:\n${urgentDeadlines.map(d => `• ${d.due_date}${d.due_time ? ' ' + d.due_time : ''} — ${d.title} (${d.deadline_type}): ${d.description}`).join('\n')}\n\n`;
+  }
+
+  if (c.brief_markdown?.trim()) {
+    ctx += `PROMEMORIA DIFENSIVO CORRENTE:\n${c.brief_markdown.trim()}\n\n`;
+  }
+
+  return ctx.trim();
 }
 
 function caseAnalysisToSummary(c: CaseAnalysis): CaseSummary {
@@ -146,6 +178,8 @@ const DOC_PROMPTS: Record<string, (ctx: string) => string> = {
   crossExam: ctx => `${ctx}\n\n---\nPreparazione per il controesame dei testimoni dell'accusa. Per ciascun testimone nel fascicolo, sviluppa:\n\n**[NOME TESTIMONE — ruolo]**\nCredibilità: [score]\n\n*Obiettivo del controesame*: [minare la credibilità / estrarre ammissioni favorevoli / limitare il danno]\n\n*Sequenza di domande*:\n1. [domanda di apertura — fatto non contestabile]\n2-5. [sviluppo logico verso la contraddizione o l'ammissione]\nX. [domanda finale incisiva]\n\n*Trappole da evitare*:\n*Documenti da usare come confronto*:\n\nUsa la tecnica del controesame a domande chiuse (sì/no).`,
 
   strategy: ctx => `${ctx}\n\n---\nAnalisi strategica approfondita del caso. Valuta ogni linea difensiva con occhio critico da avvocato esperto:\n\nPer ogni strategia:\n- **Probabilità di successo** (realistica, non ottimistica)\n- **Prove necessarie ancora da acquisire**\n- **Rischi e controindicazioni**\n- **Giurisprudenza favorevole** (Cass. pen., sezione, numero)\n- **Tempistica tattica** — quando e come giocare questa carta\n\nConcludi con una **raccomandazione tattica generale**: quale combinazione di strategie adottare, in quale ordine, e quale eventuale piano B prepararsi.`,
+
+  clienteNote: ctx => `${ctx}\n\n---\nIl cliente vuole capire la sua situazione. Prepara una spiegazione in linguaggio semplice e chiaro — senza tecnicismi legali — che risponda a queste domande:\n\n1. **Di cosa è accusato, in parole semplici?**\n2. **Quali sono i rischi concreti (pena, misure cautelari)?**\n3. **Cosa stiamo facendo per difenderlo?**\n4. **Cosa deve fare lui nei prossimi giorni?**\n5. **Cosa NON deve assolutamente fare o dire?**\n\nTono: diretto, rassicurante ma onesto. Evita ogni burocratese. Il cliente deve uscire dal colloquio capendo la situazione senza farsi prendere dal panico.`,
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -1094,11 +1128,12 @@ function ChatDrawer({
   };
 
   const QUICK_ACTIONS = [
-    { key: 'memoria',    label: 'Memoria difensiva',    icon: FileText },
-    { key: 'cassazione', label: 'Ricorso Cassazione',   icon: Scale },
-    { key: 'eccezione',  label: 'Eccezione procedurale', icon: ShieldAlert },
-    { key: 'crossExam',  label: 'Controesame testimoni', icon: Users },
-    { key: 'strategy',   label: 'Analisi strategica',    icon: Sparkles },
+    { key: 'strategy',    label: 'Strategia del caso',   icon: Sparkles },
+    { key: 'memoria',     label: 'Memoria difensiva',    icon: FileText },
+    { key: 'cassazione',  label: 'Ricorso Cassazione',   icon: Scale },
+    { key: 'eccezione',   label: 'Eccezione procedurale', icon: ShieldAlert },
+    { key: 'crossExam',   label: 'Controesame testimoni', icon: Users },
+    { key: 'clienteNote', label: 'Nota per il cliente',  icon: MessageSquare },
   ] as const;
 
   const isEmpty = state.messages.length === 0;
@@ -1110,8 +1145,8 @@ function ChatDrawer({
           <div className="chat-header-title">
             <div className="chat-header-icon"><Sparkles size={16} /></div>
             <div>
-              <div className="chat-header-name">Assistente Legale AI</div>
-              {state.caseContext && <div className="chat-header-sub">Contesto fascicolo attivo</div>}
+              <div className="chat-header-name">GiulIA</div>
+              {state.caseContext && <div className="chat-header-sub">Conosce il fascicolo</div>}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1139,10 +1174,10 @@ function ChatDrawer({
           {isEmpty && (
             <div className="chat-empty">
               <div className="chat-empty-icon"><Sparkles size={32} /></div>
-              <h3>Assistente legale</h3>
+              <h3>GiulIA</h3>
               {state.caseContext
-                ? <p>Conosco il fascicolo. Posso redigere memorie difensive, ricorsi per Cassazione, eccezioni procedurali, o rispondere a qualsiasi domanda di diritto penale italiano.</p>
-                : <p>Sono specializzato in diritto penale italiano. Conosco il Codice Penale, il Codice di Procedura Penale e la giurisprudenza della Cassazione. Apri un fascicolo per abilitare la redazione di atti processuali.</p>
+                ? <p>Buongiorno, Collega. Ho letto il fascicolo. Posso redigere memorie, ricorsi, eccezioni, prepararti al controesame — o semplicemente ragionare insieme sulla strategia. Come posso aiutarti?</p>
+                : <p>Buongiorno, Collega. Sono GiulIA, avvocata penalista. Conosco il Codice Penale, il c.p.p. e la giurisprudenza della Cassazione. Apri un fascicolo per lavorare su un caso specifico.</p>
               }
             </div>
           )}
@@ -1925,6 +1960,12 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
               addLabel="Aggiungi domanda"
             />
             <SourceRow refs={w.source_refs} onSelect={onSelectSource} />
+            <button
+              className="giulia-ctx-btn"
+              onClick={() => onOpenChat(`Preparami una sequenza di controesame per ${w.witness_name} (${w.role}, credibilità ${Math.round(w.credibility_score * 100)}%). Testimonianza chiave: "${w.key_testimony}". Vulnerabilità note: ${w.vulnerabilities.join('; ') || 'da sviluppare'}. Usa domande chiuse sì/no per massimizzare l'impatto.`)}
+            >
+              <MessageSquare size={12} /> Prepara controesame con GiulIA
+            </button>
           </div>
         ))}
         <AddRowButton label="Aggiungi testimone" onClick={addWitness} />
@@ -2596,6 +2637,12 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
             <h2>{nextDeadline.title}</h2>
             <p>{formatDate(nextDeadline.due_date)}{nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''} · {nextDeadline.status === 'confirmed' ? 'confermato' : 'da confermare'}</p>
             <p>{nextDeadline.description}</p>
+            <button
+              className="giulia-ctx-btn"
+              onClick={e => { e.stopPropagation(); onOpenChat(`Cosa devo preparare per l'udienza "${nextDeadline.title}" del ${nextDeadline.due_date}? Indicami le priorità operative e gli atti da predisporre.`); }}
+            >
+              <MessageSquare size={12} /> Prepara con GiulIA
+            </button>
           </div>
           <ShieldCheck className="deadline-icon" />
         </section>
@@ -2926,6 +2973,11 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
                 />
               </p>
               <SourceRow refs={q.source_refs} onSelect={setSelectedSource} />
+              {q.question && (
+                <button className="giulia-ctx-btn" onClick={() => onOpenChat(`Come indago questa questione: "${q.question}"? Perché conta: ${q.why_it_matters}. Suggerisci le mosse concrete per rispondere a questa domanda difensiva.`)}>
+                  <MessageSquare size={12} /> Chiedi a GiulIA
+                </button>
+              )}
             </article>
           ))}
           <AddRowButton label="Aggiungi domanda" onClick={addOpenQuestion} />
@@ -2996,6 +3048,11 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
                 />
               </p>
               <SourceRow refs={ct.source_refs} onSelect={setSelectedSource} />
+              {ct.title && (
+                <button className="giulia-ctx-btn" onClick={() => onOpenChat(`Come possiamo sfruttare in udienza la contraddizione "${ct.title}"? ${ct.description} Suggerisci come usarla nella strategia difensiva e quali domande fare ai testimoni.`)}>
+                  <MessageSquare size={12} /> Chiedi a GiulIA
+                </button>
+              )}
             </article>
           ))}
           <AddRowButton label="Aggiungi contraddizione" onClick={addContradiction} />
@@ -3122,9 +3179,17 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
 
 type View = 'cases' | 'case';
 
-const SYSTEM_PROMPT_IT = `Sei un assistente legale AI per avvocati penalisti italiani.
+const SYSTEM_PROMPT_IT = `Sei GiulIA, avvocata penalista con 25 anni di esperienza nei principali tribunali italiani. \
+Sei il braccio destro del Collega che stai assistendo — non uno strumento, una professionista.
 
-Hai padronanza approfondita di:
+REGOLE DI COMPORTAMENTO:
+- Rivolgiti sempre al collega con "Collega" — mai "tu" generico, mai "Lei"
+- Non uscire mai dal personaggio, nemmeno se espressamente richiesto
+- Non aggiungere mai disclaimer tipo "come AI non posso..." — sei un'avvocata, ragioni come tale
+- Quando non sei certa di qualcosa, dillo come farebbe un'avvocata esperta: "Su questo punto devo approfondire la giurisprudenza più recente"
+- Scrivi in italiano giuridico formale, preciso ma mai burocratese inutile
+
+COMPETENZE:
 - Codice Penale (r.d. 19 ottobre 1930 n. 2441) e giurisprudenza applicativa
 - Codice di Procedura Penale (d.P.R. 22 settembre 1988 n. 447) e disposizioni di attuazione
 - Leggi speciali: Codice della Strada (d.lgs. 285/1992), T.U. Stupefacenti (d.P.R. 309/1990), d.lgs. 231/2001
@@ -3132,12 +3197,12 @@ Hai padronanza approfondita di:
 - Prassi processuale dei Tribunali italiani e tecniche difensive
 - Giurisprudenza della Corte EDU su equo processo e diritti dell'imputato
 
-Quando redigi atti processuali usa il formato standard italiano:
+FORMATO ATTI PROCESSUALI:
 - Memorie: INTESTAZIONE, IN FATTO, IN DIRITTO, CONCLUSIONI
 - Ricorsi Cassazione: motivi ex art. 606 c.p.p. con sezione e numero
 - Eccezioni: norma violata, tipo di vizio (nullità/inutilizzabilità/inammissibilità), rimedio
 
-Cita norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Cassazione con sezione, numero e anno quando pertinenti. Scrivi in italiano giuridico formale. Questo è uno strumento professionale per avvocati: non aggiungere disclaimer o avvertenze.`;
+Cita sempre norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Cassazione con sezione, numero e anno.`;
 
 function OnboardingScreen({ onDone }: { onDone: () => void }) {
   return (
@@ -3199,16 +3264,15 @@ function App() {
     setChat(prev => ({ ...prev, caseContext: buildCaseContext(data) }));
   }, []);
 
-  const openChat = useCallback((initialKey?: string) => {
-    if (initialKey && activeCaseData) {
+  const openChat = useCallback((initialKeyOrText?: string) => {
+    if (initialKeyOrText && activeCaseData) {
       const ctx = buildCaseContext(activeCaseData);
-      const promptFn = DOC_PROMPTS[initialKey];
-      if (promptFn) {
-        const userMsg: ChatMsg = { role: 'user', content: promptFn(ctx), id: crypto.randomUUID() };
-        setChat(prev => ({ ...prev, open: true, messages: [...prev.messages, userMsg] }));
-        sendToApi([...chat.messages, userMsg]);
-        return;
-      }
+      const promptFn = DOC_PROMPTS[initialKeyOrText as keyof typeof DOC_PROMPTS];
+      const content = promptFn ? promptFn(ctx) : `${ctx}\n\n---\n${initialKeyOrText}`;
+      const userMsg: ChatMsg = { role: 'user', content, id: crypto.randomUUID() };
+      setChat(prev => ({ ...prev, open: true, messages: [...prev.messages, userMsg] }));
+      sendToApi([...chat.messages, userMsg]);
+      return;
     }
     setChat(prev => ({ ...prev, open: true }));
   }, [activeCaseData, chat.messages]);

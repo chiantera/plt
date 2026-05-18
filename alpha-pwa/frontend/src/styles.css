@@ -132,6 +132,16 @@ p { color: #cbd5e1; line-height: 1.55; margin-bottom: 8px; }
 .source-badge:hover { border-color: rgba(125,211,252,0.5); }
 .source-row { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
 
+/* ── GiulIA contextual buttons ──────────────────────────────────────────── */
+.giulia-ctx-btn {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 10px;
+  background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.28);
+  color: #a78bfa; border-radius: 999px; padding: 4px 11px;
+  font: inherit; font-size: 0.71rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.giulia-ctx-btn:hover { background: rgba(139,92,246,0.2); border-color: rgba(139,92,246,0.5); }
+
 /* ── People/evidence grid ────────────────────────────────────────────────── */
 .grid-panel { display: grid; grid-template-columns: 1fr; gap: 16px; }
 .mini-card, .question-card, .missing-card {
