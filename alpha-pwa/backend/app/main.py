@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 
 from .ai_service import analyze_case, stream_chat
 from .demo_data import build_demo_case, get_all_cases, get_case_summaries
@@ -183,3 +183,71 @@ async def transcribe_audio(file: UploadFile = File(...)) -> dict[str, Any]:
     )
 
     return {"text": transcription if isinstance(transcription, str) else transcription.text}
+
+
+# ── Brief → DOCX export ───────────────────────────────────────────────────────
+
+from pydantic import BaseModel as _BaseModel
+
+class BriefExportRequest(_BaseModel):
+    case_title: str
+    brief_markdown: str
+
+@app.post("/api/export-brief")
+def export_brief(req: BriefExportRequest) -> Response:
+    """Convert brief_markdown to a DOCX file and return it for download."""
+    import re as _re
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    doc = Document()
+
+    # Title
+    title_par = doc.add_heading(req.case_title, level=0)
+    title_par.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    for line in req.brief_markdown.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            doc.add_paragraph('')
+            continue
+        # Headings
+        if stripped.startswith('### '):
+            doc.add_heading(stripped[4:], level=3)
+        elif stripped.startswith('## '):
+            doc.add_heading(stripped[3:], level=2)
+        elif stripped.startswith('# '):
+            doc.add_heading(stripped[2:], level=1)
+        # List items
+        elif stripped.startswith('- ') or stripped.startswith('* '):
+            p = doc.add_paragraph(style='List Bullet')
+            _add_inline(p, stripped[2:])
+        # Normal paragraph
+        else:
+            p = doc.add_paragraph()
+            _add_inline(p, stripped)
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    safe_name = _re.sub(r'[^\w\-]', '_', req.case_title)[:60]
+    return Response(
+        content=buf.read(),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.docx"'},
+    )
+
+def _add_inline(paragraph, text: str) -> None:
+    """Add a paragraph run with basic bold/italic support."""
+    import re as _re
+    parts = _re.split(r'(\*\*[^*]+\*\*|\*[^*]+\*)', text)
+    for part in parts:
+        if part.startswith('**') and part.endswith('**'):
+            run = paragraph.add_run(part[2:-2])
+            run.bold = True
+        elif part.startswith('*') and part.endswith('*'):
+            run = paragraph.add_run(part[1:-1])
+            run.italic = True
+        else:
+            paragraph.add_run(part)

@@ -224,10 +224,11 @@ function buildUserContextMaterial(c: CaseAnalysis): { name: string; kind: string
   if (c.open_questions.length) lines.push('DOMANDE APERTE:\n' + c.open_questions.map(q => `- ${q.question} (${q.why_it_matters})`).join('\n'));
   if (c.missing_documents.length) lines.push('DOCUMENTI MANCANTI:\n' + c.missing_documents.map(d => `- ${d.title} (priorità ${d.priority}): ${d.reason}`).join('\n'));
   if (c.procedural_deadlines.length) lines.push('SCADENZE:\n' + c.procedural_deadlines.map(dl => `- [${dl.due_date}] ${dl.title} (urgenza ${dl.urgency})`).join('\n'));
+  if (c.brief_markdown?.trim()) lines.push(`BOZZA PROMEMORIA DIFENSIVO (aggiorna e migliora con i nuovi documenti):\n${c.brief_markdown.trim()}`);
   if (!lines.length) return null;
   return {
     name: isIncremental
-      ? 'Analisi esistente consolidata — NON rianalizzare questi elementi. Integra SOLO i nuovi documenti che seguono.'
+      ? 'Analisi esistente consolidata — integra i nuovi documenti che seguono, aggiorna il brief_markdown.'
       : 'Annotazioni esistenti (inserite dall\'avvocato — integrare, non sovrascrivere)',
     kind: 'text',
     text: lines.join('\n\n'),
@@ -249,7 +250,7 @@ function mergeWithAi(existing: CaseAnalysis, ai: CaseAnalysis): CaseAnalysis {
     is_pending: false,
     case_title: existing.case_title?.trim() || ai.case_title,
     case_summary: existing.case_summary?.trim() || ai.case_summary,
-    brief_markdown: existing.brief_markdown?.trim() || ai.brief_markdown,
+    brief_markdown: ai.brief_markdown?.trim() || existing.brief_markdown || '',
     timeline: mergeArrays(existing.timeline, ai.timeline, 'title'),
     people: mergeArrays(existing.people, ai.people, 'name'),
     evidence: mergeArrays(existing.evidence, ai.evidence, 'title'),
@@ -2226,6 +2227,27 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     }
   }, [caseData, showToast]);
 
+  const exportBriefDocx = useCallback(async () => {
+    if (!caseData) return;
+    try {
+      const res = await fetch(`${API}/api/export-brief`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ case_title: caseData.case_title, brief_markdown: caseData.brief_markdown }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${caseData.case_title.replace(/[^\w\s-]/g, '').trim()}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      showToast(`Errore export: ${(e as Error).message}`, 'error');
+    }
+  }, [caseData, showToast]);
+
   const shareBrief = useCallback(async () => {
     if (!caseData) return;
     if (typeof navigator.share === 'function') {
@@ -2971,6 +2993,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       {activeTab === 'brief' && (
         <section className="panel brief-panel">
           <div className="brief-toolbar">
+            <button className="brief-action-btn" onClick={exportBriefDocx}><FileText size={14} /> Scarica DOCX</button>
             <button className="brief-action-btn" onClick={exportBrief}><Copy size={14} /> Copia</button>
             <button className="brief-action-btn" onClick={shareBrief}><Share2 size={14} /> Condividi</button>
             <button className="brief-action-btn" onClick={handleAnonymizeBrief}><EyeOff size={14} /> Anonimizza</button>
