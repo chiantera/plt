@@ -1237,7 +1237,7 @@ const tabs: Array<{ id: TabId; label: string }> = [
   { id: 'brief', label: 'Promemoria' },
 ];
 
-function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded }: { caseId: string; onBack: () => void; onOpenChat: (key: string) => void; onCaseLoaded: (d: CaseAnalysis) => void }) {
+function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyzed }: { caseId: string; onBack: () => void; onOpenChat: (key: string) => void; onCaseLoaded: (d: CaseAnalysis) => void; onCaseAnalyzed?: (d: CaseAnalysis) => void }) {
   const [caseData, setCaseData] = useState<CaseAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('timeline');
@@ -1326,10 +1326,11 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded }: { caseId: 
         body: JSON.stringify({ case_title: caseData.case_title, materials, mode: 'flash', language: 'it' }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
-      const updated = { ...await res.json() as CaseAnalysis, raw_documents: docs, is_pending: false };
+      const updated = { ...await res.json() as CaseAnalysis, case_id: caseData.case_id, raw_documents: docs, is_pending: false };
       await dbSave(updated);
       setCaseData(updated);
       onCaseLoaded(updated);
+      onCaseAnalyzed?.(updated);
     } catch (e) {
       showToast(`Errore analisi: ${(e as Error).message}`, 'error');
     } finally {
@@ -1705,6 +1706,7 @@ function App() {
     } catch { return { open: false, messages: [], caseContext: null }; }
   });
   const [chatStreaming, setChatStreaming] = useState(false);
+  const [listRefreshKey, setListRefreshKey] = useState(0);
 
   useEffect(() => {
     try { localStorage.setItem('plt_chat_messages', JSON.stringify(chat.messages)); } catch {}
@@ -1822,8 +1824,8 @@ function App() {
   return (
     <>
       {view === 'case' && selectedCaseId
-        ? <CaseDetailView caseId={selectedCaseId} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} />
-        : <CaseListView onSelect={handleSelectCase} />
+        ? <CaseDetailView caseId={selectedCaseId} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
+        : <CaseListView key={listRefreshKey} onSelect={handleSelectCase} />
       }
       <FloatingChatButton onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))} hasContext={!!activeCaseData} />
       <ChatDrawer
