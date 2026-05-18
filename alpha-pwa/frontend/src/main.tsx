@@ -311,6 +311,29 @@ function MaterialDrawer({ material, onClose }: { material: Material | null; onCl
   );
 }
 
+function RawDocDrawer({ doc, onClose, onDelete }: { doc: RawDocument | null; onClose: () => void; onDelete: (id: string) => void }) {
+  if (!doc) return null;
+  return (
+    <div className="drawer-backdrop" onClick={onClose}>
+      <aside className="source-drawer material-drawer" onClick={e => e.stopPropagation()}>
+        <div className="drawer-handle" />
+        <div className="drawer-header">
+          <div><p className="eyebrow">{doc.name}</p><h2>{doc.description || doc.name}</h2></div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => { onDelete(doc.doc_id); onClose(); }} className="ghost-button" style={{ color: '#ef4444' }}><Trash2 size={16} /></button>
+            <button onClick={onClose} className="ghost-button">Chiudi</button>
+          </div>
+        </div>
+        <div className="material-content">
+          {doc.text
+            ? doc.text.split('\n').map((l, i) => <p key={i}>{l || ' '}</p>)
+            : <p className="muted">Nessun testo disponibile.</p>}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 function NewCaseDrawer({ onClose, onCreate }: { onClose: () => void; onCreate: (title: string) => void }) {
   const [title, setTitle] = useState('');
   return (
@@ -1243,6 +1266,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
   const [activeTab, setActiveTab] = useState<TabId>('timeline');
   const [selectedSource, setSelectedSource] = useState<SourceRef | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const [selectedRawDoc, setSelectedRawDoc] = useState<RawDocument | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [aulaModeActive, setAulaModeActive] = useState(false);
@@ -1313,6 +1337,14 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     showToast('Documento aggiunto al fascicolo');
   }, [caseData, showToast]);
 
+  const handleDeleteDoc = useCallback(async (docId: string) => {
+    if (!caseData) return;
+    const updated = { ...caseData, raw_documents: (caseData.raw_documents ?? []).filter(d => d.doc_id !== docId) };
+    await dbSave(updated);
+    setCaseData(updated);
+    showToast("Documento eliminato");
+  }, [caseData, showToast]);
+
   const handleAnalyze = useCallback(async () => {
     if (!caseData) return;
     setShowUpload(false);
@@ -1375,13 +1407,13 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           {docs.length === 0
             ? <p className="muted pending-empty">Nessun documento ancora. Tocca "Aggiungi documento" per iniziare.</p>
             : docs.map(d => (
-                <div key={d.doc_id} className="pending-doc-item">
+                <button key={d.doc_id} className="pending-doc-item" onClick={() => setSelectedRawDoc(d)}>
                   <FileText size={18} className="pending-doc-icon" />
                   <div>
                     <strong>{d.description || d.name}</strong>
                     <small>{d.name} · {new Date(d.added_at).toLocaleDateString('it')}</small>
                   </div>
-                </div>
+                </button>
               ))
           }
         </section>
@@ -1396,6 +1428,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           </button>
         </div>
 
+        <RawDocDrawer doc={selectedRawDoc} onClose={() => setSelectedRawDoc(null)} onDelete={handleDeleteDoc} />
         {showUpload && <AddDocumentDrawer onClose={() => setShowUpload(false)} onAdd={handleAddDocument} />}
         {toast && <ToastNotification message={toast.message} type={toast.type} onDismiss={dismissToast} />}
       </main>
@@ -1644,6 +1677,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
 
       <SourceDrawer source={selectedSource} onClose={() => setSelectedSource(null)} />
       <MaterialDrawer material={selectedMaterial} onClose={() => setSelectedMaterial(null)} />
+      <RawDocDrawer doc={selectedRawDoc} onClose={() => setSelectedRawDoc(null)} onDelete={handleDeleteDoc} />
       {showUpload && <AddDocumentDrawer onClose={() => setShowUpload(false)} onAdd={handleAddDocument} />}
       {aulaModeActive && <AulaModeOverlay caseData={caseData} onClose={() => setAulaModeActive(false)} />}
       {toast && <ToastNotification message={toast.message} type={toast.type} onDismiss={dismissToast} />}
