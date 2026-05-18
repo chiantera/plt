@@ -1,7 +1,9 @@
 anthropic
 fastapi
 httpx
+mistralai
 openai
+pypdf
 pydantic
 pytest
 python-multipart

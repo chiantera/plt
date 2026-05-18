@@ -10,6 +10,8 @@ from fastapi.responses import StreamingResponse
 from .ai_service import analyze_case, stream_chat
 from .demo_data import build_demo_case, get_all_cases, get_case_summaries
 from .models import AnalyzeRequest, CaseAnalysis, CaseSummary, ChatRequest
+from .ocr_adapter import MistralOcrAdapter, PypdfAdapter
+from .ocr_models import OcrInput
 
 app = FastAPI(title="Pocket Legal Triage Alpha", version="0.2.0")
 
@@ -75,24 +77,50 @@ def chat_endpoint(request: ChatRequest) -> StreamingResponse:
         raise HTTPException(status_code=500, detail=f"Chat failed: {exc}") from exc
 
 
-# ── File upload (stub — extracts text, queues for analysis) ──────────────────
+# ── File upload ───────────────────────────────────────────────────────────────
+
+_pypdf = PypdfAdapter()
+_mistral = MistralOcrAdapter()
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)) -> dict[str, Any]:
-    """Accept a file upload and return its extracted text (stub for MVP)."""
+    """Extract text from uploaded file. Pipeline: text passthrough → pypdf → Mistral OCR."""
     content = await file.read()
     mime = file.content_type or ""
+    filename = file.filename or "documento"
 
-    if mime.startswith("text/") or file.filename.endswith(".txt"):
+    # Plain text — read directly, no OCR needed
+    if mime.startswith("text/") or filename.endswith(".txt"):
         extracted_text = content.decode("utf-8", errors="replace")
+        engine = "passthrough"
+        warnings: list[str] = []
     else:
-        extracted_text = f"[Estrazione automatica non ancora disponibile per {mime}. Incolla il testo manualmente.]"
+        ocr_input = OcrInput(content=content, mime_type=mime)
+
+        # Try pypdf first (free, instant, local) for native PDFs
+        result = _pypdf.extract(ocr_input)
+
+        # Fall back to Mistral OCR for scanned PDFs, images, etc.
+        if not result.success:
+            result = _mistral.extract(ocr_input)
+
+        engine = result.engine
+        warnings = [w.message for w in result.warnings]
+
+        if result.success:
+            extracted_text = "\n\n".join(
+                f"[Pagina {p.page}]\n{p.text}" for p in result.pages
+            )
+        else:
+            extracted_text = f"[Estrazione non riuscita per {mime}. {warnings[-1] if warnings else 'Incolla il testo manualmente.'}]"
 
     return {
         "upload_id": str(uuid.uuid4()),
-        "filename": file.filename,
+        "filename": filename,
         "mime_type": mime,
         "size_bytes": len(content),
         "extracted_text": extracted_text,
+        "engine": engine,
+        "warnings": warnings,
         "status": "ready" if extracted_text and not extracted_text.startswith("[") else "needs_ocr",
     }
