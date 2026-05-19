@@ -6,75 +6,75 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SourceRef(BaseModel):
-    source_name: str
+    source_name: str = ""
     page: int | None = None
     chunk: str | None = None
-    quote: str
-    confidence: float = Field(ge=0, le=1)
+    quote: str = ""
+    confidence: float = Field(default=0.5, ge=0, le=1)
 
 
 class Material(BaseModel):
-    id: str
-    name: str
-    kind: Literal["text", "pdf", "image", "audio"]
-    description: str
-    excerpt: str
+    id: str = ""
+    name: str = ""
+    kind: Literal["text", "pdf", "image", "audio"] = "text"
+    description: str = ""
+    excerpt: str = ""
     content: str = ""
 
 
 class TimelineEvent(BaseModel):
-    date: str | None
+    date: str | None = None
     time: str | None = None
-    title: str
-    description: str
-    source_refs: list[SourceRef]
-    confidence: float = Field(ge=0, le=1)
+    title: str = ""
+    description: str = ""
+    source_refs: list[SourceRef] = []
+    confidence: float = Field(default=0.5, ge=0, le=1)
 
 
 class Person(BaseModel):
-    name: str
-    role: str
-    notes: str
-    source_refs: list[SourceRef]
+    name: str = ""
+    role: str = ""
+    notes: str = ""
+    source_refs: list[SourceRef] = []
 
 
 class EvidenceItem(BaseModel):
-    title: str
-    status: str
-    notes: str
-    source_refs: list[SourceRef]
+    title: str = ""
+    status: str = ""
+    notes: str = ""
+    source_refs: list[SourceRef] = []
 
 
 class OpenQuestion(BaseModel):
-    question: str
-    why_it_matters: str
-    source_refs: list[SourceRef]
+    question: str = ""
+    why_it_matters: str = ""
+    source_refs: list[SourceRef] = []
 
 
 class MissingDocument(BaseModel):
-    title: str
-    reason: str
-    priority: Literal["alta", "media", "bassa"]
+    title: str = ""
+    reason: str = ""
+    priority: Literal["alta", "media", "bassa"] = "media"
 
 
 class Contradiction(BaseModel):
-    title: str
-    description: str
-    source_refs: list[SourceRef]
+    title: str = ""
+    description: str = ""
+    source_refs: list[SourceRef] = []
 
 
 class ProceduralDeadline(BaseModel):
-    title: str
-    deadline_type: Literal["hearing", "defense_brief", "filing", "investigation", "other"]
-    due_date: str
+    title: str = ""
+    deadline_type: Literal["hearing", "defense_brief", "filing", "investigation", "other"] = "other"
+    due_date: str = ""
     due_time: str | None = None
-    status: Literal["confirmed", "candidate", "needs_review"]
-    urgency: Literal["alta", "media", "bassa"]
-    description: str
+    status: Literal["confirmed", "candidate", "needs_review"] = "needs_review"
+    urgency: Literal["alta", "media", "bassa"] = "media"
+    description: str = ""
     start_work_date: str | None = None
     internal_target_date: str | None = None
-    source_refs: list[SourceRef]
-    tasks: list[str]
+    source_refs: list[SourceRef] = []
+    tasks: list[str] = []
 
 
 class UsageEstimate(BaseModel):
