@@ -1579,6 +1579,39 @@ function CaseListView({ onSelect, session }: { onSelect: (id: string) => void; s
         <button className="primary-button home-new-btn" onClick={() => setShowUpload(true)}>
           <Plus size={15} /> Nuovo fascicolo
         </button>
+        <button className="secondary-button" onClick={() => document.getElementById('import-file-input')?.click()}>
+          <Upload size={14} /> Importa
+        </button>
+        <input
+          id="import-file-input"
+          type="file"
+          accept=".plt,.json"
+          style={{ display: 'none' }}
+          onChange={async e => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            try {
+              const text = await file.text();
+              const data = JSON.parse(text);
+              if (!data.case_id || !data.case_title) throw new Error('File non valido');
+              const existing = await dbGet(data.case_id);
+              if (existing) {
+                const action = confirm(
+                  `Il fascicolo "${data.case_title}" è già presente. \n\nOK = Sostituisci\nAnnulla = Salva come copia`
+                );
+                if (!action) {
+                  data.case_id = crypto.randomUUID();
+                  data.case_title += ' (importato)';
+                }
+              }
+              await dbSave(data as CaseAnalysis);
+              window.location.reload();
+            } catch (err) {
+              alert(`Importazione fallita: ${(err as Error).message}`);
+            }
+            e.target.value = '';
+          }}
+        />
       </div>
 
       {analyzing && (
@@ -2498,6 +2531,24 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     showToast("Materiale eliminato");
   }, [caseData, showToast]);
 
+  const handleExport = useCallback((includeDocs = false) => {
+    if (!caseData) return;
+    const exportData = {
+      ...caseData,
+      raw_documents: includeDocs ? caseData.raw_documents : [],
+      redaction_rules: [],
+      analyzed_doc_ids: [],
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${caseData.case_id}.plt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(includeDocs ? 'Fascicolo esportato con documenti originali' : 'Fascicolo esportato');
+  }, [caseData, showToast]);
+
   const updateCase = useCallback(async (updater: (c: CaseAnalysis) => CaseAnalysis) => {
     if (!caseData) return;
     const updated = updater(caseData);
@@ -2707,6 +2758,26 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
               {redactionActive ? <EyeOff size={13} /> : <Eye size={13} />}
               {redactionActive ? 'Redatto' : 'Redigi'}
             </button>
+            <div className="export-dropdown" style={{ position: 'relative' }}>
+              <button
+                className="ghost-button"
+                onClick={() => {
+                  const el = document.getElementById('export-menu');
+                  el?.classList.toggle('export-menu--open');
+                }}
+                title="Esporta fascicolo"
+              >
+                <Share2 size={13} /> Esporta
+              </button>
+              <div id="export-menu" className="export-menu">
+                <button onClick={() => { handleExport(false); document.getElementById('export-menu')?.classList.remove('export-menu--open'); }}>
+                  Senza documenti originali
+                </button>
+                <button onClick={() => { handleExport(true); document.getElementById('export-menu')?.classList.remove('export-menu--open'); }}>
+                  Con documenti originali
+                </button>
+              </div>
+            </div>
             {mergedRules.some(r => r.enabled) && (
               <button
                 className={`ghost-button redact-toggle-btn${redactionActive ? ' redact-toggle-active' : ''}`}
