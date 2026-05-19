@@ -2425,7 +2425,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       if (local) { setCaseData(local); onCaseLoaded(local); return; }
       // Fall back to backend demo cases
       try {
-        const r = await fetch(`/api/cases/${caseId}`);
+        const r = await fetch(`${API}/api/cases/${caseId}`);
         if (!r.ok) throw new Error(`${r.status}`);
         const d = await r.json() as CaseAnalysis;
         setCaseData(d); onCaseLoaded(d);
