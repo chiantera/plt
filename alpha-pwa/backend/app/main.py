@@ -14,7 +14,7 @@ from .ai_service import analyze_case, stream_chat
 logger = logging.getLogger(__name__)
 from .demo_data import build_demo_case, get_all_cases, get_case_summaries
 from .models import AnalyzeRequest, CaseAnalysis, CaseSummary, ChatRequest
-from .ocr_adapter import MistralOcrAdapter, PypdfAdapter
+from .ocr_adapter import MistralOcrAdapter, PptxAdapter, PypdfAdapter, XlsxAdapter
 from .ocr_models import OcrInput
 
 app = FastAPI(title="Pocket Legal Triage Alpha", version="0.2.0")
@@ -94,6 +94,8 @@ def chat_endpoint(request: ChatRequest) -> StreamingResponse:
 
 _pypdf = PypdfAdapter()
 _mistral = MistralOcrAdapter()
+_pptx = PptxAdapter()
+_xlsx = XlsxAdapter()
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)) -> dict[str, Any]:
@@ -103,22 +105,40 @@ async def upload_file(file: UploadFile = File(...)) -> dict[str, Any]:
     filename = file.filename or "documento"
 
     _DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    is_docx = mime == _DOCX_MIME or filename.lower().endswith(".docx")
-    is_text = mime.startswith("text/") or filename.lower().endswith((".txt", ".rtf", ".csv"))
+    _PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-    # Plain text — read directly
-    if is_text:
+    is_text = mime.startswith("text/") or filename.lower().endswith((".txt", ".rtf", ".csv"))
+    is_docx = mime == _DOCX_MIME or filename.lower().endswith(".docx")
+    is_pptx = mime == _PPTX_MIME or filename.lower().endswith(".pptx")
+    is_xlsx = mime == _XLSX_MIME or filename.lower().endswith(".xlsx")
+    is_zip = filename.lower().endswith(".zip")
+    is_rar = filename.lower().endswith(".rar")
+
+    # ── Archivio ZIP ────────────────────────────────────────────────────────
+    if is_zip:
+        extracted_text = "[File ZIP rilevato. Estrai i file e caricali singolarmente: l'estrazione automatica non è supportata per sicurezza.]"
+        engine = "archive-zip"
+        warnings = ["I file ZIP non vengono aperti automaticamente. Estrai e carica i singoli file."]
+
+    # ── Archivio RAR ────────────────────────────────────────────────────────
+    elif is_rar:
+        extracted_text = "[File RAR rilevato. Estrai i file e caricali singolarmente: il formato RAR non è supportato.]"
+        engine = "archive-rar"
+        warnings = ["Formato RAR non supportato. Estrai e carica i singoli file (PDF, DOCX, immagini, ecc.)."]
+
+    # ── Plain text ───────────────────────────────────────────────────────────
+    elif is_text:
         extracted_text = content.decode("utf-8", errors="replace")
         engine = "passthrough"
         warnings: list[str] = []
 
-    # DOCX — extract with python-docx
+    # ── DOCX — python-docx ──────────────────────────────────────────────────
     elif is_docx:
         try:
             from docx import Document  # type: ignore
             doc = Document(io.BytesIO(content))
             paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
-            # also grab table cell text
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
@@ -132,14 +152,35 @@ async def upload_file(file: UploadFile = File(...)) -> dict[str, Any]:
             engine = "python-docx-error"
             warnings = [str(exc)]
 
-    # Everything else: pypdf → Mistral OCR
+    # ── PPT/PPTX — python-pptx ──────────────────────────────────────────────
+    elif is_pptx:
+        result = _pptx.extract(OcrInput(content=content, mime_type=mime))
+        engine = result.engine
+        warnings = [w.message for w in result.warnings]
+        if result.success:
+            extracted_text = "\n\n".join(
+                f"[Slide {p.page}]\n{p.text}" for p in result.pages
+            )
+        else:
+            extracted_text = f"[Estrazione PPTX non riuscita: {warnings[-1] if warnings else 'Prova a convertire in PDF e ricaricare.'}]"
+
+    # ── XLS/XLSX — openpyxl ─────────────────────────────────────────────────
+    elif is_xlsx:
+        result = _xlsx.extract(OcrInput(content=content, mime_type=mime))
+        engine = result.engine
+        warnings = [w.message for w in result.warnings]
+        if result.success:
+            extracted_text = "\n\n".join(
+                f"[{p.text.split(chr(10))[0]}]\n" + "\n".join(p.text.split(chr(10))[1:]) for p in result.pages
+            )
+        else:
+            extracted_text = f"[Estrazione XLSX non riuscita: {warnings[-1] if warnings else 'Prova a convertire in PDF e ricaricare.'}]"
+
+    # ── Everything else: pypdf → Mistral OCR ─────────────────────────────────
     else:
         ocr_input = OcrInput(content=content, mime_type=mime)
 
-        # Try pypdf first (free, instant, local) for native PDFs
         result = _pypdf.extract(ocr_input)
-
-        # Fall back to Mistral OCR for scanned PDFs, images, DOC, etc.
         if not result.success:
             result = _mistral.extract(ocr_input)
 

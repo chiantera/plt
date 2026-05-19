@@ -111,6 +111,122 @@ class PypdfAdapter(OcrAdapter):
         return OcrResult(success=True, engine=self.engine, pages=pages, warnings=[])
 
 
+class PptxAdapter(OcrAdapter):
+    """Extract text from PPTX files using python-pptx."""
+
+    engine = "python-pptx"
+
+    def extract(self, request: OcrInput) -> OcrResult:
+        SUPPORTED = [
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "application/vnd.ms-powerpoint",
+        ]
+        if request.mime_type not in SUPPORTED and not any(request.mime_type.endswith(s) for s in ["presentationml.presentation", ".powerpoint"]):
+            return OcrResult(
+                success=False, engine=self.engine, pages=[],
+                warnings=[OcrWarning(code="unsupported_mime_type", message=f"python-pptx only handles PPT/PPTX, got {request.mime_type}")],
+            )
+
+        try:
+            from pptx import Presentation  # noqa: PLC0415
+        except ImportError:
+            return OcrResult(
+                success=False, engine=self.engine, pages=[],
+                warnings=[OcrWarning(code="missing_dependency", message="python-pptx not installed", severity="error")],
+            )
+
+        content = request.content
+        if content is None and request.file_path is not None:
+            content = request.file_path.read_bytes()
+        if not content:
+            return OcrResult(success=False, engine=self.engine, pages=[],
+                             warnings=[OcrWarning(code="empty_content", message="No content provided")])
+
+        prs = Presentation(io.BytesIO(content))
+        pages: list[OcrPage] = []
+        for i, slide in enumerate(prs.slides, start=1):
+            texts: list[str] = []
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    for paragraph in shape.text_frame.paragraphs:
+                        t = paragraph.text.strip()
+                        if t:
+                            texts.append(t)
+                if shape.has_table:
+                    for row in shape.table.rows:
+                        for cell in row.cells:
+                            t = cell.text.strip()
+                            if t:
+                                texts.append(t)
+                if shape.has_chart:
+                    texts.append(f"[Grafico: {shape.chart.chart_type}]")
+            if texts:
+                pages.append(OcrPage(page=i, text="\n".join(texts), confidence=0.9, blocks=[]))
+
+        if not pages:
+            return OcrResult(
+                success=False, engine=self.engine, pages=[],
+                warnings=[OcrWarning(code="no_text_layer", message="PPTX has no extractable text — likely image-only slides. Convert to PDF for OCR.")],
+            )
+
+        return OcrResult(success=True, engine=self.engine, pages=pages, warnings=[])
+
+
+class XlsxAdapter(OcrAdapter):
+    """Extract text from XLSX files using openpyxl."""
+
+    engine = "python-openpyxl"
+
+    def extract(self, request: OcrInput) -> OcrResult:
+        SUPPORTED = [
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-excel",
+        ]
+        if request.mime_type not in SUPPORTED and not any(request.mime_type.endswith(s) for s in ["spreadsheetml.sheet", ".excel"]):
+            return OcrResult(
+                success=False, engine=self.engine, pages=[],
+                warnings=[OcrWarning(code="unsupported_mime_type", message=f"openpyxl only handles XLS/XLSX, got {request.mime_type}")],
+            )
+
+        try:
+            import openpyxl  # noqa: PLC0415
+        except ImportError:
+            return OcrResult(
+                success=False, engine=self.engine, pages=[],
+                warnings=[OcrWarning(code="missing_dependency", message="openpyxl not installed", severity="error")],
+            )
+
+        content = request.content
+        if content is None and request.file_path is not None:
+            content = request.file_path.read_bytes()
+        if not content:
+            return OcrResult(success=False, engine=self.engine, pages=[],
+                             warnings=[OcrWarning(code="empty_content", message="No content provided")])
+
+        wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+        pages: list[OcrPage] = []
+        for sheet_idx, sheet_name in enumerate(wb.sheetnames, start=1):
+            ws = wb[sheet_name]
+            rows_text: list[str] = []
+            for row in ws.iter_rows(values_only=True):
+                cells = [str(c).strip() for c in row if c is not None and str(c).strip()]
+                if cells:
+                    rows_text.append(" | ".join(cells))
+            if rows_text:
+                page_title = f"Foglio: {sheet_name}"
+                pages.append(OcrPage(page=sheet_idx, text=page_title + "\n" + "\n".join(rows_text), confidence=0.9, blocks=[]))
+
+        wb.close()
+
+        if not pages:
+            return OcrResult(
+                success=False, engine=self.engine, pages=[],
+                warnings=[OcrWarning(code="empty_result", message="XLSX has no readable data cells")],
+            )
+
+        return OcrResult(success=True, engine=self.engine, pages=pages, warnings=[])
+
+
 class MistralOcrAdapter(OcrAdapter):
     """OCR via Mistral OCR API (mistral-ocr-latest).
 
