@@ -2833,7 +2833,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
             <button
               className="ghost-button"
               onClick={() => {
-                const updated = { ...caseData, analyzed_doc_ids: [], legal_analysis: null, materials: [], timeline: [], people: [], evidence: [], open_questions: [], missing_documents: [], contradictions: [], procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, legal_analysis: null };
+                const updated = { ...caseData, analyzed_doc_ids: [], materials: [], timeline: [], people: [], evidence: [], open_questions: [], missing_documents: [], contradictions: [], procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, legal_analysis: null };
                 dbSave(updated).then(() => { setCaseData(updated); onCaseLoaded(updated); showToast('Analisi resettata. Ora puoi ri-analizzare da capo.'); });
               }}
               title="Resetta l'analisi e ri-analizza tutti i documenti da capo"
