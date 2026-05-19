@@ -2841,7 +2841,6 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
               <RefreshCw size={13} /> Ri-analizza
             </button>
           )}
-          </button>
           <button className="aula-trigger-btn" onClick={() => setAulaModeActive(true)}>
             <Gavel size={14} /> Aula
           </button>
