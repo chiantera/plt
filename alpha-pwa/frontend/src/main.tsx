@@ -2637,7 +2637,9 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       });
       if (!res.ok) throw new Error(`${res.status}`);
       const merged = mergeWithAi(caseData, await res.json() as CaseAnalysis);
-      const updated = { ...merged, analyzed_doc_ids: docs.map(d => d.doc_id) };
+      // Dopo l'analisi, elimina automaticamente i documenti raw processati
+      const analyzedDocIds = docs.map(d => d.doc_id);
+      const updated = { ...merged, raw_documents: [], analyzed_doc_ids: analyzedDocIds };
       await dbSave(updated);
       setCaseData(updated);
       onCaseLoaded(updated);
