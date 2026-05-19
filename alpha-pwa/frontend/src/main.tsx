@@ -1567,6 +1567,25 @@ function CaseListView({ onSelect, session }: { onSelect: (id: string) => void; s
       </header>
       {showProfile && <ProfileDrawer session={session} onClose={() => setShowProfile(false)} />}
 
+      {/* ── GiulIA home card ── */}
+      <section className="giulia-home-card">
+        <div className="giulia-home-avatar">
+          <Sparkles size={20} />
+        </div>
+        <div className="giulia-home-info">
+          <div className="giulia-home-name">GiulIA</div>
+          <div className="giulia-home-title">Avvocata penalista · Sempre a disposizione</div>
+          <p className="giulia-home-desc">
+            Buongiorno, Collega. Sono qui per assisterti. Chiedimi qualcosa sul diritto penale o apri un fascicolo per lavorare su un caso specifico.
+          </p>
+        </div>
+        <div className="giulia-home-actions">
+          <button className="giulia-home-chat-btn" onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))}>
+            <MessageSquare size={14} /> Chatta
+          </button>
+        </div>
+      </section>
+
       {/* ── Actions bar ── */}
       <div className="home-actions-bar">
         {cases && cases.length > 1 && (
