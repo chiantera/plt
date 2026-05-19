@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SourceRef(BaseModel):
@@ -78,12 +78,12 @@ class ProceduralDeadline(BaseModel):
 
 
 class UsageEstimate(BaseModel):
-    pages: int
-    audio_minutes: int
-    flash_input_tokens: int
-    flash_output_tokens: int
-    pro_used: bool
-    model_route: str
+    pages: int = 0
+    audio_minutes: int = 0
+    flash_input_tokens: int = 0
+    flash_output_tokens: int = 0
+    pro_used: bool = False
+    model_route: str = "unknown"
 
 
 # ── Legal Analysis models ────────────────────────────────────────────────────
@@ -152,12 +152,12 @@ class WitnessAssessment(BaseModel):
 
 class EvidenceBalance(BaseModel):
     """Overall prosecution vs. defense evidence strength assessment."""
-    prosecution_strength: float = Field(ge=0, le=1)
-    defense_strength: float = Field(ge=0, le=1)
-    key_prosecution_evidence: list[str]
-    key_defense_evidence: list[str]
-    critical_gaps: list[str]
-    overall_assessment: str
+    prosecution_strength: float = Field(default=0.5, ge=0, le=1)
+    defense_strength: float = Field(default=0.5, ge=0, le=1)
+    key_prosecution_evidence: list[str] = []
+    key_defense_evidence: list[str] = []
+    critical_gaps: list[str] = []
+    overall_assessment: str = ""
 
 
 class LegalAnalysis(BaseModel):
@@ -209,6 +209,27 @@ class CaseAnalysis(BaseModel):
     brief_markdown: str
     usage_estimate: UsageEstimate
     legal_analysis: LegalAnalysis | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _null_lists_to_empty(cls, data: dict) -> dict:
+        """Convert null list fields to empty lists (DeepSeek often emits null for empty arrays)."""
+        list_fields = ["materials", "timeline", "people", "evidence", "open_questions",
+                       "missing_documents", "contradictions", "procedural_deadlines"]
+        for field in list_fields:
+            if field in data and data[field] is None:
+                data[field] = []
+        return data
+
+    @model_validator(mode="before")
+    @classmethod
+    def _null_strings_to_empty(cls, data: dict) -> dict:
+        """Convert null string fields to empty strings."""
+        str_fields = ["case_summary", "brief_markdown"]
+        for field in str_fields:
+            if field in data and data[field] is None:
+                data[field] = ""
+        return data
 
 
 # ── Request / response for AI analysis ──────────────────────────────────────
