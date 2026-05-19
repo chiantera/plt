@@ -1609,7 +1609,6 @@ function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: stri
         <input
           id="import-file-input"
           type="file"
-          accept=".plt,.json"
           style={{ display: 'none' }}
           onChange={async e => {
             const file = e.target.files?.[0];
