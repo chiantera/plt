@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   AlertTriangle, ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness,
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
-  Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, LogOut, MapPin, MessageSquare, Mic, Plus,
+  Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, LogOut, MapPin, MessageSquare, Mic, Plus, RefreshCw,
   Scale, Search, Send, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles,
   Square, Trash2, Upload, User, Users, X, Zap,
 } from 'lucide-react';
@@ -2833,6 +2833,19 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
               ? `Incorpora ${unanalyzedCount} documento${unanalyzedCount === 1 ? '' : '/i'}`
               : 'Analizza con AI'}
           </button>
+          {hasExistingAnalysis && (
+            <button
+              className="ghost-button"
+              onClick={() => {
+                const updated = { ...caseData, analyzed_doc_ids: [], legal_analysis: null, materials: [], timeline: [], people: [], evidence: [], open_questions: [], missing_documents: [], contradictions: [], procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, legal_analysis: null };
+                dbSave(updated).then(() => { setCaseData(updated); onCaseLoaded(updated); showToast('Analisi resettata. Ora puoi ri-analizzare da capo.'); });
+              }}
+              title="Resetta l'analisi e ri-analizza tutti i documenti da capo"
+            >
+              <RefreshCw size={13} /> Ri-analizza
+            </button>
+          )}
+          </button>
           <button className="aula-trigger-btn" onClick={() => setAulaModeActive(true)}>
             <Gavel size={14} /> Aula
           </button>
@@ -3351,6 +3364,13 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
               onClick={() => handleAnonymizeDoc(doc.doc_id)}
             >
               {anonymizingDocId === doc.doc_id ? <Loader2 size={13} className="spin" /> : <EyeOff size={13} />}
+            </button>
+            <button
+              className="ghost-button"
+              title="Elimina questo documento"
+              onClick={() => handleDeleteDoc(doc.doc_id)}
+            >
+              <Trash2 size={13} />
             </button>
           </div>
         ))}
