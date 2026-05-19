@@ -1,2 +1,18 @@
+# Local tooling / agent state
+.codex
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+alpha-pwa/frontend/.env.local
+alpha-pwa/backend/.env
+
+# Build/deploy caches
 .netlify/
 alpha-pwa/frontend/.netlify/
+
+# Generated distributables
+*.apk
+*.aab
+*.ipa
