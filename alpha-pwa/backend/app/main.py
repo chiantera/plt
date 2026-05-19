@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import uuid
 from typing import Any
 
@@ -9,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 
 from .ai_service import analyze_case, stream_chat
+
+logger = logging.getLogger(__name__)
 from .demo_data import build_demo_case, get_all_cases, get_case_summaries
 from .models import AnalyzeRequest, CaseAnalysis, CaseSummary, ChatRequest
 from .ocr_adapter import MistralOcrAdapter, PypdfAdapter
@@ -63,9 +66,12 @@ def get_demo_case() -> CaseAnalysis:
 @app.post("/api/analyze-text", response_model=CaseAnalysis)
 def analyze_text(request: AnalyzeRequest) -> CaseAnalysis:
     """Run AI analysis on provided text materials using Claude."""
+    logger.info("analyze-text: title=%s, materials=%d, mode=%s, lang=%s",
+                request.case_title, len(request.materials), request.mode, request.language)
     try:
         return analyze_case(request)
     except Exception as exc:
+        logger.error("analyze-text failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail=f"AI analysis failed: {exc}") from exc
 
 

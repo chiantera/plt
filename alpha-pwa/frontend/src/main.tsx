@@ -271,12 +271,17 @@ function buildUserContextMaterial(c: CaseAnalysis): { name: string; kind: string
   if (c.procedural_deadlines.length) lines.push('SCADENZE:\n' + c.procedural_deadlines.map(dl => `- [${dl.due_date}] ${dl.title} (urgenza ${dl.urgency})`).join('\n'));
   if (c.brief_markdown?.trim()) lines.push(`BOZZA PROMEMORIA DIFENSIVO (aggiorna e migliora con i nuovi documenti):\n${c.brief_markdown.trim()}`);
   if (!lines.length) return null;
+  let text = lines.join('\n\n');
+  const MAX_CONTEXT_CHARS = 8000;
+  if (text.length > MAX_CONTEXT_CHARS) {
+    text = text.slice(0, MAX_CONTEXT_CHARS) + '\n\n[...contesto troncato per limite di lunghezza — i nuovi documenti sono prioritari...]';
+  }
   return {
     name: isIncremental
       ? 'Analisi esistente consolidata — integra i nuovi documenti che seguono, aggiorna il brief_markdown.'
       : 'Annotazioni esistenti (inserite dall\'avvocato — integrare, non sovrascrivere)',
     kind: 'text',
-    text: lines.join('\n\n'),
+    text,
   };
 }
 

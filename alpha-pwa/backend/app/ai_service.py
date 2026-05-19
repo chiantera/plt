@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
+import sys
 from collections.abc import Generator
 
 from .models import (
@@ -10,6 +12,9 @@ from .models import (
     CaseAnalysis,
     ChatRequest,
 )
+
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+logger = logging.getLogger(__name__)
 
 # ── Provider selection ────────────────────────────────────────────────────────
 # Set DEEPSEEK_API_KEY to use DeepSeek (OpenAI-compatible, ~100x cheaper).
@@ -153,20 +158,32 @@ Istruzioni specifiche:
 - L'analisi legale deve essere pratica e orientata all'udienza.
 """
 
+    logger.info("analyze_case: title=%s, materials=%d, prompt_chars=%d",
+                request.case_title, len(request.materials), len(user_message))
+
     if _use_deepseek():
         raw, usage = _deepseek_complete(model, _SYSTEM_PROMPT, user_message)
     else:
         raw, usage = _anthropic_complete(model, _SYSTEM_PROMPT, user_message)
+
+    logger.info("analyze_case: AI response=%d chars, input_tokens=%d, output_tokens=%d",
+                len(raw), usage["input"], usage["output"])
 
     # Strip markdown fences and extract the outermost JSON object robustly
     if "```" in raw:
         raw = re.sub(r"```(?:json)?\s*", "", raw).replace("```", "").strip()
     match = re.search(r"\{[\s\S]*\}", raw)
     if not match:
+        logger.error("No JSON object found. Raw response preview: %s", raw[:500])
         raise ValueError(f"No JSON object found in AI response. Raw start: {raw[:200]!r}")
     raw = match.group(0)
 
-    data = json.loads(raw)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        logger.error("JSON decode failed. Raw preview: %s", raw[:1000])
+        logger.error("JSON error: %s", exc)
+        raise
     data.setdefault("usage_estimate", {})
     data["usage_estimate"].update({
         "flash_input_tokens": usage["input"],
