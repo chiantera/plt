@@ -1469,7 +1469,7 @@ function ProfileDrawer({ session, onClose }: { session: Session; onClose: () => 
 
 // ── Case list ─────────────────────────────────────────────────────────────────
 
-function CaseListView({ onSelect, session }: { onSelect: (id: string) => void; session: Session }) {
+function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: string) => void; session: Session; onToggleChat: () => void }) {
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
   const [localIds, setLocalIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -1580,7 +1580,7 @@ function CaseListView({ onSelect, session }: { onSelect: (id: string) => void; s
           </p>
         </div>
         <div className="giulia-home-actions">
-          <button className="giulia-home-chat-btn" onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))}>
+          <button className="giulia-home-chat-btn" onClick={onToggleChat}>
             <MessageSquare size={14} /> Chatta
           </button>
         </div>
@@ -3666,7 +3666,7 @@ function App() {
     <>
       {view === 'case' && selectedCaseId
         ? <CaseDetailView caseId={selectedCaseId} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
-        : <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} />
+        : <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onToggleChat={() => setChat(prev => ({ ...prev, open: !prev.open }))} />
       }
       <FloatingChatButton onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))} hasContext={!!activeCaseData} />
       <ChatDrawer
