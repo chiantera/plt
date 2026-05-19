@@ -2621,12 +2621,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
 
     const analyzedIds = new Set(caseData.analyzed_doc_ids ?? []);
     const newDocs = docs.filter(d => !analyzedIds.has(d.doc_id));
-    const isIncremental = caseData.legal_analysis != null && newDocs.length < docs.length;
-
-    if (isIncremental && newDocs.length === 0) {
-      showToast('Tutti i documenti sono già stati analizzati', 'info');
-      return;
-    }
+    const isIncremental = caseData.legal_analysis != null && newDocs.length > 0;
 
     setShowUpload(false);
     setAnalyzing(true);
@@ -2825,13 +2820,14 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           <button
             className="secondary-button"
             onClick={handleAnalyze}
-            disabled={analyzing || rawDocs.length === 0 || (hasExistingAnalysis && unanalyzedCount === 0)}
-            title={hasExistingAnalysis && unanalyzedCount === 0 ? 'Tutti i documenti sono già stati analizzati' : undefined}
+            disabled={analyzing || rawDocs.length === 0}
           >
             <Sparkles size={14} />
             {hasExistingAnalysis && unanalyzedCount > 0
               ? `Incorpora ${unanalyzedCount} documento${unanalyzedCount === 1 ? '' : '/i'}`
-              : 'Analizza con AI'}
+              : hasExistingAnalysis
+                ? `Analizza (${rawDocs.length} documenti)`
+                : 'Analizza con AI'}
           </button>
           {hasExistingAnalysis && (
             <button
