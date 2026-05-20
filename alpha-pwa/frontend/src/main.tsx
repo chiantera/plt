@@ -1271,8 +1271,52 @@ function ChatDrawer({
 }
 
 function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasContext: boolean }) {
+  const [pos, setPos] = React.useState<{ x: number; y: number } | null>(() => {
+    try { const s = localStorage.getItem('giulia-fab-pos'); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+  const dragging = React.useRef(false);
+  const moved = React.useRef(false);
+  const origin = React.useRef({ px: 0, py: 0, bx: 0, by: 0 });
+  const fabRef = React.useRef<HTMLButtonElement>(null);
+
+  const onDown = (e: React.PointerEvent) => {
+    moved.current = false; dragging.current = true;
+    const el = fabRef.current!;
+    const rect = el.getBoundingClientRect();
+    const bx = pos ? pos.x : window.innerWidth - rect.width - 24;
+    const by = pos ? pos.y : window.innerHeight - rect.height - 52;
+    origin.current = { px: e.clientX, py: e.clientY, bx, by };
+    el.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+  const onMove = (e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    const dx = e.clientX - origin.current.px;
+    const dy = e.clientY - origin.current.py;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved.current = true;
+    if (!moved.current) return;
+    const el = fabRef.current!;
+    const nx = Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, origin.current.bx + dx));
+    const ny = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, origin.current.by + dy));
+    setPos({ x: nx, y: ny });
+  };
+  const onUp = () => {
+    dragging.current = false;
+    if (pos) localStorage.setItem('giulia-fab-pos', JSON.stringify(pos));
+    if (!moved.current) onClick();
+  };
+
+  const style: React.CSSProperties = pos
+    ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto', cursor: moved.current ? 'grabbing' : 'grab' }
+    : { cursor: 'grab' };
+
   return (
-    <button className={`chat-fab ${hasContext ? 'chat-fab--context' : ''}`} onClick={onClick} aria-label="Apri GiulIA">
+    <button
+      ref={fabRef}
+      className={`chat-fab${hasContext ? ' chat-fab--context' : ''}`}
+      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
+      aria-label="Apri GiulIA" style={style}
+    >
       <MessageSquare size={26} />
       <span className="chat-fab-label">GiulIA</span>
       {hasContext && <span className="chat-fab-dot" />}
@@ -1504,9 +1548,31 @@ function ProfileDrawer({ session, onClose }: { session: Session; onClose: () => 
   );
 }
 
+// ── GiulIA prompt bar (home page) ────────────────────────────────────────────
+
+function GiuliaPromptBar({ onOpenChat }: { onOpenChat: (msg?: string) => void }) {
+  const [val, setVal] = React.useState('');
+  const submit = () => { onOpenChat(val.trim() || undefined); setVal(''); };
+  return (
+    <div className="giulia-prompt-bar">
+      <div className="giulia-prompt-icon"><Sparkles size={16} /></div>
+      <input
+        className="giulia-prompt-input"
+        placeholder="Chiedimi qualcosa… (diritto penale, strategia, giurisprudenza)"
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && submit()}
+      />
+      <button className="giulia-prompt-send" onClick={submit} tabIndex={-1} aria-label="Invia">
+        <Send size={14} />
+      </button>
+    </div>
+  );
+}
+
 // ── Case list ─────────────────────────────────────────────────────────────────
 
-function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: string) => void; session: Session; onToggleChat: () => void }) {
+function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string) => void; session: Session; onOpenChat: (msg?: string) => void }) {
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
   const [localIds, setLocalIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -1612,24 +1678,8 @@ function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: stri
       </header>
       {showProfile && <ProfileDrawer session={session} onClose={() => setShowProfile(false)} />}
 
-      {/* ── GiulIA home card ── */}
-      <section className="giulia-home-card">
-        <div className="giulia-home-avatar">
-          <Sparkles size={20} />
-        </div>
-        <div className="giulia-home-info">
-          <div className="giulia-home-name">GiulIA</div>
-          <div className="giulia-home-title">Avvocata penalista · Sempre a disposizione</div>
-          <p className="giulia-home-desc">
-            Buongiorno, Collega. Sono qui per assisterti. Chiedimi qualcosa sul diritto penale o apri un fascicolo per lavorare su un caso specifico.
-          </p>
-        </div>
-        <div className="giulia-home-actions">
-          <button className="giulia-home-chat-btn" onClick={onToggleChat}>
-            <MessageSquare size={14} /> Chatta
-          </button>
-        </div>
-      </section>
+      {/* ── GiulIA inline prompt ── */}
+      <GiuliaPromptBar onOpenChat={onOpenChat} />
 
       {/* ── Actions bar ── */}
       <div className="home-actions-bar">
@@ -3587,10 +3637,12 @@ function App() {
   }, []);
 
   const openChat = useCallback((initialKeyOrText?: string) => {
-    if (initialKeyOrText && activeCaseData) {
-      const ctx = buildCaseContext(activeCaseData);
+    if (initialKeyOrText) {
+      const ctx = activeCaseData ? buildCaseContext(activeCaseData) : null;
       const promptFn = DOC_PROMPTS[initialKeyOrText as keyof typeof DOC_PROMPTS];
-      const content = promptFn ? promptFn(ctx) : `${ctx}\n\n---\n${initialKeyOrText}`;
+      const content = ctx
+        ? (promptFn ? promptFn(ctx) : `${ctx}\n\n---\n${initialKeyOrText}`)
+        : initialKeyOrText;
       const userMsg: ChatMsg = { role: 'user', content, id: crypto.randomUUID() };
       setChat(prev => ({ ...prev, open: true, messages: [...prev.messages, userMsg] }));
       sendToApi([...chat.messages, userMsg]);
@@ -3683,7 +3735,7 @@ function App() {
     <>
       {view === 'case' && selectedCaseId
         ? <CaseDetailView caseId={selectedCaseId} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
-        : <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onToggleChat={() => setChat(prev => ({ ...prev, open: !prev.open }))} />
+        : <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onOpenChat={openChat} />
       }
       <FloatingChatButton onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))} hasContext={!!activeCaseData} />
       <ChatDrawer

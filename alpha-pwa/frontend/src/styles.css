@@ -955,13 +955,16 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   position: fixed; bottom: 28px; right: 24px; z-index: 200;
   width: 64px; height: 64px; border-radius: 50%;
   background: linear-gradient(135deg, #0ea5e9, #6366f1);
-  border: none; color: #fff; cursor: pointer;
+  border: none; color: #fff; cursor: grab;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4px 24px rgba(99,102,241,0.45);
   transition: transform 0.18s, box-shadow 0.18s;
   animation: giulia-float 4s ease-in-out infinite;
+  touch-action: none;
+  user-select: none;
 }
 .chat-fab:hover { animation: none; transform: scale(1.08); box-shadow: 0 6px 32px rgba(99,102,241,0.6); }
+.chat-fab:active { cursor: grabbing; animation: none; }
 .chat-fab--context { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
 @keyframes giulia-float {
   0%, 100% { transform: translateY(0px); }
@@ -989,7 +992,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 
 .chat-drawer {
   position: absolute; bottom: 0; right: 0;
-  width: min(100%, 480px); height: min(92vh, 820px);
+  width: min(100%, 480px); height: min(72vh, 580px);
   background: #0f172a; border: 1px solid rgba(148,163,184,0.2);
   border-radius: 24px 24px 0 0;
   display: flex; flex-direction: column; overflow: hidden;
@@ -1001,12 +1004,43 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 @media (min-width: 600px) {
   .chat-drawer {
     bottom: 16px; right: 16px; border-radius: 24px;
-    height: min(86vh, 780px);
+    height: min(76vh, 620px);
     transform: translateY(20px) scale(0.97);
     opacity: 0; transition: transform 0.24s cubic-bezier(.32,.72,0,1), opacity 0.2s;
   }
   .chat-overlay--open .chat-drawer { transform: translateY(0) scale(1); opacity: 1; }
 }
+
+/* ── GiulIA prompt bar ────────────────────────────────────────────────────── */
+.giulia-prompt-bar {
+  display: flex; align-items: center; gap: 10px;
+  margin: 12px 20px 0;
+  padding: 10px 12px 10px 14px;
+  background: rgba(99,102,241,0.07);
+  border: 1px solid rgba(99,102,241,0.22);
+  border-radius: 14px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.giulia-prompt-bar:focus-within {
+  border-color: rgba(99,102,241,0.5);
+  background: rgba(99,102,241,0.12);
+}
+.giulia-prompt-icon {
+  color: #818cf8; flex: none;
+}
+.giulia-prompt-input {
+  flex: 1; background: none; border: none; outline: none;
+  color: #e2e8f0; font: inherit; font-size: 0.88rem;
+  min-width: 0;
+}
+.giulia-prompt-input::placeholder { color: #475569; }
+.giulia-prompt-send {
+  background: rgba(99,102,241,0.2); border: 1px solid rgba(99,102,241,0.35);
+  color: #a5b4fc; border-radius: 8px; padding: 6px 8px;
+  cursor: pointer; display: flex; align-items: center;
+  transition: background 0.15s; flex: none;
+}
+.giulia-prompt-send:hover { background: rgba(99,102,241,0.35); }
 
 .chat-header {
   display: flex; align-items: center; justify-content: space-between;
