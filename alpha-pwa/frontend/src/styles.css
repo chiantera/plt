@@ -595,7 +595,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .case-card-open { display: flex; align-items: center; gap: 3px; font-size: 0.76rem; font-weight: 600; color: #38bdf8; white-space: nowrap; flex: none; }
 .case-card-actions { display: flex; align-items: center; gap: 8px; }
 .case-local-badge { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #34d399; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.3); border-radius: 999px; padding: 2px 7px; }
-.case-delete-btn { display: flex; align-items: center; color: #475569; padding: 4px; border-radius: 4px; transition: color 0.15s, background 0.15s; }
+.case-delete-btn { display: flex; align-items: center; color: #475569; padding: 4px; border-radius: 4px; transition: color 0.15s, background 0.15s; background: none; border: none; cursor: pointer; }
 .case-delete-btn:hover { color: #ef4444; background: rgba(239,68,68,0.12); }
 
 /* ── Legal analysis ──────────────────────────────────────────────────────── */
@@ -625,10 +625,15 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   background: rgba(15,23,42,0.6); border-radius: 20px; margin: 10px 0; overflow: hidden;
 }
 .charge-card-header {
-  width: 100%; background: none; border: none; color: inherit;
-  text-align: left; padding: 14px 16px; cursor: pointer;
+  width: 100%; padding: 14px 16px;
+  display: flex; align-items: center; gap: 10px;
 }
 .charge-card-header:hover { background: rgba(125,211,252,0.05); }
+.charge-card-toggle {
+  background: none; border: none; cursor: pointer; padding: 4px;
+  color: inherit; flex: none; display: flex; align-items: center;
+}
+.charge-card-content { flex: 1; display: flex; flex-direction: column; gap: 4px; }
 .charge-card-title-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
 .charge-code { font-family: monospace; font-size: 0.82rem; color: #7dd3fc; font-weight: 700; }
 .charge-name { font-size: 0.9rem; color: #e2e8f0; }
@@ -669,8 +674,13 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .strategy-secondary { border-color: rgba(125,211,252,0.25); background: rgba(14,165,233,0.04); }
 .strategy-fallback { border-color: rgba(148,163,184,0.2); background: rgba(30,41,59,0.4); }
 
-.strategy-header { width: 100%; background: none; border: none; color: inherit; text-align: left; padding: 14px 16px; cursor: pointer; }
+.strategy-header { width: 100%; padding: 14px 16px; display: flex; align-items: center; gap: 8px; }
 .strategy-header:hover { background: rgba(255,255,255,0.03); }
+.strategy-toggle {
+  background: none; border: none; cursor: pointer; padding: 4px;
+  color: inherit; flex: none; display: flex; align-items: center;
+}
+.strategy-content { flex: 1; display: flex; flex-direction: column; gap: 4px; }
 .strategy-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .priority-badge { border-radius: 999px; padding: 3px 10px; font-size: 0.68rem; font-weight: 800; }
 .priority-primary { background: rgba(34,197,94,0.2); color: #86efac; }
@@ -812,14 +822,14 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 
 .aula-content { flex: 1; overflow-y: auto; padding: 20px 24px 0; display: flex; flex-direction: column; }
 .aula-slide { display: flex; flex-direction: column; gap: 16px; max-width: 600px; margin: 0 auto; width: 100%; }
-.aula-slide-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.14em; color: #6d28d9; font-weight: 700; }
+.aula-slide-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.14em; color: #a78bfa; font-weight: 700; }
 .aula-case-title { font-size: clamp(1.5rem, 5vw, 2.6rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; color: #f5f3ff; margin: 0; }
 
 .aula-hearing-box {
   background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.25);
   border-radius: 18px; padding: 16px 18px;
 }
-.aula-hearing-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: #7c3aed; margin-bottom: 6px; }
+.aula-hearing-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: #a78bfa; margin-bottom: 6px; }
 .aula-hearing-date { font-size: 1.15rem; font-weight: 800; color: #ede9fe; }
 .aula-hearing-desc { font-size: 0.85rem; color: #a78bfa; margin-top: 4px; }
 
@@ -857,7 +867,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .aula-actions { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
 .aula-actions li { display: flex; align-items: flex-start; gap: 10px; color: #ddd6fe; font-size: 0.92rem; line-height: 1.45; }
 .aula-actions svg { color: #4ade80; flex: none; margin-top: 2px; }
-.aula-empty { color: #6d28d9; font-style: italic; margin: 24px 0; }
+.aula-empty { color: #a78bfa; font-style: italic; margin: 24px 0; }
 
 .aula-nav {
   display: flex; align-items: center; justify-content: center; gap: 24px;
@@ -872,7 +882,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 }
 .aula-nav-btn:hover:not(:disabled) { background: rgba(139, 92, 246, 0.3); }
 .aula-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-.aula-nav-counter { color: #7c3aed; font-size: 0.85rem; font-weight: 700; min-width: 50px; text-align: center; }
+.aula-nav-counter { color: #a78bfa; font-size: 0.85rem; font-weight: 700; min-width: 50px; text-align: center; }
 
 /* ── Toast notification ───────────────────────────────────────────────────── */
 .toast {
@@ -897,6 +907,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   position: relative; display: flex; align-items: center;
   margin-top: 14px;
 }
+.home-actions-bar .cases-search-wrap { margin-top: 0; }
 .cases-search-icon { position: absolute; left: 14px; color: #475569; pointer-events: none; }
 .cases-search {
   width: 100%; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(148, 163, 184, 0.2);
@@ -1141,7 +1152,10 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .pending-doc-item {
   display: flex; align-items: flex-start; gap: 12px;
   padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: none; border-left: 0; border-right: 0; border-top: 0;
+  color: inherit; text-align: left; cursor: pointer; width: 100%;
 }
+.pending-doc-item:hover { background: rgba(56,189,248,0.05); }
 .pending-doc-item:last-child { border-bottom: none; }
 .pending-doc-icon { color: #60a5fa; flex-shrink: 0; margin-top: 2px; }
 .pending-doc-item strong { display: block; font-size: 0.9rem; color: #e2e8f0; }
@@ -1418,7 +1432,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   color: #f8fafc; font-size: 0.92rem; font-family: inherit; outline: none;
   transition: border-color 0.15s;
 }
-.profile-input::placeholder { color: #334155; }
+.profile-input::placeholder { color: #475569; }
 .profile-input:focus { border-color: rgba(56,189,248,0.45); }
 .profile-save {
   padding: 13px; border-radius: 12px; border: none;

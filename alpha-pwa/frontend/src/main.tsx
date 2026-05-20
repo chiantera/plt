@@ -1859,11 +1859,11 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
         <h2><Scale size={16} /> Analisi delle accuse</h2>
         {la.charges.map((charge, ci) => (
           <div key={ci} className="charge-card">
-            <div className="charge-card-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button className="charge-card-toggle" onClick={() => setExpandedCharge(expandedCharge === ci ? null : ci)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'inherit' }}>
+            <div className="charge-card-header">
+              <button className="charge-card-toggle" onClick={() => setExpandedCharge(expandedCharge === ci ? null : ci)}>
                 {expandedCharge === ci ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </button>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div className="charge-card-content">
                 <div className="charge-card-title-row">
                   <span className="charge-code">
                     <Editable value={charge.charge_code} onChange={v => updateCharge(ci, { charge_code: v })} placeholder="art. …" />
@@ -1944,11 +1944,11 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
         <h2><ShieldCheck size={16} /> Strategie difensive</h2>
         {la.strategies.map((s, si) => (
           <div key={si} className={`strategy-card strategy-${s.priority}`}>
-            <div className="strategy-header" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button onClick={() => setExpandedStrategy(expandedStrategy === si ? null : si)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'inherit' }}>
+            <div className="strategy-header">
+              <button className="strategy-toggle" onClick={() => setExpandedStrategy(expandedStrategy === si ? null : si)}>
                 {expandedStrategy === si ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
               </button>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div className="strategy-content">
                 <div className="strategy-title-row">
                   <EditableSelect
                     value={s.priority}
@@ -3661,7 +3661,7 @@ function App() {
       setChat(prev => ({
         ...prev,
         messages: prev.messages.map(m =>
-          m.id === m.id && m.role === 'assistant' && m.content === ''
+          m.id === assistantId && m.role === 'assistant' && m.content === ''
             ? { ...m, content: `Errore: ${(e as Error).message}` }
             : m
         ),
@@ -3672,8 +3672,8 @@ function App() {
   }, [activeCaseData]);
 
   if (session === undefined) return (
-    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
-      <Loader2 size={28} className="spin" style={{ color: 'var(--accent)' }} />
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617' }}>
+      <Loader2 size={28} className="spin" style={{ color: '#7c3aed' }} />
     </div>
   );
 
