@@ -2,6 +2,7 @@
   color: #f8fafc;
   background: #0f172a;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --bg-base: #020617;
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: radial-gradient(circle at top, #1e293b, #020617 62%); }
@@ -555,7 +556,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 }
 
 .home-actions-bar {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 14px 20px; background: rgba(15,23,42,0.7);
   border-bottom: 1px solid rgba(148,163,184,0.08);
   position: sticky; top: 0; z-index: 10;
@@ -586,8 +587,8 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .case-card-risk span { display: flex; align-items: center; gap: 5px; }
 .case-card-arrow { color: #475569; }
 .case-card-title { font-size: 1.05rem; font-weight: 700; margin: 0 0 4px; color: #f1f5f9; }
-.case-card-charges { font-size: 0.78rem; color: #7dd3fc; margin: 0 0 8px; font-family: monospace; }
-.case-card-summary { font-size: 0.85rem; color: #94a3b8; margin: 0 0 14px; line-height: 1.45; }
+.case-card-charges { font-size: 0.78rem; color: #7dd3fc; margin: 0 0 8px; }
+.case-card-summary { font-size: 0.85rem; color: #94a3b8; margin: 0 0 14px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .case-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .case-card-meta { display: flex; gap: 10px; flex-wrap: wrap; }
 .case-card-meta span { display: flex; align-items: center; gap: 5px; color: #64748b; font-size: 0.76rem; }
@@ -801,7 +802,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   background: rgba(15, 12, 30, 0.95);
 }
 .aula-brand { display: flex; align-items: center; gap: 7px; color: #a78bfa; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.1em; }
-.aula-clock { display: flex; align-items: center; gap: 5px; font-size: 0.82rem; color: #6d28d9; font-variant-numeric: tabular-nums; font-weight: 700; }
+.aula-clock { display: flex; align-items: center; gap: 5px; font-size: 0.82rem; color: #a78bfa; font-variant-numeric: tabular-nums; font-weight: 700; }
 .aula-close { background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); color: #a78bfa; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .aula-close:hover { background: rgba(139, 92, 246, 0.3); }
 
@@ -1118,7 +1119,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   color: #c4b5fd;
 }
 .legal-drafting-title { font-size: 0.95rem; font-weight: 700; color: #e2e8f0; }
-.legal-drafting-sub { font-size: 0.78rem; color: #7c3aed; margin-top: 2px; color: #a78bfa; }
+.legal-drafting-sub { font-size: 0.78rem; color: #a78bfa; margin-top: 2px; }
 .legal-drafting-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 14px;
 }

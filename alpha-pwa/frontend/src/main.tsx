@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness,
+  AlertTriangle, ArrowLeft, ArrowRight, BookOpen,
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
-  Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, LogOut, MapPin, MessageSquare, Mic, Plus, RefreshCw,
+  Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, LogOut, MessageSquare, Mic, Plus, RefreshCw,
   Scale, Search, Send, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles,
   Square, Trash2, Upload, User, Users, X, Zap,
 } from 'lucide-react';
@@ -1448,7 +1448,7 @@ function AuthScreen() {
             {error && <div className="auth-error">{error}</div>}
             {info && <div className="auth-info">{info}</div>}
             <button className="auth-submit" type="submit" disabled={loading}>
-              {loading ? 'Caricamento…' : tab === 'login' ? 'Accedi al fascicolo' : 'Crea account'}
+              {loading ? 'Caricamento…' : tab === 'login' ? 'Accedi' : 'Crea account'}
             </button>
           </form>
         </div>
@@ -1515,6 +1515,14 @@ function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: stri
   const [analyzing, setAnalyzing] = useState(false);
   const [search, setSearch] = useState('');
   const [showProfile, setShowProfile] = useState(false);
+  const [profileTagline, setProfileTagline] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.from('profiles').select('full_name,studio').eq('id', session.user.id).single()
+      .then(({ data }) => {
+        if (data) setProfileTagline(data.studio || data.full_name || null);
+      });
+  }, [session.user.id]);
 
   const filtered = useMemo(() => {
     if (!cases) return [];
@@ -1590,7 +1598,7 @@ function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: stri
             <div className="home-brand-icon"><Gavel size={22} /></div>
             <div>
               <div className="home-brand-name">Pocket Legal Triage</div>
-              <div className="home-brand-tagline">Studio Legale · Milano</div>
+              <div className="home-brand-tagline">{profileTagline ?? 'Il tuo studio'}</div>
             </div>
           </div>
           <button onClick={() => setShowProfile(true)} style={{ background: 'rgba(148,163,184,0.1)', border: '1px solid rgba(148,163,184,0.18)', borderRadius: 10, padding: '9px 11px', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center' }} title="Profilo">
@@ -1712,9 +1720,9 @@ function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: stri
                   <span className="case-local-badge">locale</span>
                 )}
                 {localIds.has(c.case_id) && (
-                  <span className="case-delete-btn" onClick={e => handleDelete(c.case_id, e)} title="Elimina fascicolo">
+                  <button className="case-delete-btn" onClick={e => handleDelete(c.case_id, e)} title="Elimina fascicolo" type="button">
                     <Trash2 size={14} />
-                  </span>
+                  </button>
                 )}
                 <ChevronRight size={18} className="case-card-arrow" />
               </div>
@@ -2881,7 +2889,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           >
             <Sparkles size={14} />
             {hasExistingAnalysis && unanalyzedCount > 0
-              ? `Incorpora ${unanalyzedCount} documento${unanalyzedCount === 1 ? '' : '/i'}`
+              ? `Incorpora ${unanalyzedCount} documento${unanalyzedCount === 1 ? '' : 'i'}`
               : hasExistingAnalysis
                 ? `Analizza (${rawDocs.length} documenti)`
                 : 'Analizza con AI'}
@@ -2910,13 +2918,13 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           <FileText /><strong>{d.materials.length}</strong><span>materiali</span>
         </button>
         <button className="stats-card" onClick={() => { setActiveTab('timeline'); scrollTo(timelineRef); }}>
-          <MapPin /><strong>{d.timeline.length}</strong><span>eventi</span>
+          <Clock /><strong>{d.timeline.length}</strong><span>eventi</span>
         </button>
         <button className="stats-card" onClick={() => { setActiveTab('questions'); scrollTo(contradictionsRef); }}>
           <AlertTriangle /><strong>{d.contradictions.length}</strong><span>contraddizioni</span>
         </button>
         <button className="stats-card" onClick={() => { setActiveTab('deadlines'); scrollTo(deadlinesRef); }}>
-          <BriefcaseBusiness /><strong>{nextDeadline ? formatShortDate(nextDeadline.due_date) : '—'}</strong><span>priorità</span>
+          <CalendarClock /><strong>{nextDeadline ? formatShortDate(nextDeadline.due_date) : '—'}</strong><span>priorità</span>
         </button>
       </section>
 
