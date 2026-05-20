@@ -881,7 +881,7 @@ function MultiFileUploadDrawer({
           <Upload size={28} />
           <p>Trascina i file qui o tocca per selezionarli</p>
           <small>PDF, DOCX, TXT, immagini — più file alla volta</small>
-          <input ref={fileRef} type="file" style={{ display: 'none' }} multiple onChange={onFileChange} />
+          <input ref={fileRef} type="file" style={{ display: 'none' }} multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.csv,.rtf,image/*,audio/*" onChange={onFileChange} />
         </label>
 
         {/* Queue */}
@@ -1642,7 +1642,12 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
       evidence: [], open_questions: [], missing_documents: [], contradictions: [],
       procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, legal_analysis: null,
     };
-    await dbSave(newCase);
+    try {
+      await dbSave(newCase);
+    } catch (e) {
+      setError(`Errore creazione fascicolo: ${(e as Error).message}`);
+      return;
+    }
     setShowUpload(false);
     setCases(prev => {
       const summary = caseAnalysisToSummary(newCase);
@@ -2539,7 +2544,12 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
 
   // ── Upload queue callbacks ──────────────────────────────────────────────
   const handleAddFiles = useCallback((files: File[]) => {
-    const newItems: UploadQueueItem[] = files.map(f => ({
+    const MAX_BYTES = 50 * 1024 * 1024;
+    const oversized = files.filter(f => f.size > MAX_BYTES);
+    if (oversized.length) showToast(`${oversized.map(f => f.name).join(', ')}: file troppo grande (max 50 MB)`, 'error');
+    const accepted = files.filter(f => f.size <= MAX_BYTES);
+    if (!accepted.length) return;
+    const newItems: UploadQueueItem[] = accepted.map(f => ({
       id: crypto.randomUUID(),
       file: f,
       name: f.name,
@@ -2548,7 +2558,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       description: f.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
     }));
     setUploadQueue(prev => [...prev, ...newItems]);
-  }, []);
+  }, [showToast]);
 
   const handleAddTextItem = useCallback((text: string, name?: string) => {
     const item: UploadQueueItem = {
