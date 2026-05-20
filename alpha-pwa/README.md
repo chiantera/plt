@@ -7,9 +7,13 @@
 ![Backend](https://img.shields.io/badge/backend-FastAPI-009688?style=for-the-badge)
 ![Models](https://img.shields.io/badge/models-DeepSeek%20V4%20Flash%20%2F%20Mistral-111827?style=for-the-badge)
 
-**Pocket Legal Triage (PLT)** is a mobile-first PWA for Italian criminal-defense lawyers. It takes raw case materials — documents, notes, transcripts — and turns them into a structured triage workspace: timeline, deadlines, contradictions, witness assessments, defense strategies, and a draft brief, all with source references back to the original documents.
+**Pocket Legal Triage (PLT)** is a mobile-first PWA for Italian criminal-defense lawyers. It takes raw case materials — documents, notes, transcripts — and turns them into a structured triage workspace: timeline, deadlines, contradictions, witness assessments, defense strategies, and draft materials, all with source references back to the original documents.
 
-The product is **not** an AI lawyer. It is a case triage cockpit — the lawyer stays in control, the AI does the structuring work.
+The product is **not** an AI lawyer. It is a case triage cockpit — the lawyer stays in control, verifies candidate deadlines, and treats generated text as drafts/checklists, not decisions.
+
+### Current hardening status
+
+The alpha is runnable and the frontend production build passes, but it is not production-ready yet. Current known gates: backend test environment setup, frontend lint/e2e scripts, browser-console exception investigation, onboarding flow regression test, and safer onboarding copy. Latest handoff: [`../00-context/session-handoff-2026-05-19.md`](../00-context/session-handoff-2026-05-19.md).
 
 ### Branch and deploy
 
@@ -116,9 +120,18 @@ uvicorn app.main:app --reload --port 8000
 cd alpha-pwa/frontend
 npm install
 npm run dev
+# If 5173 is already occupied by another Vite app, use: npm run dev -- --port 5178
 ```
 
-Open **http://localhost:5173**. Vite proxies all `/api/*` requests to port `8000`.
+Open the URL printed by Vite. Vite proxies all `/api/*` requests to port `8000`.
+
+For local browser QA without Supabase login:
+
+```bash
+VITE_BYPASS_AUTH=true npm run dev
+```
+
+The auth bypass is intentionally localhost-only (`localhost` / `127.0.0.1`). Deployed builds still use Supabase auth.
 
 ---
 
@@ -151,7 +164,9 @@ Backend:
 
 ```bash
 cd alpha-pwa/backend
+python3 -m venv .venv
 source .venv/bin/activate
+pip install -r requirements.txt
 python -m pytest tests/ -v
 ```
 
@@ -161,6 +176,8 @@ Frontend type-check + production build:
 cd alpha-pwa/frontend
 npm run build
 ```
+
+Current gap: there is not yet a committed frontend lint/unit/e2e test script. Add those before using “production-ready” language.
 
 ---
 

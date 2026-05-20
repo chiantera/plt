@@ -2,7 +2,12 @@
 
 ## Current state
 
-Working alpha PWA at `alpha-pwa/`. All core features built and tested.
+Working alpha PWA at `alpha-pwa/`. Core product surfaces exist, but do **not** call the app production-ready yet: the latest checkpoint found missing repeatable lint/e2e scripts, backend tests require a venv with `pytest`, and browser QA still shows a generic JS exception that needs root-cause investigation.
+
+Latest handoffs:
+
+- `00-context/session-handoff-2026-05-19.md`
+- `00-context/session-handoff-2026-05-20-gemini-compare.md`
 
 ## What's been built
 
@@ -12,8 +17,10 @@ Working alpha PWA at `alpha-pwa/`. All core features built and tested.
 - Pydantic data model: `CaseAnalysis`, `LegalAnalysis`, `CaseSummary`, `ChatRequest`, full nested legal models
 - Three Italian demo cases: Caso Bianchi (furto aggravato, Roma), Caso Conti (frode online, Napoli), Caso Ferrari (omicidio stradale, Milano)
 - Provider routing: `DEEPSEEK_API_KEY` → DeepSeek via openai SDK; `ANTHROPIC_API_KEY` → Anthropic SDK
-- Streaming SSE chat via `/api/chat` — system prompt embeds full Italian criminal law knowledge
-- 11 passing backend tests
+- Streaming SSE chat via `/api/chat` — system prompt embeds Italian criminal-law triage context
+- Backend tests exist under `alpha-pwa/backend/tests/`; verified command: `cd alpha-pwa/backend && ./.venv/bin/python -m pytest -q`.
+- Upload endpoint now streams to a temp file, enforces `PLT_MAX_UPLOAD_BYTES`/50 MiB default cap, and offloads extraction to a threadpool.
+- Legal schema includes `ProceduralDeadline.feriale_applied` and `DefenseStrategy.target_charge_id` for charge-specific strategy/deadline precision.
 
 ### Frontend (`alpha-pwa/frontend/`)
 
@@ -37,20 +44,25 @@ uvicorn app.main:app --reload --port 8000
 
 # Frontend (separate terminal)
 cd alpha-pwa/frontend
-npm install && npm run dev
-# → http://localhost:5173
+npm install
+npm run dev
+# → Vite default is http://localhost:5173, but verify the port.
+# If 5173 is occupied by another app, use e.g. npm run dev -- --port 5178
 ```
 
 ## Active branch
 
-`claude/explore-lawyer-app-demo-lSVyc` on `chiantera/plt`
+`main` on `chiantera/plt`
 
 ## Immediate next steps (candidates)
 
-- PWA manifest (installable, offline-capable)
-- Chat history persistence (localStorage)
-- Model switcher in chat UI (flash ↔ pro with cost indicator)
-- Real OCR integration (replace upload stub)
+- Reproduce and fix any remaining generic browser JS exception if it appears outside the verified login → dashboard flow
+- Expand repeatable frontend tests beyond the new `test:auth-onboarding` guard; add Playwright dashboard/case/chat smoke tests
+- Backend tests run cleanly now (`15 passed`), but still need broader frontend/e2e coverage and final release gate.
+- Resolve local port hygiene: stale non-PLT app was found on 5173 during QA
+- PWA manifest / installability / offline basics
+- Model switcher in chat UI (Flash ↔ Pro with cost indicator)
+- Real OCR integration hardening and validation
 - Lawyer interviews / validation
 
 ## Key product decisions

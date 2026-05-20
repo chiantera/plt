@@ -22,6 +22,9 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const DEV_BYPASS_AUTH =
+  import.meta.env.VITE_BYPASS_AUTH === 'true' &&
+  ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
 if (import.meta.env.VITE_MOCK_DATA === 'true') installMockApi();
 
@@ -1351,6 +1354,25 @@ async function fetchWithWakeup(
 function useAuth() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   useEffect(() => {
+    if (DEV_BYPASS_AUTH) {
+      setSession({
+        access_token: 'dev-bypass-token',
+        refresh_token: 'dev-bypass-refresh',
+        expires_in: 3600,
+        token_type: 'bearer',
+        user: {
+          id: 'dev-user',
+          aud: 'authenticated',
+          role: 'authenticated',
+          email: 'dev@pocketlegal.local',
+          app_metadata: {},
+          user_metadata: {},
+          created_at: new Date(0).toISOString(),
+        },
+      } as Session);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => setSession(s));
     return () => subscription.unsubscribe();
@@ -1389,32 +1411,47 @@ function AuthScreen() {
 
   return (
     <div className="auth-screen">
-      <div className="auth-card">
-        <div className="auth-brand">
-          <div className="auth-brand-icon"><Scale size={20} /></div>
-          <div>
-            <div className="auth-brand-name">Pocket Legal Triage</div>
-            <div className="auth-brand-sub">Accesso riservato</div>
+      <div className="auth-shell">
+        <section className="auth-intro" aria-labelledby="auth-title">
+          <div className="auth-brand auth-brand--hero">
+            <div className="auth-brand-icon"><Scale size={20} /></div>
+            <div>
+              <div className="auth-brand-name">Pocket Legal Triage</div>
+              <div className="auth-brand-sub">Fascicoli penali, ordinati prima dell'udienza</div>
+            </div>
           </div>
-        </div>
+          <h1 id="auth-title">Trasforma atti, scansioni e note in fascicoli verificabili.</h1>
+          <p className="auth-lede">
+            Timeline, scadenze candidate, prove, contraddizioni e domande aperte — con fonti e confidenza sempre visibili.
+          </p>
+          <ul className="auth-feature-list" aria-label="Cosa fa Pocket Legal Triage">
+            <li><ShieldCheck size={18} /><div><strong>Privacy operativa</strong><span>I fascicoli restano sul dispositivo; invii all'AI solo ciò che scegli.</span></div></li>
+            <li><FileText size={18} /><div><strong>Fonti prima delle conclusioni</strong><span>Ogni affermazione importante rimanda a quote, pagina o documento.</span></div></li>
+            <li><CalendarClock size={18} /><div><strong>Scadenze da verificare</strong><span>Le date estratte restano candidate finché l'avvocato non le conferma.</span></div></li>
+            <li><CheckSquare size={18} /><div><strong>Bozze e checklist, non decisioni</strong><span>Preparazione e triage sotto controllo del difensore, non un “AI lawyer”.</span></div></li>
+          </ul>
+        </section>
 
-        <div className="auth-tabs">
-          {(['login', 'signup'] as const).map(t => (
-            <button key={t} className={`auth-tab${tab === t ? ' auth-tab--active' : ''}`} onClick={() => setTab(t)}>
-              {t === 'login' ? 'Accedi' : 'Registrati'}
+        <div className="auth-card">
+          <div className="auth-card-kicker">Accesso riservato</div>
+          <div className="auth-tabs">
+            {(['login', 'signup'] as const).map(t => (
+              <button key={t} className={`auth-tab${tab === t ? ' auth-tab--active' : ''}`} onClick={() => setTab(t)}>
+                {t === 'login' ? 'Accedi' : 'Registrati'}
+              </button>
+            ))}
+          </div>
+
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <input className="auth-input" type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
+            <input className="auth-input" type="password" placeholder="Password (min. 6 caratteri)" value={password} onChange={e => setPassword(e.target.value)} required />
+            {error && <div className="auth-error">{error}</div>}
+            {info && <div className="auth-info">{info}</div>}
+            <button className="auth-submit" type="submit" disabled={loading}>
+              {loading ? 'Caricamento…' : tab === 'login' ? 'Accedi al fascicolo' : 'Crea account'}
             </button>
-          ))}
+          </form>
         </div>
-
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <input className="auth-input" type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
-          <input className="auth-input" type="password" placeholder="Password (min. 6 caratteri)" value={password} onChange={e => setPassword(e.target.value)} required />
-          {error && <div className="auth-error">{error}</div>}
-          {info && <div className="auth-info">{info}</div>}
-          <button className="auth-submit" type="submit" disabled={loading}>
-            {loading ? 'Caricamento…' : tab === 'login' ? 'Accedi' : 'Crea account'}
-          </button>
-        </form>
       </div>
     </div>
   );
@@ -3496,31 +3533,8 @@ FORMATO ATTI PROCESSUALI:
 
 Cita sempre norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Cassazione con sezione, numero e anno.`;
 
-function OnboardingScreen({ onDone }: { onDone: () => void }) {
-  return (
-    <main className="onboarding-shell">
-      <div className="onboarding-logo">
-        <Scale size={36} />
-        <h1>Pocket Legal Triage</h1>
-        <p className="onboarding-tagline">L'assistente AI per avvocati penalisti italiani</p>
-      </div>
-      <ul className="onboarding-features">
-        <li><ShieldCheck size={18} /><div><strong>Privacy totale</strong><span>I tuoi fascicoli restano sul dispositivo. Solo il testo inviato all'AI esce dal telefono.</span></div></li>
-        <li><FileText size={18} /><div><strong>Carica qualsiasi documento</strong><span>PDF, foto di atti, trascrizioni audio. OCR automatico integrato.</span></div></li>
-        <li><Zap size={18} /><div><strong>Analisi AI in secondi</strong><span>Timeline, contraddizioni, scadenze processuali, strategia difensiva.</span></div></li>
-        <li><MessageSquare size={18} /><div><strong>Assistente legale 24/7</strong><span>Redige memorie, ricorsi per Cassazione, eccezioni procedurali.</span></div></li>
-      </ul>
-      <button className="primary-button onboarding-btn" onClick={onDone}>
-        <ArrowRight size={18} /> Inizia
-      </button>
-      <p className="onboarding-version">Beta · Pocket Legal Triage</p>
-    </main>
-  );
-}
-
 function App() {
   const session = useAuth();
-  const [onboarded, setOnboarded] = useState(() => !!localStorage.getItem('plt_onboarded'));
   const [view, setView] = useState<View>('cases');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [activeCaseData, setActiveCaseData] = useState<CaseAnalysis | null>(null);
@@ -3656,10 +3670,6 @@ function App() {
   );
 
   if (!session) return <AuthScreen />;
-
-  if (!onboarded) return (
-    <OnboardingScreen onDone={() => { localStorage.setItem('plt_onboarded', '1'); setOnboarded(true); }} />
-  );
 
   return (
     <>

@@ -1,4 +1,5 @@
 anthropic
+aiofiles
 fastapi
 groq
 httpx

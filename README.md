@@ -58,6 +58,8 @@ PLT’s job is to convert that chaos into structured case state:
 
 **Working alpha PWA** in [`alpha-pwa/`](./alpha-pwa/).
 
+Production-readiness note: core product surfaces exist and the frontend production build currently passes, but this is still an alpha. Current known gates before calling it production-ready: repeatable lint/e2e scripts, backend test environment setup, browser-console exception investigation, and onboarding copy/flow hardening. See [`00-context/session-handoff-2026-05-19.md`](./00-context/session-handoff-2026-05-19.md).
+
 The alpha currently includes:
 
 - 🗂️ **Three fictional demo cases**
@@ -96,12 +98,34 @@ In another terminal:
 cd alpha-pwa/frontend
 npm install
 npm run dev
+# If 5173 is already occupied, use: npm run dev -- --port 5178
 ```
 
-Open:
+Open the URL printed by Vite. Typical local endpoints:
 
-- Frontend: <http://localhost:5173>
+- Frontend: <http://localhost:5173> unless Vite reports another port
 - Backend API: <http://localhost:8000>
+
+Local dev auth shortcut:
+
+```bash
+VITE_BYPASS_AUTH=true npm run dev
+```
+
+`VITE_BYPASS_AUTH=true` only works on `localhost` / `127.0.0.1`; deployed builds still use Supabase auth.
+
+---
+
+## 🧪 Current hardening checklist
+
+Before claiming production readiness, verify these gates from a clean shell:
+
+- Backend venv created, dependencies installed, and `python -m pytest` passing.
+- Frontend `npm run build` passing.
+- Frontend lint/test/e2e scripts added and passing.
+- Browser QA on the real PLT port, not a stale Vite process.
+- No browser-console errors after login, onboarding, dashboard, case open, chat failure/success, and mobile viewport smoke tests.
+- Onboarding and assistant copy frames output as drafts/checklists under lawyer control.
 
 ---
 

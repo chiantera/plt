@@ -71,6 +71,10 @@ class ProceduralDeadline(BaseModel):
     status: Literal["confirmed", "candidate", "needs_review"] = "needs_review"
     urgency: Literal["alta", "media", "bassa"] = "media"
     description: str = ""
+    feriale_applied: bool = Field(
+        default=False,
+        description="True if August judicial-recess suspension was applied to this candidate deadline.",
+    )
     start_work_date: str | None = None
     internal_target_date: str | None = None
     source_refs: list[SourceRef] = []
@@ -112,6 +116,10 @@ class ChargeAnalysis(BaseModel):
 class DefenseStrategy(BaseModel):
     """A specific defense strategy with priority, strengths, and risks."""
     title: str
+    target_charge_id: str | None = Field(
+        default=None,
+        description="Exact charge/capo identifier this strategy addresses, e.g. 'Capo A'.",
+    )
     strategy_type: Literal[
         "alibi", "misidentification", "lack_of_intent",
         "procedural", "constitutional", "affirmative", "negotiation"

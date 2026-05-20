@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import io
 import logging
+import os
+import tempfile
 import uuid
+from pathlib import Path
 from typing import Any
 
+import aiofiles
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 
@@ -100,113 +105,171 @@ _mistral = MistralOcrAdapter()
 _pptx = PptxAdapter()
 _xlsx = XlsxAdapter()
 
-@app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)) -> dict[str, Any]:
-    """Extract text from uploaded file. Pipeline: text passthrough → pypdf → Mistral OCR."""
-    content = await file.read()
-    mime = file.content_type or ""
-    filename = file.filename or "documento"
+MAX_UPLOAD_BYTES = int(os.environ.get("PLT_MAX_UPLOAD_BYTES", str(50 * 1024 * 1024)))
+_DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+_PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-    _DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    _PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-    _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-    is_text = mime.startswith("text/") or filename.lower().endswith((".txt", ".rtf", ".csv"))
-    is_docx = mime == _DOCX_MIME or filename.lower().endswith(".docx")
-    is_pptx = mime == _PPTX_MIME or filename.lower().endswith(".pptx")
-    is_xlsx = mime == _XLSX_MIME or filename.lower().endswith(".xlsx")
-    is_zip = filename.lower().endswith(".zip")
-    is_rar = filename.lower().endswith(".rar")
-
-    # ── Archivio ZIP ────────────────────────────────────────────────────────
-    if is_zip:
+def _archive_upload_response(filename: str, mime: str, archive_type: str, size_bytes: int) -> dict[str, Any]:
+    if archive_type == "zip":
         extracted_text = "[File ZIP rilevato. Estrai i file e caricali singolarmente: l'estrazione automatica non è supportata per sicurezza.]"
         engine = "archive-zip"
         warnings = ["I file ZIP non vengono aperti automaticamente. Estrai e carica i singoli file."]
-
-    # ── Archivio RAR ────────────────────────────────────────────────────────
-    elif is_rar:
+    else:
         extracted_text = "[File RAR rilevato. Estrai i file e caricali singolarmente: il formato RAR non è supportato.]"
         engine = "archive-rar"
         warnings = ["Formato RAR non supportato. Estrai e carica i singoli file (PDF, DOCX, immagini, ecc.)."]
-
-    # ── Plain text ───────────────────────────────────────────────────────────
-    elif is_text:
-        extracted_text = content.decode("utf-8", errors="replace")
-        engine = "passthrough"
-        warnings: list[str] = []
-
-    # ── DOCX — python-docx ──────────────────────────────────────────────────
-    elif is_docx:
-        try:
-            from docx import Document  # type: ignore
-            doc = Document(io.BytesIO(content))
-            paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        if cell.text.strip():
-                            paragraphs.append(cell.text.strip())
-            extracted_text = "\n\n".join(paragraphs) or "[Documento Word vuoto]"
-            engine = "python-docx"
-            warnings = []
-        except Exception as exc:
-            extracted_text = f"[Errore estrazione DOCX: {exc}]"
-            engine = "python-docx-error"
-            warnings = [str(exc)]
-
-    # ── PPT/PPTX — python-pptx ──────────────────────────────────────────────
-    elif is_pptx:
-        result = _pptx.extract(OcrInput(content=content, mime_type=mime))
-        engine = result.engine
-        warnings = [w.message for w in result.warnings]
-        if result.success:
-            extracted_text = "\n\n".join(
-                f"[Slide {p.page}]\n{p.text}" for p in result.pages
-            )
-        else:
-            extracted_text = f"[Estrazione PPTX non riuscita: {warnings[-1] if warnings else 'Prova a convertire in PDF e ricaricare.'}]"
-
-    # ── XLS/XLSX — openpyxl ─────────────────────────────────────────────────
-    elif is_xlsx:
-        result = _xlsx.extract(OcrInput(content=content, mime_type=mime))
-        engine = result.engine
-        warnings = [w.message for w in result.warnings]
-        if result.success:
-            extracted_text = "\n\n".join(
-                f"[{p.text.split(chr(10))[0]}]\n" + "\n".join(p.text.split(chr(10))[1:]) for p in result.pages
-            )
-        else:
-            extracted_text = f"[Estrazione XLSX non riuscita: {warnings[-1] if warnings else 'Prova a convertire in PDF e ricaricare.'}]"
-
-    # ── Everything else: pypdf → Mistral OCR ─────────────────────────────────
-    else:
-        ocr_input = OcrInput(content=content, mime_type=mime)
-
-        result = _pypdf.extract(ocr_input)
-        if not result.success:
-            result = _mistral.extract(ocr_input)
-
-        engine = result.engine
-        warnings = [w.message for w in result.warnings]
-
-        if result.success:
-            extracted_text = "\n\n".join(
-                f"[Pagina {p.page}]\n{p.text}" for p in result.pages
-            )
-        else:
-            extracted_text = f"[Estrazione non riuscita per {mime}. {warnings[-1] if warnings else 'Incolla il testo manualmente.'}]"
 
     return {
         "upload_id": str(uuid.uuid4()),
         "filename": filename,
         "mime_type": mime,
-        "size_bytes": len(content),
+        "size_bytes": size_bytes,
         "extracted_text": extracted_text,
         "engine": engine,
         "warnings": warnings,
-        "status": "ready" if extracted_text and not extracted_text.startswith("[") else "needs_ocr",
+        "status": "needs_ocr",
     }
+
+
+def _result_to_upload_payload(
+    *,
+    filename: str,
+    mime: str,
+    size_bytes: int,
+    extracted_text: str,
+    engine: str,
+    warnings: list[str],
+    ready: bool,
+) -> dict[str, Any]:
+    return {
+        "upload_id": str(uuid.uuid4()),
+        "filename": filename,
+        "mime_type": mime,
+        "size_bytes": size_bytes,
+        "extracted_text": extracted_text,
+        "engine": engine,
+        "warnings": warnings,
+        "status": "ready" if ready else "needs_ocr",
+    }
+
+
+def _extract_docx_from_path(file_path: Path) -> tuple[str, str, list[str], bool]:
+    try:
+        from docx import Document  # type: ignore
+
+        doc = Document(str(file_path))
+        paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    if cell.text.strip():
+                        paragraphs.append(cell.text.strip())
+        text = "\n\n".join(paragraphs)
+        return text or "[Documento Word vuoto]", "python-docx", [], bool(text)
+    except Exception as exc:
+        return f"[Errore estrazione DOCX: {exc}]", "python-docx-error", [str(exc)], False
+
+
+def _extract_text_from_path(file_path: Path) -> tuple[str, str, list[str], bool]:
+    text = file_path.read_text(encoding="utf-8", errors="replace")
+    return text, "passthrough", [], bool(text.strip())
+
+
+def _ocr_result_to_text(result, success_label: str, failure_prefix: str) -> tuple[str, str, list[str], bool]:
+    warnings = [w.message for w in result.warnings]
+    if result.success:
+        extracted_text = "\n\n".join(f"[{success_label} {p.page}]\n{p.text}" for p in result.pages)
+        return extracted_text, result.engine, warnings, True
+    extracted_text = f"[{failure_prefix}: {warnings[-1] if warnings else 'Incolla il testo manualmente.'}]"
+    return extracted_text, result.engine, warnings, False
+
+
+def _extract_pptx_from_path(file_path: Path, mime: str) -> tuple[str, str, list[str], bool]:
+    result = _pptx.extract(OcrInput(file_path=file_path, mime_type=mime))
+    return _ocr_result_to_text(result, "Slide", "Estrazione PPTX non riuscita")
+
+
+def _extract_xlsx_from_path(file_path: Path, mime: str) -> tuple[str, str, list[str], bool]:
+    result = _xlsx.extract(OcrInput(file_path=file_path, mime_type=mime))
+    warnings = [w.message for w in result.warnings]
+    if result.success:
+        extracted_text = "\n\n".join(
+            f"[{p.text.split(chr(10))[0]}]\n" + "\n".join(p.text.split(chr(10))[1:]) for p in result.pages
+        )
+        return extracted_text, result.engine, warnings, True
+    return f"[Estrazione XLSX non riuscita: {warnings[-1] if warnings else 'Prova a convertire in PDF e ricaricare.'}]", result.engine, warnings, False
+
+
+def _extract_pdf_or_ocr_from_path(file_path: Path, mime: str) -> tuple[str, str, list[str], bool]:
+    ocr_input = OcrInput(file_path=file_path, mime_type=mime)
+    result = _pypdf.extract(ocr_input)
+    if not result.success:
+        result = _mistral.extract(ocr_input)
+    return _ocr_result_to_text(result, "Pagina", f"Estrazione non riuscita per {mime}")
+
+
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)) -> dict[str, Any]:
+    """Extract uploaded file text without blocking the event loop on parsing work."""
+    mime = file.content_type or ""
+    filename = file.filename or "documento"
+    lower_filename = filename.lower()
+
+    if file.size is not None and file.size > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File troppo grande per l'upload alpha")
+
+    is_text = mime.startswith("text/") or lower_filename.endswith((".txt", ".rtf", ".csv"))
+    is_docx = mime == _DOCX_MIME or lower_filename.endswith(".docx")
+    is_pptx = mime == _PPTX_MIME or lower_filename.endswith(".pptx")
+    is_xlsx = mime == _XLSX_MIME or lower_filename.endswith(".xlsx")
+    is_zip = lower_filename.endswith(".zip")
+    is_rar = lower_filename.endswith(".rar")
+
+    if is_zip:
+        return _archive_upload_response(filename, mime, "zip", file.size or 0)
+    if is_rar:
+        return _archive_upload_response(filename, mime, "rar", file.size or 0)
+
+    fd, temp_name = tempfile.mkstemp(prefix="plt-upload-")
+    os.close(fd)
+    temp_path = Path(temp_name)
+    size_bytes = 0
+
+    try:
+        async with aiofiles.open(temp_path, "wb") as out:
+            while chunk := await file.read(1024 * 1024):
+                size_bytes += len(chunk)
+                if size_bytes > MAX_UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail="File troppo grande per l'upload alpha")
+                await out.write(chunk)
+
+        if is_text:
+            extracted_text, engine, warnings, ready = await run_in_threadpool(_extract_text_from_path, temp_path)
+        elif is_docx:
+            extracted_text, engine, warnings, ready = await run_in_threadpool(_extract_docx_from_path, temp_path)
+        elif is_pptx:
+            extracted_text, engine, warnings, ready = await run_in_threadpool(_extract_pptx_from_path, temp_path, mime)
+        elif is_xlsx:
+            extracted_text, engine, warnings, ready = await run_in_threadpool(_extract_xlsx_from_path, temp_path, mime)
+        else:
+            extracted_text, engine, warnings, ready = await run_in_threadpool(_extract_pdf_or_ocr_from_path, temp_path, mime)
+
+        return _result_to_upload_payload(
+            filename=filename,
+            mime=mime,
+            size_bytes=size_bytes,
+            extracted_text=extracted_text,
+            engine=engine,
+            warnings=warnings,
+            ready=ready,
+        )
+    finally:
+        try:
+            temp_path.unlink(missing_ok=True)
+        except OSError:
+            logger.warning("Could not delete temporary upload file: %s", temp_path)
 
 
 # ── Voice transcription ───────────────────────────────────────────────────────
