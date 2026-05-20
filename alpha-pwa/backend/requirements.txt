@@ -6,6 +6,9 @@ mistralai
 openai
 pypdf
 python-docx
+python-pptx
+openpyxl
+aiofiles
 pydantic
 pytest
 python-multipart

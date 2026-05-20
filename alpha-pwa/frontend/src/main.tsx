@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { useLiveQuery } from 'dexie-react-hooks';
 import {
   AlertTriangle, ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness,
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
@@ -8,7 +9,7 @@ import {
   Square, Trash2, Upload, User, Users, X, Zap,
 } from 'lucide-react';
 import './styles.css';
-import { dbSave, dbList, dbGet, dbDelete } from './db';
+import { db, dbSave, dbList, dbGet, dbDelete } from './db';
 import { installMockApi } from './data/mockApi';
 import { createClient, type Session } from '@supabase/supabase-js';
 
@@ -409,37 +410,39 @@ function useToast() {
 }
 
 function useCompletedTasks(caseId: string) {
-  const [completed, setCompleted] = useState<Set<string>>(() => {
-    try { return new Set<string>(JSON.parse(localStorage.getItem('plt_tasks') ?? '[]')); }
-    catch { return new Set<string>(); }
-  });
+  const completedRecords = useLiveQuery(() => db.tasks.where({ case_id: caseId }).toArray(), [caseId]) || [];
+  const completed = useMemo(() => new Set(completedRecords.filter(r => r.done).map(r => r.id)), [completedRecords]);
+
   const key = (dlTitle: string, idx: number) => `${caseId}|${dlTitle}|${idx}`;
-  const toggle = useCallback((dlTitle: string, idx: number) => {
-    setCompleted(prev => {
-      const next = new Set(prev);
-      const k = `${caseId}|${dlTitle}|${idx}`;
-      if (next.has(k)) next.delete(k); else next.add(k);
-      try { localStorage.setItem('plt_tasks', JSON.stringify([...next])); } catch {}
-      return next;
-    });
-  }, [caseId]);
+  
+  const toggle = useCallback(async (dlTitle: string, idx: number) => {
+    const k = key(dlTitle, idx);
+    const isDone = completed.has(k);
+    if (isDone) {
+      await db.tasks.delete(k);
+    } else {
+      await db.tasks.put({ id: k, case_id: caseId, done: true });
+    }
+  }, [caseId, completed]);
+
   const isDone = useCallback((dlTitle: string, idx: number) => completed.has(key(dlTitle, idx)), [completed, caseId]);
+  
   const doneCount = useCallback((dlTitle: string, total: number) => {
     let n = 0; for (let i = 0; i < total; i++) if (completed.has(key(dlTitle, i))) n++;
     return n;
   }, [completed, caseId]);
+  
   return { toggle, isDone, doneCount };
 }
 
 function useRedactionRules() {
-  const [globalRules, setGlobalRulesState] = useState<RedactionRule[]>(() => {
-    try { return JSON.parse(localStorage.getItem('plt_redaction_rules') ?? '[]'); }
-    catch { return []; }
-  });
-  const setGlobalRules = useCallback((rules: RedactionRule[]) => {
-    setGlobalRulesState(rules);
-    try { localStorage.setItem('plt_redaction_rules', JSON.stringify(rules)); } catch {}
+  const globalRulesRecord = useLiveQuery(() => db.appState.get('plt_redaction_rules'), []);
+  const globalRules = useMemo(() => globalRulesRecord?.value ?? [], [globalRulesRecord]);
+
+  const setGlobalRules = useCallback(async (rules: RedactionRule[]) => {
+    await db.appState.put({ key: 'plt_redaction_rules', value: rules });
   }, []);
+  
   return { globalRules, setGlobalRules };
 }
 

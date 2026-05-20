@@ -83,7 +83,7 @@ _ANALYSIS_SCHEMA = """\
   "open_questions": [{"question":"str","why_it_matters":"str","source_refs":[...]}],
   "missing_documents": [{"title":"str","reason":"str","priority":"alta|media|bassa"}],
   "contradictions": [{"title":"str","description":"str","source_refs":[...]}],
-  "procedural_deadlines": [{"title":"str","deadline_type":"hearing|defense_brief|filing|investigation|other","due_date":"YYYY-MM-DD","due_time":"HH:MM|null","status":"confirmed|candidate|needs_review","urgency":"alta|media|bassa","description":"str","start_work_date":"YYYY-MM-DD|null","internal_target_date":"YYYY-MM-DD|null","source_refs":[...],"tasks":["str"]}],
+  "procedural_deadlines": [{"title":"str","deadline_type":"hearing|defense_brief|filing|investigation|other","due_date":"YYYY-MM-DD","due_time":"HH:MM|null","status":"confirmed|candidate|needs_review","urgency":"alta|media|bassa","description":"str","feriale_applied":false,"start_work_date":"YYYY-MM-DD|null","internal_target_date":"YYYY-MM-DD|null","source_refs":[...],"tasks":["str"]}],
   "brief_markdown": "string (markdown)",
   "usage_estimate": {"pages":0,"audio_minutes":0,"flash_input_tokens":0,"flash_output_tokens":0,"pro_used":false,"model_route":"str"},
   "legal_analysis": {
@@ -91,7 +91,7 @@ _ANALYSIS_SCHEMA = """\
     "risk_summary": "str",
     "immediate_actions": ["str"],
     "charges": [{"charge_code":"str","charge_name":"str","max_sentence":"str","elements_required":[{"element":"str","description":"str","status":"proven|disputed|weak|missing","notes":"str","source_refs":[...]}],"available_defenses":["str"],"prosecution_strength":0.0-1.0,"notes":"str","source_refs":[...]}],
-    "strategies": [{"title":"str","strategy_type":"alibi|misidentification|lack_of_intent|procedural|constitutional|affirmative|negotiation","priority":"primary|secondary|fallback","description":"str","strengths":["str"],"risks":["str"],"required_evidence":["str"],"source_refs":[...]}],
+    "strategies": [{"title":"str","target_charge_id":"str|null","strategy_type":"alibi|misidentification|lack_of_intent|procedural|constitutional|affirmative|negotiation","priority":"primary|secondary|fallback","description":"str","strengths":["str"],"risks":["str"],"required_evidence":["str"],"source_refs":[...]}],
     "constitutional_issues": [{"title":"str","issue_type":"illegal_search|coerced_confession|right_to_counsel|due_process|speedy_trial|procedural_violation|evidence_tampering","severity":"critical|significant|minor","description":"str","legal_basis":"str","remedy":"str","source_refs":[...]}],
     "witness_assessments": [{"witness_name":"str","role":"prosecution|defense|neutral|expert","credibility_score":0.0-1.0,"key_testimony":"str","strengths":["str"],"vulnerabilities":["str"],"cross_examination_angles":["str"],"source_refs":[...]}],
     "evidence_balance": {"prosecution_strength":0.0-1.0,"defense_strength":0.0-1.0,"key_prosecution_evidence":["str"],"key_defense_evidence":["str"],"critical_gaps":["str"],"overall_assessment":"str"},
@@ -151,8 +151,9 @@ Analizza i materiali e restituisci un JSON completo conforme a questo schema:
 Istruzioni specifiche:
 - Estrai tutti gli eventi con date e orari precisi dalla documentazione.
 - Identifica TUTTE le contraddizioni tra le fonti.
-- Per ogni accusa, analizza gli elementi costitutivi e la loro robustezza.
-- Proponi strategie difensive ordinate per priorità.
+- Per ogni accusa (capo d'imputazione), analizza gli elementi costitutivi e la loro robustezza. Assegna un "charge_code" chiaro (es. "Capo A").
+- Proponi strategie difensive ordinate per priorità. DEVI collegare ogni strategia al rispettivo capo d'imputazione usando il campo "target_charge_id".
+- Calcola i termini processuali. SE e SOLO SE il termine calcolato è soggetto alla sospensione feriale dei termini processuali (1-31 agosto), calcolalo correttamente e imposta "feriale_applied" a true.
 - Segnala qualsiasi problema procedurale o costituzionale.
 - Per ogni affermazione, includi la source_ref con la citazione esatta dal testo.
 - L'analisi legale deve essere pratica e orientata all'udienza.
