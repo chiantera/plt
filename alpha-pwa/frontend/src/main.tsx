@@ -1306,6 +1306,11 @@ function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasC
     if (pos) localStorage.setItem('giulia-fab-pos', JSON.stringify(pos));
     if (!moved.current) onClick();
   };
+  const onCancel = (e: React.PointerEvent) => {
+    if (fabRef.current) fabRef.current.releasePointerCapture(e.pointerId);
+    dragging.current = false;
+    moved.current = false;
+  };
 
   const style: React.CSSProperties = pos
     ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto', cursor: moved.current ? 'grabbing' : 'grab' }
@@ -1315,7 +1320,7 @@ function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasC
     <button
       ref={fabRef}
       className={`chat-fab${hasContext ? ' chat-fab--context' : ''}`}
-      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
+      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onCancel}
       aria-label="Apri GiulIA" style={style}
     >
       <MessageSquare size={26} />
