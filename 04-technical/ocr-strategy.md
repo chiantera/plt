@@ -1,4 +1,5 @@
 # OCR Strategy — Dedicated DeepSeek-OCR Track
+_Last updated: 2026-05-20 02:49_
 
 ## Decision
 

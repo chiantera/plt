@@ -1,4 +1,5 @@
 # Competitor Feature Matrix
+_Last updated: 2026-05-20 02:49_
 
 ## Opus 2
 

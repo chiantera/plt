@@ -1,4 +1,5 @@
 # Pricing and Unit Economics Scratchpad
+_Last updated: 2026-05-20 02:49_
 
 ## Core conclusion
 

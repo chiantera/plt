@@ -1,4 +1,5 @@
 # SOUL.md — Pocket Legal Triage
+_Last updated: 2026-05-20 02:49_
 
 ## What this is
 

@@ -1,4 +1,5 @@
 # AGENTS.md — Pocket Legal Triage Workspace Instructions
+_Last updated: 2026-05-20 02:49_
 
 Mirrors `AGENT.md` for tools that auto-load `AGENTS.md` instead.
 

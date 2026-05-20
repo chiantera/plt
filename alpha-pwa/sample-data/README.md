@@ -1,4 +1,5 @@
 # Caso demo — Furto aggravato in concorso
+_Last updated: 2026-05-20 02:49_
 
 Questo fascicolo dimostrativo è interamente fittizio. Serve a validare il flusso di Pocket Legal Triage con avvocati penalisti italiani.
 

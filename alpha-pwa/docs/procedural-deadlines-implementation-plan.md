@@ -1,4 +1,5 @@
 # Procedural Deadlines Implementation Plan
+_Last updated: 2026-05-20 02:49_
 
 > **For Hermes:** Implement this directly with strict TDD. This is a small alpha slice; no subagent needed unless it grows.
 

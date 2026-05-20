@@ -1,4 +1,5 @@
 # Research Notes
+_Last updated: 2026-05-20 02:49_
 
 ## Mobile app / AI market signals
 

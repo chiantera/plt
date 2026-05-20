@@ -1,4 +1,5 @@
 # Competitive Landscape Notes — Legal AI / eDiscovery / Mobile Legal Assistant
+_Last updated: 2026-05-20 02:49_
 
 Saved after reviewing Deckard-provided links on 2026-05-14.
 

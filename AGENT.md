@@ -1,4 +1,5 @@
 # AGENT.md — Pocket Legal Triage Workspace Instructions
+_Last updated: 2026-05-20 02:49_
 
 You are working in `/home/user/plt`, the Pocket Legal Triage workspace.
 

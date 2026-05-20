@@ -1,4 +1,5 @@
 # Session Handoff — Gemini PLT branch comparison
+_Last updated: 2026-05-20 02:49_
 
 Timestamp captured with `date -Is`: 2026-05-20T00:24:41-04:00
 
