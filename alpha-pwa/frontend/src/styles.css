@@ -482,6 +482,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   .home-stats { flex-wrap: wrap; padding: 10px 0; }
   .home-stat { flex: 0 0 50%; padding: 8px 6px; }
   .home-stat-value { font-size: 1.35rem; }
+  .home-stat-label { font-size: 0.72rem; }
   .home-stat-divider { display: none; }
   .home-stat:nth-child(1) { border-right: 1px solid rgba(148,163,184,0.15); border-bottom: 1px solid rgba(148,163,184,0.15); padding-bottom: 12px; }
   .home-stat:nth-child(3) { border-bottom: 1px solid rgba(148,163,184,0.15); padding-bottom: 12px; }
@@ -606,7 +607,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .case-card-meta span { display: flex; align-items: center; gap: 5px; color: #64748b; font-size: 0.76rem; }
 .case-card-open { display: flex; align-items: center; gap: 3px; font-size: 0.76rem; font-weight: 600; color: #38bdf8; white-space: nowrap; flex: none; }
 .case-card-actions { display: flex; align-items: center; gap: 8px; }
-.case-local-badge { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #34d399; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.3); border-radius: 999px; padding: 2px 7px; }
+.case-local-badge { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #34d399; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.3); border-radius: 999px; padding: 3px 8px; }
 .case-delete-btn { display: flex; align-items: center; color: #475569; padding: 4px; border-radius: 4px; transition: color 0.15s, background 0.15s; background: none; border: none; cursor: pointer; }
 .case-delete-btn:hover { color: #ef4444; background: rgba(239,68,68,0.12); }
 
@@ -983,7 +984,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 }
 .chat-fab-label {
   position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
-  font-size: 0.6rem; font-weight: 700; color: #8b5cf6; letter-spacing: 0.5px;
+  font-size: 0.68rem; font-weight: 700; color: #8b5cf6; letter-spacing: 0.5px;
   white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 .chat-fab-dot {
@@ -1504,4 +1505,12 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   .auth-feature-list { grid-template-columns: 1fr; gap: 9px; }
   .auth-feature-list li { padding: 11px; }
   .auth-card { padding: 22px; border-radius: 22px; }
+}
+
+@media (max-width: 380px) {
+  .home-actions-bar { padding: 10px 12px; gap: 8px; }
+  .tab-bar button { padding: 7px 10px; font-size: 0.72rem; }
+  .chat-input-row { gap: 7px; padding: 10px 12px; }
+  .chat-send-btn { width: 38px; height: 38px; }
+  .giulia-prompt-bar { margin: 10px 10px 0; padding: 8px 10px 8px 12px; }
 }
