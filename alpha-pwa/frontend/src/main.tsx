@@ -1300,7 +1300,8 @@ function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasC
     const ny = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, origin.current.by + dy));
     setPos({ x: nx, y: ny });
   };
-  const onUp = () => {
+  const onUp = (e: React.PointerEvent) => {
+    if (fabRef.current) fabRef.current.releasePointerCapture(e.pointerId);
     dragging.current = false;
     if (pos) localStorage.setItem('giulia-fab-pos', JSON.stringify(pos));
     if (!moved.current) onClick();
