@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import './styles.css';
 import { formatDate, formatDateFull, formatShortDate } from './dateUtils';
-import { dbSave, dbList, dbGet, dbDelete } from './db';
+import { dbSave, dbList, dbGet, dbDelete, dbClaimLegacyCases, localOwnerIdFromSession } from './db';
 import { installMockApi } from './data/mockApi';
 import { decryptPltContainer, exportEncryptedPlt, exportPlainPlt, parsePltFile } from './pltExport';
 import { createClient, type Session } from '@supabase/supabase-js';
@@ -771,22 +771,20 @@ function MultiFileUploadDrawer({
   queue,
   onClose,
   onAddFiles,
-  onStartProcessing,
-  onSaveAll,
   onRemoveItem,
   onRetryItem,
   onAddTextItem,
   processing,
+  onAnalyze,
 }: {
   queue: UploadQueueItem[];
   onClose: () => void;
   onAddFiles: (files: File[]) => void;
-  onStartProcessing: () => void;
-  onSaveAll: () => void;
   onRemoveItem: (id: string) => void;
   onRetryItem: (id: string) => void;
   onAddTextItem: (text: string, name?: string) => void;
   processing: boolean;
+  onAnalyze?: () => void;
 }) {
   const [dragging, setDragging] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -841,10 +839,9 @@ function MultiFileUploadDrawer({
     e.target.value = '';
   }, [onAddFiles]);
 
-  const pendingCount = queue.filter(i => i.status === 'pending' || i.status === 'uploading').length;
   const doneCount = queue.filter(i => i.status === 'done' && i.text).length;
   const errorCount = queue.filter(i => i.status === 'error').length;
-  const hasPending = queue.some(i => i.status === 'pending');
+  const isUploading = queue.some(i => i.status === 'uploading' || i.status === 'pending');
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
@@ -866,7 +863,9 @@ function MultiFileUploadDrawer({
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
         >
-          <Upload size={28} />
+          <div className="drop-zone-icon-container">
+            <Upload size={32} />
+          </div>
           <p>Trascina i file qui o tocca per selezionarli</p>
           <small>PDF, DOCX, TXT, immagini — più file alla volta</small>
           <input ref={fileRef} type="file" style={{ display: 'none' }} multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.csv,.rtf,image/*,audio/*" onChange={onFileChange} />
@@ -876,8 +875,18 @@ function MultiFileUploadDrawer({
         {queue.length > 0 && (
           <div className="upload-queue">
             {queue.map(item => (
-              <div key={item.id} className="upload-queue-item">
-                <div className="upload-queue-icon"><FileText size={18} /></div>
+              <div key={item.id} className={`upload-queue-item ${item.status}`}>
+                <div className="upload-queue-icon">
+                  {item.status === 'uploading' ? (
+                    <Loader2 size={18} className="spin text-sky" />
+                  ) : item.status === 'error' ? (
+                    <AlertTriangle size={18} className="text-red" />
+                  ) : item.status === 'done' ? (
+                    <CheckCircle2 size={18} style={{ color: '#4ade80' }} />
+                  ) : (
+                    <FileText size={18} />
+                  )}
+                </div>
                 <div className="upload-queue-info">
                   <div className="upload-queue-name">{item.description || item.name}</div>
                   <div className="upload-queue-size">
@@ -885,17 +894,17 @@ function MultiFileUploadDrawer({
                     {item.size > 0 && ` · ${(item.size / 1024).toFixed(0)} KB`}
                   </div>
                 </div>
-                <div className={`upload-queue-status ${item.status}`}>
-                  {item.status === 'pending' && <span style={{ color: '#94a3b8' }}>In attesa</span>}
-                  {item.status === 'uploading' && <><Loader2 size={14} className="spin" /><span>Estrazione…</span></>}
-                  {item.status === 'done' && <><CheckCircle2 size={16} style={{ color: '#4ade80' }} /></>}
+                <div className="upload-queue-status">
+                  {item.status === 'pending' && <span className="status-badge pending">In coda…</span>}
+                  {item.status === 'uploading' && <span className="status-badge uploading">Estraggo testo…</span>}
+                  {item.status === 'done' && <span className="status-badge done">Aggiunto! ✅</span>}
                   {item.status === 'error' && (
-                    <span style={{ color: '#f87171', cursor: 'pointer' }} onClick={() => onRetryItem(item.id)} title={item.error}>
-                      <AlertTriangle size={14} /> Riprova
+                    <span className="status-badge error" onClick={() => onRetryItem(item.id)} title={item.error} style={{ cursor: 'pointer' }}>
+                      Riprova ↻
                     </span>
                   )}
                 </div>
-                {(item.status === 'pending' || item.status === 'done') && (
+                {(item.status === 'pending' || item.status === 'done' || item.status === 'error') && (
                   <button className="upload-queue-action" onClick={() => onRemoveItem(item.id)} title="Rimuovi">
                     <X size={14} />
                   </button>
@@ -945,33 +954,43 @@ function MultiFileUploadDrawer({
               onClick={() => { onAddTextItem(pasteText.trim()); setPasteText(''); }}
               style={{ alignSelf: 'flex-end', whiteSpace: 'nowrap', padding: '10px 14px', fontSize: '0.78rem' }}
             >
-              Aggiungi testo
+              Aggiungi
             </button>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0 2px', color: '#475569', fontSize: '0.74rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0 2px', color: '#64748b', fontSize: '0.74rem' }}>
           <ShieldCheck size={12} style={{ flexShrink: 0, color: '#22c55e' }} />
           I file originali restano sul tuo dispositivo. Solo il testo estratto viene inviato all'AI per l'analisi.
         </div>
 
-        <div className="upload-actions">
-          <button className="ghost-button" onClick={onClose}>Annulla</button>
+        <div className="upload-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+          <div>
+            {isUploading && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#38bdf8', fontSize: '0.8rem', fontWeight: 500 }}>
+                <Loader2 size={14} className="spin" />
+                <span>Estrazione testi in corso...</span>
+              </div>
+            )}
+            {!isUploading && doneCount > 0 && (
+              <div style={{ color: '#4ade80', fontSize: '0.8rem', fontWeight: 500 }}>
+                ✓ {doneCount} file pronto/i per l'analisi
+              </div>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {errorCount > 0 && <span style={{ fontSize: '0.75rem', color: '#f87171' }}>{errorCount} errore{errorCount > 1 ? 'i' : ''}</span>}
-            {hasPending && !processing && (
-              <button className="secondary-button" onClick={onStartProcessing}>
-                <Zap size={14} /> Elabora {pendingCount > 0 ? `(${pendingCount})` : ''}
+            {errorCount > 0 && <span style={{ fontSize: '0.75rem', color: '#f87171' }}>{errorCount} errore/i</span>}
+            <button className="ghost-button" onClick={onClose}>Chiudi</button>
+            {doneCount > 0 && onAnalyze && (
+              <button
+                className="primary-button upload-analyze-btn"
+                onClick={() => {
+                  onAnalyze();
+                }}
+              >
+                <Sparkles size={15} /> Avvia Analisi AI ✨
               </button>
             )}
-            {processing && (
-              <button className="secondary-button" disabled>
-                <Loader2 size={14} className="spin" /> Elaborazione…
-              </button>
-            )}
-            <button className="primary-button" disabled={doneCount === 0} onClick={onSaveAll}>
-              <Plus size={15} /> Salva {doneCount > 0 ? `(${doneCount})` : ''}
-            </button>
           </div>
         </div>
       </aside>
@@ -1576,6 +1595,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
   const [search, setSearch] = useState('');
   const [showProfile, setShowProfile] = useState(false);
   const [profileTagline, setProfileTagline] = useState<string | null>(null);
+  const localOwnerId = useMemo(() => localOwnerIdFromSession(session), [session]);
 
   useEffect(() => {
     supabase.from('profiles').select('full_name,studio').eq('id', session.user.id).single()
@@ -1599,7 +1619,8 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
   useEffect(() => {
     (async () => {
       // Local cases from IndexedDB — always available, even offline
-      const local = (await dbList()) as CaseAnalysis[];
+      await dbClaimLegacyCases(localOwnerId);
+      const local = (await dbList(localOwnerId)) as CaseAnalysis[];
       const localSummaries = local.map(caseAnalysisToSummary);
       const localIdSet = new Set(local.map(c => c.case_id));
       setLocalIds(localIdSet);
@@ -1621,7 +1642,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
         if (localSummaries.length === 0) setError('Backend non raggiungibile e nessun fascicolo locale');
       }
     })();
-  }, []);
+  }, [localOwnerId]);
 
   const handleCreate = useCallback(async (title: string) => {
     const newCase: CaseAnalysis = {
@@ -1631,7 +1652,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
       procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, legal_analysis: null,
     };
     try {
-      await dbSave(newCase);
+      await dbSave(localOwnerId, newCase);
     } catch (e) {
       setError(`Errore creazione fascicolo: ${(e as Error).message}`);
       return;
@@ -1643,15 +1664,15 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
     });
     setLocalIds(prev => new Set([...prev, newCase.case_id]));
     onSelect(newCase.case_id);
-  }, [onSelect]);
+  }, [localOwnerId, onSelect]);
 
   const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm('Eliminare il fascicolo? I dati sono conservati solo sul tuo dispositivo.')) return;
-    await dbDelete(id);
+    await dbDelete(localOwnerId, id);
     setCases(prev => prev?.filter(c => c.case_id !== id) ?? null);
     setLocalIds(prev => { const n = new Set(prev); n.delete(id); return n; });
-  }, []);
+  }, [localOwnerId]);
 
   return (
     <main className="app-shell home-shell">
@@ -1722,7 +1743,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
                 data = parsed.caseData;
               }
               if (!data.case_id || !data.case_title) throw new Error('File non valido');
-              const existing = await dbGet(data.case_id);
+              const existing = await dbGet(localOwnerId, data.case_id);
               if (existing) {
                 const action = confirm(
                   `Il fascicolo "${data.case_title}" è già presente. \n\nOK = Sostituisci\nAnnulla = Salva come copia`
@@ -1732,7 +1753,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
                   data.case_title += ' (importato)';
                 }
               }
-              await dbSave(data as CaseAnalysis);
+              await dbSave(localOwnerId, data as CaseAnalysis);
               window.location.reload();
             } catch (err) {
               alert(`Importazione fallita: ${(err as Error).message}`);
@@ -2553,7 +2574,7 @@ const tabs: Array<{ id: TabId; label: string }> = [
   { id: 'brief', label: 'Promemoria' },
 ];
 
-function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyzed }: { caseId: string; onBack: () => void; onOpenChat: (key: string) => void; onCaseLoaded: (d: CaseAnalysis) => void; onCaseAnalyzed?: (d: CaseAnalysis) => void }) {
+function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onCaseAnalyzed }: { caseId: string; session: Session; onBack: () => void; onOpenChat: (key: string) => void; onCaseLoaded: (d: CaseAnalysis) => void; onCaseAnalyzed?: (d: CaseAnalysis) => void }) {
   const [caseData, setCaseData] = useState<CaseAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('timeline');
@@ -2570,6 +2591,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
   const [anonModal, setAnonModal] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [anonymizingDocId, setAnonymizingDocId] = useState<string | null>(null);
+  const localOwnerId = useMemo(() => localOwnerIdFromSession(session), [session]);
 
   const { toast, showToast, dismissToast } = useToast();
   const { toggle: toggleTask, isDone, doneCount } = useCompletedTasks(caseId);
@@ -2626,7 +2648,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     }
     (async () => {
       // Check IndexedDB first — data stays local
-      const local = await dbGet(caseId) as CaseAnalysis | null;
+      const local = await dbGet(localOwnerId, caseId) as CaseAnalysis | null;
       if (local) { setCaseData(local); onCaseLoaded(local); return; }
       // Fall back to backend demo cases
       try {
@@ -2636,13 +2658,69 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         setCaseData(d); onCaseLoaded(d);
       } catch (e) { setError((e as Error).message); }
     })();
-  }, [caseId]);
+  }, [caseId, localOwnerId, onCaseLoaded]);
 
   const scrollTo = (ref: React.RefObject<HTMLElement | HTMLHeadingElement | null>) => {
     setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
   };
 
   // ── Upload queue callbacks ──────────────────────────────────────────────
+  const processItems = useCallback(async (itemsToProcess: UploadQueueItem[]) => {
+    if (itemsToProcess.length === 0) return;
+
+    setUploadProcessing(true);
+    setUploadQueue(prev => prev.map(i =>
+      itemsToProcess.some(it => it.id === i.id) ? { ...i, status: 'uploading' as const } : i
+    ));
+
+    for (const item of itemsToProcess) {
+      try {
+        let text = '';
+        if (item.file.type.startsWith('text/') || item.file.name.endsWith('.txt')) {
+          text = await item.file.text();
+        } else {
+          const fd = new FormData();
+          fd.append('file', item.file);
+          const res = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
+          if (!res.ok) throw new Error(`Upload fallito (${res.status})`);
+          const data = await res.json();
+          text = data.extracted_text ?? '';
+        }
+
+        // Mark item as done in queue
+        setUploadQueue(prev => prev.map(i =>
+          i.id === item.id ? { ...i, status: 'done' as const, text } : i
+        ));
+
+        // Auto-save to the case data in IndexedDB
+        setCaseData(prevCase => {
+          if (!prevCase) return prevCase;
+          const newDoc: RawDocument = {
+            doc_id: item.id,
+            name: item.description || item.name,
+            description: item.description || item.name,
+            text,
+            added_at: new Date().toISOString(),
+          };
+          const updated = {
+            ...prevCase,
+            raw_documents: [...(prevCase.raw_documents ?? []), newDoc],
+          };
+          dbSave(localOwnerId, updated); // Save to IndexedDB
+          return updated;
+        });
+
+        showToast(`Documento "${item.description || item.name}" aggiunto al fascicolo!`);
+      } catch (e) {
+        setUploadQueue(prev => prev.map(i =>
+          i.id === item.id ? { ...i, status: 'error' as const, error: (e as Error).message } : i
+        ));
+        showToast(`Errore caricamento "${item.description || item.name}": ${(e as Error).message}`, 'error');
+      }
+    }
+    setUploadProcessing(false);
+  }, [showToast]);
+
   const handleAddFiles = useCallback((files: File[]) => {
     const MAX_BYTES = 50 * 1024 * 1024;
     const oversized = files.filter(f => f.size > MAX_BYTES);
@@ -2658,7 +2736,8 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       description: f.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
     }));
     setUploadQueue(prev => [...prev, ...newItems]);
-  }, [showToast]);
+    processItems(newItems);
+  }, [showToast, processItems]);
 
   const handleAddTextItem = useCallback((text: string, name?: string) => {
     const item: UploadQueueItem = {
@@ -2671,88 +2750,46 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       description: name || 'Testo incollato',
     };
     setUploadQueue(prev => [...prev, item]);
-  }, []);
 
-  const processQueue = useCallback(async () => {
-    const pending = uploadQueue.filter(i => i.status === 'pending');
-    if (pending.length === 0) return;
-
-    setUploadProcessing(true);
-    setUploadQueue(prev => prev.map(i =>
-      i.status === 'pending' ? { ...i, status: 'uploading' as const } : i
-    ));
-
-    for (const item of pending) {
-      try {
-        let text = '';
-        if (item.file.type.startsWith('text/') || item.file.name.endsWith('.txt')) {
-          text = await item.file.text();
-        } else {
-          const fd = new FormData();
-          fd.append('file', item.file);
-          const res = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
-          if (!res.ok) throw new Error(`Upload fallito (${res.status})`);
-          const data = await res.json();
-          text = data.extracted_text ?? '';
-        }
-        setUploadQueue(prev => prev.map(i =>
-          i.id === item.id ? { ...i, status: 'done' as const, text } : i
-        ));
-      } catch (e) {
-        setUploadQueue(prev => prev.map(i =>
-          i.id === item.id ? { ...i, status: 'error' as const, error: (e as Error).message } : i
-        ));
-      }
-    }
-
-    setUploadProcessing(false);
-  }, [uploadQueue]);
-
-  const handleSaveAll = useCallback(async () => {
-    if (!caseData) return;
-    const doneItems = uploadQueue.filter(i => i.status === 'done' && i.text);
-    if (doneItems.length === 0) return;
-
-    const newDocs: RawDocument[] = doneItems.map(i => ({
-      doc_id: i.id,
-      name: i.description || i.name,
-      description: i.description || i.name,
-      text: i.text!,
-      added_at: new Date().toISOString(),
-    }));
-
-    const updated = {
-      ...caseData,
-      raw_documents: [...(caseData.raw_documents ?? []), ...newDocs],
-    };
-    await dbSave(updated);
-    setCaseData(updated);
-    setUploadQueue(prev => prev.filter(i => !doneItems.find(d => d.id === i.id)));
-    showToast(`${doneItems.length} documento${doneItems.length > 1 ? 'i' : ''} aggiunto/i al fascicolo`);
-  }, [caseData, uploadQueue, showToast]);
+    setCaseData(prevCase => {
+      if (!prevCase) return prevCase;
+      const newDoc: RawDocument = {
+        doc_id: item.id,
+        name: item.description || item.name,
+        description: item.description || item.name,
+        text,
+        added_at: new Date().toISOString(),
+      };
+      const updated = {
+        ...prevCase,
+        raw_documents: [...(prevCase.raw_documents ?? []), newDoc],
+      };
+      dbSave(localOwnerId, updated); // Save to IndexedDB
+      return updated;
+    });
+    showToast(`Testo "${item.description}" aggiunto al fascicolo!`);
+  }, [showToast]);
 
   const handleRemoveQueueItem = useCallback((id: string) => {
     setUploadQueue(prev => prev.filter(i => i.id !== id));
   }, []);
 
   const handleRetryQueueItem = useCallback((id: string) => {
-    setUploadQueue(prev => prev.map(i =>
-      i.id === id ? { ...i, status: 'pending' as const, error: undefined } : i
-    ));
-  }, []);
-
-  // Auto-start processing when drawer opens with pending items
-  useEffect(() => {
-    if (showUpload && uploadQueue.some(i => i.status === 'pending')) {
-      processQueue();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showUpload]);
+    setUploadQueue(prev => {
+      const item = prev.find(i => i.id === id);
+      if (item) {
+        const retryingItem = { ...item, status: 'pending' as const, error: undefined };
+        processItems([retryingItem]);
+        return prev.map(i => i.id === id ? retryingItem : i);
+      }
+      return prev;
+    });
+  }, [processItems]);
 
   const handleDeleteDoc = useCallback(async (docId: string) => {
     if (!caseData) return;
     const updated = { ...caseData, raw_documents: (caseData.raw_documents ?? []).filter(d => d.doc_id !== docId) };
-    await dbSave(updated);
+    await dbSave(localOwnerId, updated);
     setCaseData(updated);
     showToast("Documento eliminato");
   }, [caseData, showToast]);
@@ -2760,7 +2797,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
   const handleDeleteMaterial = useCallback(async (materialId: string) => {
     if (!caseData) return;
     const updated = { ...caseData, materials: caseData.materials.filter(m => m.id !== materialId) };
-    await dbSave(updated);
+    await dbSave(localOwnerId, updated);
     setCaseData(updated);
     showToast("Materiale eliminato");
   }, [caseData, showToast]);
@@ -2812,7 +2849,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
   const updateCase = useCallback(async (updater: (c: CaseAnalysis) => CaseAnalysis) => {
     if (!caseData) return;
     const updated = updater(caseData);
-    await dbSave(updated);
+    await dbSave(localOwnerId, updated);
     setCaseData(updated);
   }, [caseData]);
 
@@ -2856,7 +2893,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     try {
       const anonText = await fetchChatFull(REDACT_APPLY_PROMPT(doc.text));
       const updated = { ...caseData, raw_documents: (caseData.raw_documents ?? []).map(d => d.doc_id === docId ? { ...d, text: anonText, name: d.name.startsWith('[ANONIMIZZATO] ') ? d.name : `[ANONIMIZZATO] ${d.name}` } : d) };
-      await dbSave(updated);
+      await dbSave(localOwnerId, updated);
       setCaseData(updated);
       showToast('Documento anonimizzato');
     } catch (e) {
@@ -2895,7 +2932,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       // Dopo l'analisi, elimina automaticamente i documenti raw processati
       const analyzedDocIds = docs.map(d => d.doc_id);
       const updated = { ...merged, raw_documents: [], analyzed_doc_ids: analyzedDocIds };
-      await dbSave(updated);
+      await dbSave(localOwnerId, updated);
       setCaseData(updated);
       onCaseLoaded(updated);
       onCaseAnalyzed?.(updated);
@@ -3078,7 +3115,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
               className="ghost-button"
               onClick={() => {
                 const updated = { ...caseData, analyzed_doc_ids: [], case_summary: '', materials: [], timeline: [], people: [], evidence: [], open_questions: [], missing_documents: [], contradictions: [], procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, legal_analysis: null };
-                dbSave(updated).then(() => { setCaseData(updated); onCaseLoaded(updated); showToast('Analisi resettata. Ora puoi ri-analizzare da capo.'); });
+                dbSave(localOwnerId, updated).then(() => { setCaseData(updated); onCaseLoaded(updated); showToast('Analisi resettata. Ora puoi ri-analizzare da capo.'); });
               }}
               title="Resetta l'analisi e ri-analizza tutti i documenti da capo"
             >
@@ -3670,12 +3707,11 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           queue={uploadQueue}
           onClose={() => setShowUpload(false)}
           onAddFiles={handleAddFiles}
-          onStartProcessing={processQueue}
-          onSaveAll={handleSaveAll}
           onRemoveItem={handleRemoveQueueItem}
           onRetryItem={handleRetryQueueItem}
           onAddTextItem={handleAddTextItem}
           processing={uploadProcessing}
+          onAnalyze={handleAnalyze}
         />
       )}
       {aulaModeActive && <AulaModeOverlay caseData={caseData} onClose={() => setAulaModeActive(false)} />}
@@ -3872,7 +3908,7 @@ function App() {
   return (
     <>
       {view === 'case' && selectedCaseId
-        ? <CaseDetailView caseId={selectedCaseId} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
+        ? <CaseDetailView caseId={selectedCaseId} session={session} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
         : <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onOpenChat={openChat} />
       }
       <FloatingChatButton onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))} hasContext={!!activeCaseData} />
