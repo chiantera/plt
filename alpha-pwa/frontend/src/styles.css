@@ -582,9 +582,11 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   color: inherit; flex: none; display: flex; align-items: center;
 }
 .charge-card-content { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.charge-card-title-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
-.charge-code { font-family: monospace; font-size: 0.82rem; color: #7dd3fc; font-weight: 700; }
-.charge-name { min-width: 0; font-size: 0.9rem; color: #e2e8f0; }
+.charge-card-title-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; flex-wrap: nowrap; }
+.charge-code { font-family: monospace; font-size: 0.82rem; color: #7dd3fc; font-weight: 700; flex: none; }
+.charge-name { flex: 1 1 auto; min-width: 0; font-size: 0.9rem; color: #e2e8f0; }
+.charge-code .editable-empty { white-space: nowrap; }
+.charge-name .editable-empty { white-space: nowrap; }
 .charge-card-meta-row { display: flex; align-items: center; gap: 10px; }
 .strength-mini { flex: 1; height: 6px; background: rgba(148,163,184,0.15); border-radius: 999px; overflow: hidden; }
 .strength-mini-fill { height: 100%; border-radius: 999px; transition: width 0.5s; }
@@ -629,12 +631,13 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   color: inherit; flex: none; display: flex; align-items: center;
 }
 .strategy-content { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.strategy-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.strategy-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: nowrap; }
 .priority-badge { border-radius: 999px; padding: 3px 10px; font-size: 0.68rem; font-weight: 800; }
 .priority-primary { background: rgba(34,197,94,0.2); color: #86efac; }
 .priority-secondary { background: rgba(125,211,252,0.15); color: #7dd3fc; }
 .priority-fallback { background: rgba(148,163,184,0.15); color: #94a3b8; }
-.strategy-type-badge { background: rgba(15,23,42,0.6); border: 1px solid rgba(148,163,184,0.2); border-radius: 999px; padding: 3px 9px; font-size: 0.68rem; color: #94a3b8; }
+.strategy-type-badge { background: rgba(15,23,42,0.6); border: 1px solid rgba(148,163,184,0.2); border-radius: 999px; padding: 3px 9px; font-size: 0.68rem; color: #94a3b8; flex: none; }
+.strategy-type-badge .editable-empty { white-space: nowrap; }
 .strategy-title { min-width: 0; font-size: 0.92rem; color: #e2e8f0; font-weight: 600; line-height: 1.35; }
 .strategy-expand { margin-top: 6px; color: #475569; }
 
@@ -663,9 +666,12 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .severity-minor { background: rgba(234,179,8,0.15); color: #fde68a; }
 .issue-type { flex: 1 1 auto; min-width: 0; font-size: 0.78rem; color: #94a3b8; }
 .issue-law { display: flex; align-items: center; gap: 6px; color: #94a3b8; font-size: 0.8rem; margin: 10px 0 6px; }
+.issue-law em { min-width: 0; }
+.issue-law .editable-empty { white-space: nowrap; }
 .issue-remedy { display: flex; align-items: flex-start; gap: 7px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2); border-radius: 12px; padding: 10px 12px; margin: 10px 0; }
 .issue-remedy svg { color: #4ade80; flex: none; margin-top: 2px; }
-.issue-remedy span { color: #86efac; font-size: 0.84rem; line-height: 1.5; }
+.issue-remedy span { color: #86efac; font-size: 0.84rem; line-height: 1.5; min-width: 0; }
+.issue-remedy .editable-empty { white-space: nowrap; }
 
 /* ── Witness cards ───────────────────────────────────────────────────────── */
 .witness-card {

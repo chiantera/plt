@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
+const main = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
 
 const ruleBody = selector => {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -57,6 +58,43 @@ if (!hasRule('.editable', /overflow-wrap\s*:\s*anywhere\s*;/)) {
 
 if (!hasRule('.editable', /word-break\s*:\s*normal\s*;/)) {
   failures.push('editable text should not use word-break: break-word because it can split the last letter onto a new line');
+}
+
+for (const selector of [
+  '.charge-code .editable-empty',
+  '.charge-name .editable-empty',
+  '.strategy-type-badge .editable-empty',
+  '.issue-law .editable-empty',
+  '.issue-remedy .editable-empty',
+]) {
+  if (!hasRule(selector, /white-space\s*:\s*nowrap\s*;/)) {
+    failures.push(`${selector} must keep short placeholder labels on one line`);
+  }
+}
+
+for (const selector of ['.charge-card-title-row', '.strategy-title-row']) {
+  if (!hasRule(selector, /flex-wrap\s*:\s*nowrap\s*;/)) {
+    failures.push(`${selector} must avoid wrapping short legal-analysis header placeholders across lines`);
+  }
+}
+
+if (!main.includes('placeholder="art."')) {
+  failures.push('charge code placeholder must be exactly "art."');
+}
+if (main.includes('placeholder="art. …"') || main.includes('placeholder="art. ..."')) {
+  failures.push('charge code placeholder must not include ellipsis');
+}
+if (!main.includes('placeholder="Nome Reato"')) {
+  failures.push('charge name placeholder must be "Nome Reato"');
+}
+if (!main.includes('Stima token richiesti')) {
+  failures.push('Promemoria usage eyebrow must say "Stima token richiesti"');
+}
+if (main.includes('Stima processamento')) {
+  failures.push('Promemoria usage eyebrow must not say "Stima processamento"');
+}
+if (/usage_estimate\.model_route/.test(main)) {
+  failures.push('Promemoria usage estimate must not render provider/model route names');
 }
 
 if (!hasRule('.editable-select.status-chip', /color\s*:\s*#(?:fff|ffffff)\s*;/i)) {

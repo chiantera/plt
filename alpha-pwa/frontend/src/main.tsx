@@ -1914,10 +1914,10 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
               <div className="charge-card-content">
                 <div className="charge-card-title-row">
                   <span className="charge-code">
-                    <Editable value={charge.charge_code} onChange={v => updateCharge(ci, { charge_code: v })} placeholder="art. …" />
+                    <Editable value={charge.charge_code} onChange={v => updateCharge(ci, { charge_code: v })} placeholder="art." />
                   </span>
                   <span className="charge-name">
-                    <Editable value={charge.charge_name} onChange={v => updateCharge(ci, { charge_name: v })} placeholder="Nome reato" />
+                    <Editable value={charge.charge_name} onChange={v => updateCharge(ci, { charge_name: v })} placeholder="Nome Reato" />
                   </span>
                 </div>
                 <div className="charge-card-meta-row">
@@ -3441,11 +3441,11 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
             })}
           </div>
           <div className="usage-box">
-            <p className="eyebrow">Stima processamento</p>
+            <p className="eyebrow">Stima token richiesti</p>
             <p>
               {caseData.usage_estimate.pages} pag · {caseData.usage_estimate.audio_minutes} min audio ·
               Flash {caseData.usage_estimate.flash_input_tokens}/{caseData.usage_estimate.flash_output_tokens} tok ·
-              Pro: {caseData.usage_estimate.pro_used ? 'sì' : 'no'} · {caseData.usage_estimate.model_route}
+              Pro: {caseData.usage_estimate.pro_used ? 'sì' : 'no'}
             </p>
           </div>
         </section>
