@@ -72,6 +72,27 @@ for (const selector of [
   }
 }
 
+for (const selector of [
+  '.charge-code .editable',
+  '.strategy-type-badge .editable',
+]) {
+  if (!hasRule(selector, /white-space\s*:\s*nowrap\s*;/)) {
+    failures.push(`${selector} must keep entered compact legal labels on one line after editing`);
+  }
+}
+
+for (const selector of ['.charge-code .editable-input', '.strategy-type-badge .editable-input']) {
+  if (!hasRule(selector, /width\s*:\s*\d+ch\s*;/)) {
+    failures.push(`${selector} must have a compact explicit edit width so the browser does not squeeze typed text into two lines`);
+  }
+}
+
+for (const selector of ['.issue-law em', '.issue-remedy span']) {
+  if (!hasRule(selector, /flex\s*:\s*1\s+1\s+(?:auto|0|0%)\s*;/)) {
+    failures.push(`${selector} must flex to give typed legal text real horizontal space while editing`);
+  }
+}
+
 for (const selector of ['.charge-card-title-row', '.strategy-title-row']) {
   if (!hasRule(selector, /flex-wrap\s*:\s*nowrap\s*;/)) {
     failures.push(`${selector} must avoid wrapping short legal-analysis header placeholders across lines`);
@@ -95,6 +116,13 @@ if (main.includes('Stima processamento')) {
 }
 if (/usage_estimate\.model_route/.test(main)) {
   failures.push('Promemoria usage estimate must not render provider/model route names');
+}
+
+if (/value=\{issue\.legal_basis\}[^>]*placeholder="Base legale…"[^>]*multiline/s.test(main)) {
+  failures.push('Base legale compact field must use a single-line input, not multiline textarea');
+}
+if (/value=\{issue\.remedy\}[^>]*placeholder="Rimedio…"[^>]*multiline/s.test(main)) {
+  failures.push('Rimedio compact field must use a single-line input, not multiline textarea');
 }
 
 if (!hasRule('.editable-select.status-chip', /color\s*:\s*#(?:fff|ffffff)\s*;/i)) {

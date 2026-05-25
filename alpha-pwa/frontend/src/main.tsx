@@ -2084,13 +2084,13 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
             <div className="issue-law">
               <BookOpen size={13} />{' '}
               <em>
-                <Editable value={issue.legal_basis} onChange={v => updateIssue(ii, { legal_basis: v })} placeholder="Base legale…" multiline />
+                <Editable value={issue.legal_basis} onChange={v => updateIssue(ii, { legal_basis: v })} placeholder="Base legale…" />
               </em>
             </div>
             <div className="issue-remedy">
               <ShieldCheck size={13} />
               <span>
-                <Editable value={issue.remedy} onChange={v => updateIssue(ii, { remedy: v })} placeholder="Rimedio…" multiline />
+                <Editable value={issue.remedy} onChange={v => updateIssue(ii, { remedy: v })} placeholder="Rimedio…" />
               </span>
             </div>
             <SourceRow refs={issue.source_refs} onSelect={onSelectSource} />
