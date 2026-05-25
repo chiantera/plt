@@ -8,6 +8,7 @@ import {
   Square, Trash2, Upload, User, Users, X, Zap,
 } from 'lucide-react';
 import './styles.css';
+import { formatDate, formatDateFull, formatShortDate } from './dateUtils';
 import { dbSave, dbList, dbGet, dbDelete } from './db';
 import { installMockApi } from './data/mockApi';
 import { createClient, type Session } from '@supabase/supabase-js';
@@ -199,20 +200,6 @@ const DOC_PROMPTS: Record<string, (ctx: string) => string> = {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function pct(v: number) { return `${Math.round(v * 100)}%`; }
-function formatDate(v: string | null) {
-  if (!v) return 'da definire';
-  return new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${v}T12:00:00`));
-}
-function formatShortDate(v: string | null) {
-  if (!v) return '—';
-  return new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short' }).format(new Date(`${v}T12:00:00`));
-}
-function formatDateFull(v: string | null) {
-  if (!v) return 'da definire';
-  const d = new Date(`${v}T12:00:00`);
-  const days = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
-  return `${days[d.getDay()]} ${new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }).format(d)}`;
-}
 
 function deadlineTypeLabel(t: ProceduralDeadline['deadline_type']) {
   return ({ hearing: 'udienza', defense_brief: 'memoria difensiva', filing: 'deposito', investigation: 'indagine difensiva', other: 'altro' })[t];

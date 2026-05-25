@@ -24,7 +24,7 @@ from .ocr_models import OcrInput
 
 app = FastAPI(title="Pocket Legal Triage Alpha", version="0.2.0")
 
-_ALLOWED_ORIGINS = [
+_DEFAULT_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:5178",
@@ -40,6 +40,12 @@ _ALLOWED_ORIGINS = [
     "capacitor://localhost",
     "https://pocket-legal-triage.netlify.app",
 ]
+_EXTRA_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+_ALLOWED_ORIGINS = [*_DEFAULT_ALLOWED_ORIGINS, *_EXTRA_ALLOWED_ORIGINS]
 
 app.add_middleware(
     CORSMiddleware,
