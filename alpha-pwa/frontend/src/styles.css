@@ -720,6 +720,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 @media (max-width: 640px) {
   /* Reserve right side for the fixed FAB (right: 24px + width: 64px = 88px from edge) */
   .app-shell { padding-right: 92px; }
+  .home-actions-bar { padding-right: 92px; }
 }
 
 @media (max-width: 420px) {
