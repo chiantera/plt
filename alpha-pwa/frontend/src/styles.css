@@ -717,12 +717,6 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   .auth-card { padding: 22px; border-radius: 22px; }
 }
 
-@media (max-width: 640px) {
-  /* Reserve right side for the fixed FAB (right: 24px + width: 64px = 88px from edge) */
-  .app-shell { padding-right: 92px; }
-  .home-actions-bar { padding-right: 92px; }
-}
-
 @media (max-width: 420px) {
   .app-shell { padding-left: 10px; }
   .hero-card { padding: 20px; border-radius: 24px; }
@@ -895,7 +889,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 /* ── Chat FAB ────────────────────────────────────────────────────────────── */
 .chat-fab {
   position: fixed; bottom: 28px; right: 24px; z-index: 200;
-  width: 64px; height: 64px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%;
   background: linear-gradient(135deg, #0ea5e9, #6366f1);
   border: none; color: #fff; cursor: grab;
   display: flex; align-items: center; justify-content: center;
@@ -910,16 +904,16 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .chat-fab--context { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
 @keyframes giulia-float {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-6px); }
+  50% { transform: translateY(-4px); }
 }
 .chat-fab-label {
-  position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%);
   font-size: 0.68rem; font-weight: 700; color: #8b5cf6; letter-spacing: 0.5px;
   white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 .chat-fab-dot {
-  position: absolute; top: 10px; right: 10px;
-  width: 9px; height: 9px; border-radius: 50%;
+  position: absolute; top: 6px; right: 6px;
+  width: 8px; height: 8px; border-radius: 50%;
   background: #4ade80; border: 2px solid #0f172a;
 }
 

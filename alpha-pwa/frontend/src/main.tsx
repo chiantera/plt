@@ -2978,6 +2978,8 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         </div>
       </section>
 
+      <GiuliaPromptBar onOpenChat={(msg) => onOpenChat(msg ?? '')} />
+
       {/* Stats */}
       <section className="stats-grid">
         <button className="stats-card" onClick={() => { scrollTo(materialsRef); }}>
