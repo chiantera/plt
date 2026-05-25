@@ -328,7 +328,8 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   margin: -1px -4px;
   transition: background 0.12s, box-shadow 0.12s;
   display: inline;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 .editable:hover { background: rgba(56,189,248,0.10); box-shadow: inset 0 -1px 0 rgba(56,189,248,0.45); }
 .editable:focus-visible { outline: 2px solid rgba(56,189,248,0.6); outline-offset: 2px; }
@@ -353,6 +354,11 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 }
 .editable-row-head {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+}
+.editable-row-head h3 {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 0;
 }
 .row-delete-btn {
   flex: none;
