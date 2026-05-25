@@ -717,8 +717,13 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   .auth-card { padding: 22px; border-radius: 22px; }
 }
 
+@media (max-width: 640px) {
+  /* Reserve right side for the fixed FAB (right: 24px + width: 64px = 88px from edge) */
+  .app-shell { padding-right: 92px; }
+}
+
 @media (max-width: 420px) {
-  .app-shell { padding-left: 10px; padding-right: 10px; }
+  .app-shell { padding-left: 10px; }
   .hero-card { padding: 20px; border-radius: 24px; }
   .deadline-item-header { display: grid; }
   .workback-grid { grid-template-columns: 1fr; }
