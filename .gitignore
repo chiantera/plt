@@ -3,6 +3,9 @@
 .antigravitycli/
 .hermes-safety/
 
+# Local/private research and marketing collateral
+studiolegale-ai-package/
+
 # Local environment files and secrets
 .env
 .env.*

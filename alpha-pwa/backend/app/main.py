@@ -27,6 +27,14 @@ app = FastAPI(title="Pocket Legal Triage Alpha", version="0.2.0")
 _ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5178",
+    "http://127.0.0.1:5178",
+    "http://localhost:5179",
+    "http://127.0.0.1:5179",
+    "http://localhost:5180",
+    "http://127.0.0.1:5180",
+    "http://localhost:5181",
+    "http://127.0.0.1:5181",
     "https://localhost",
     "http://localhost",
     "capacitor://localhost",
@@ -37,8 +45,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept"],
 )
 
 
@@ -80,7 +88,7 @@ def analyze_text(request: AnalyzeRequest) -> CaseAnalysis:
         return analyze_case(request)
     except Exception as exc:
         logger.error("analyze-text failed: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"AI analysis failed: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Analisi non disponibile. Riprova tra qualche secondo.") from exc
 
 
 # ── Chat (SSE streaming) ─────────────────────────────────────────────────────
@@ -95,7 +103,8 @@ def chat_endpoint(request: ChatRequest) -> StreamingResponse:
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Chat failed: {exc}") from exc
+        logger.error("chat failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Chat non disponibile. Riprova tra qualche secondo.") from exc
 
 
 # ── File upload ───────────────────────────────────────────────────────────────

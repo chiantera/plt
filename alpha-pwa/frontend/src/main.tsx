@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness,
+  AlertTriangle, ArrowLeft, ArrowRight, BookOpen,
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
-  Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, LogOut, MapPin, MessageSquare, Mic, Plus, RefreshCw,
+  Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, LogOut, MessageSquare, Mic, Plus, RefreshCw,
   Scale, Search, Send, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles,
   Square, Trash2, Upload, User, Users, X, Zap,
 } from 'lucide-react';
@@ -881,7 +881,7 @@ function MultiFileUploadDrawer({
           <Upload size={28} />
           <p>Trascina i file qui o tocca per selezionarli</p>
           <small>PDF, DOCX, TXT, immagini — più file alla volta</small>
-          <input ref={fileRef} type="file" style={{ display: 'none' }} multiple onChange={onFileChange} />
+          <input ref={fileRef} type="file" style={{ display: 'none' }} multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.csv,.rtf,image/*,audio/*" onChange={onFileChange} />
         </label>
 
         {/* Queue */}
@@ -1271,8 +1271,58 @@ function ChatDrawer({
 }
 
 function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasContext: boolean }) {
+  const [pos, setPos] = React.useState<{ x: number; y: number } | null>(() => {
+    try { const s = localStorage.getItem('giulia-fab-pos'); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+  const dragging = React.useRef(false);
+  const moved = React.useRef(false);
+  const origin = React.useRef({ px: 0, py: 0, bx: 0, by: 0 });
+  const fabRef = React.useRef<HTMLButtonElement>(null);
+
+  const onDown = (e: React.PointerEvent) => {
+    moved.current = false; dragging.current = true;
+    const el = fabRef.current!;
+    const rect = el.getBoundingClientRect();
+    const bx = pos ? pos.x : window.innerWidth - rect.width - 24;
+    const by = pos ? pos.y : window.innerHeight - rect.height - 52;
+    origin.current = { px: e.clientX, py: e.clientY, bx, by };
+    el.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+  const onMove = (e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    const dx = e.clientX - origin.current.px;
+    const dy = e.clientY - origin.current.py;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved.current = true;
+    if (!moved.current) return;
+    const el = fabRef.current!;
+    const nx = Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, origin.current.bx + dx));
+    const ny = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, origin.current.by + dy));
+    setPos({ x: nx, y: ny });
+  };
+  const onUp = (e: React.PointerEvent) => {
+    if (fabRef.current) fabRef.current.releasePointerCapture(e.pointerId);
+    dragging.current = false;
+    if (pos) localStorage.setItem('giulia-fab-pos', JSON.stringify(pos));
+    if (!moved.current) onClick();
+  };
+  const onCancel = (e: React.PointerEvent) => {
+    if (fabRef.current) fabRef.current.releasePointerCapture(e.pointerId);
+    dragging.current = false;
+    moved.current = false;
+  };
+
+  const style: React.CSSProperties = pos
+    ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto', cursor: moved.current ? 'grabbing' : 'grab' }
+    : { cursor: 'grab' };
+
   return (
-    <button className={`chat-fab ${hasContext ? 'chat-fab--context' : ''}`} onClick={onClick} aria-label="Apri GiulIA">
+    <button
+      ref={fabRef}
+      className={`chat-fab${hasContext ? ' chat-fab--context' : ''}`}
+      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onCancel}
+      aria-label="Apri GiulIA" style={style}
+    >
       <MessageSquare size={26} />
       <span className="chat-fab-label">GiulIA</span>
       {hasContext && <span className="chat-fab-dot" />}
@@ -1448,7 +1498,7 @@ function AuthScreen() {
             {error && <div className="auth-error">{error}</div>}
             {info && <div className="auth-info">{info}</div>}
             <button className="auth-submit" type="submit" disabled={loading}>
-              {loading ? 'Caricamento…' : tab === 'login' ? 'Accedi al fascicolo' : 'Crea account'}
+              {loading ? 'Caricamento…' : tab === 'login' ? 'Accedi' : 'Crea account'}
             </button>
           </form>
         </div>
@@ -1504,9 +1554,31 @@ function ProfileDrawer({ session, onClose }: { session: Session; onClose: () => 
   );
 }
 
+// ── GiulIA prompt bar (home page) ────────────────────────────────────────────
+
+function GiuliaPromptBar({ onOpenChat }: { onOpenChat: (msg?: string) => void }) {
+  const [val, setVal] = React.useState('');
+  const submit = () => { onOpenChat(val.trim() || undefined); setVal(''); };
+  return (
+    <div className="giulia-prompt-bar">
+      <div className="giulia-prompt-icon"><Sparkles size={16} /></div>
+      <input
+        className="giulia-prompt-input"
+        placeholder="Chiedimi qualcosa… (diritto penale, strategia, giurisprudenza)"
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && submit()}
+      />
+      <button className="giulia-prompt-send" onClick={submit} tabIndex={-1} aria-label="Invia">
+        <Send size={14} />
+      </button>
+    </div>
+  );
+}
+
 // ── Case list ─────────────────────────────────────────────────────────────────
 
-function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: string) => void; session: Session; onToggleChat: () => void }) {
+function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string) => void; session: Session; onOpenChat: (msg?: string) => void }) {
   const [cases, setCases] = useState<CaseSummary[] | null>(null);
   const [localIds, setLocalIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -1515,6 +1587,14 @@ function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: stri
   const [analyzing, setAnalyzing] = useState(false);
   const [search, setSearch] = useState('');
   const [showProfile, setShowProfile] = useState(false);
+  const [profileTagline, setProfileTagline] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.from('profiles').select('full_name,studio').eq('id', session.user.id).single()
+      .then(({ data }) => {
+        if (data) setProfileTagline(data.studio || data.full_name || null);
+      });
+  }, [session.user.id]);
 
   const filtered = useMemo(() => {
     if (!cases) return [];
@@ -1562,7 +1642,12 @@ function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: stri
       evidence: [], open_questions: [], missing_documents: [], contradictions: [],
       procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, legal_analysis: null,
     };
-    await dbSave(newCase);
+    try {
+      await dbSave(newCase);
+    } catch (e) {
+      setError(`Errore creazione fascicolo: ${(e as Error).message}`);
+      return;
+    }
     setShowUpload(false);
     setCases(prev => {
       const summary = caseAnalysisToSummary(newCase);
@@ -1590,7 +1675,7 @@ function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: stri
             <div className="home-brand-icon"><Gavel size={22} /></div>
             <div>
               <div className="home-brand-name">Pocket Legal Triage</div>
-              <div className="home-brand-tagline">Studio Legale · Milano</div>
+              <div className="home-brand-tagline">{profileTagline ?? 'Il tuo studio'}</div>
             </div>
           </div>
           <button onClick={() => setShowProfile(true)} style={{ background: 'rgba(148,163,184,0.1)', border: '1px solid rgba(148,163,184,0.18)', borderRadius: 10, padding: '9px 11px', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center' }} title="Profilo">
@@ -1604,24 +1689,8 @@ function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: stri
       </header>
       {showProfile && <ProfileDrawer session={session} onClose={() => setShowProfile(false)} />}
 
-      {/* ── GiulIA home card ── */}
-      <section className="giulia-home-card">
-        <div className="giulia-home-avatar">
-          <Sparkles size={20} />
-        </div>
-        <div className="giulia-home-info">
-          <div className="giulia-home-name">GiulIA</div>
-          <div className="giulia-home-title">Avvocata penalista · Sempre a disposizione</div>
-          <p className="giulia-home-desc">
-            Buongiorno, Collega. Sono qui per assisterti. Chiedimi qualcosa sul diritto penale o apri un fascicolo per lavorare su un caso specifico.
-          </p>
-        </div>
-        <div className="giulia-home-actions">
-          <button className="giulia-home-chat-btn" onClick={onToggleChat}>
-            <MessageSquare size={14} /> Chatta
-          </button>
-        </div>
-      </section>
+      {/* ── GiulIA inline prompt ── */}
+      <GiuliaPromptBar onOpenChat={onOpenChat} />
 
       {/* ── Actions bar ── */}
       <div className="home-actions-bar">
@@ -1712,9 +1781,9 @@ function CaseListView({ onSelect, session, onToggleChat }: { onSelect: (id: stri
                   <span className="case-local-badge">locale</span>
                 )}
                 {localIds.has(c.case_id) && (
-                  <span className="case-delete-btn" onClick={e => handleDelete(c.case_id, e)} title="Elimina fascicolo">
+                  <button className="case-delete-btn" onClick={e => handleDelete(c.case_id, e)} title="Elimina fascicolo" type="button">
                     <Trash2 size={14} />
-                  </span>
+                  </button>
                 )}
                 <ChevronRight size={18} className="case-card-arrow" />
               </div>
@@ -1851,11 +1920,11 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
         <h2><Scale size={16} /> Analisi delle accuse</h2>
         {la.charges.map((charge, ci) => (
           <div key={ci} className="charge-card">
-            <div className="charge-card-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button className="charge-card-toggle" onClick={() => setExpandedCharge(expandedCharge === ci ? null : ci)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'inherit' }}>
+            <div className="charge-card-header">
+              <button className="charge-card-toggle" onClick={() => setExpandedCharge(expandedCharge === ci ? null : ci)}>
                 {expandedCharge === ci ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </button>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div className="charge-card-content">
                 <div className="charge-card-title-row">
                   <span className="charge-code">
                     <Editable value={charge.charge_code} onChange={v => updateCharge(ci, { charge_code: v })} placeholder="art. …" />
@@ -1936,11 +2005,11 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
         <h2><ShieldCheck size={16} /> Strategie difensive</h2>
         {la.strategies.map((s, si) => (
           <div key={si} className={`strategy-card strategy-${s.priority}`}>
-            <div className="strategy-header" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button onClick={() => setExpandedStrategy(expandedStrategy === si ? null : si)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'inherit' }}>
+            <div className="strategy-header">
+              <button className="strategy-toggle" onClick={() => setExpandedStrategy(expandedStrategy === si ? null : si)}>
                 {expandedStrategy === si ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
               </button>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div className="strategy-content">
                 <div className="strategy-title-row">
                   <EditableSelect
                     value={s.priority}
@@ -2475,7 +2544,12 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
 
   // ── Upload queue callbacks ──────────────────────────────────────────────
   const handleAddFiles = useCallback((files: File[]) => {
-    const newItems: UploadQueueItem[] = files.map(f => ({
+    const MAX_BYTES = 50 * 1024 * 1024;
+    const oversized = files.filter(f => f.size > MAX_BYTES);
+    if (oversized.length) showToast(`${oversized.map(f => f.name).join(', ')}: file troppo grande (max 50 MB)`, 'error');
+    const accepted = files.filter(f => f.size <= MAX_BYTES);
+    if (!accepted.length) return;
+    const newItems: UploadQueueItem[] = accepted.map(f => ({
       id: crypto.randomUUID(),
       file: f,
       name: f.name,
@@ -2484,7 +2558,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
       description: f.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
     }));
     setUploadQueue(prev => [...prev, ...newItems]);
-  }, []);
+  }, [showToast]);
 
   const handleAddTextItem = useCallback((text: string, name?: string) => {
     const item: UploadQueueItem = {
@@ -2881,7 +2955,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
           >
             <Sparkles size={14} />
             {hasExistingAnalysis && unanalyzedCount > 0
-              ? `Incorpora ${unanalyzedCount} documento${unanalyzedCount === 1 ? '' : '/i'}`
+              ? `Incorpora ${unanalyzedCount} documento${unanalyzedCount === 1 ? '' : 'i'}`
               : hasExistingAnalysis
                 ? `Analizza (${rawDocs.length} documenti)`
                 : 'Analizza con AI'}
@@ -2904,19 +2978,21 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         </div>
       </section>
 
+      <GiuliaPromptBar onOpenChat={(msg) => onOpenChat(msg ?? '')} />
+
       {/* Stats */}
       <section className="stats-grid">
         <button className="stats-card" onClick={() => { scrollTo(materialsRef); }}>
           <FileText /><strong>{d.materials.length}</strong><span>materiali</span>
         </button>
         <button className="stats-card" onClick={() => { setActiveTab('timeline'); scrollTo(timelineRef); }}>
-          <MapPin /><strong>{d.timeline.length}</strong><span>eventi</span>
+          <Clock /><strong>{d.timeline.length}</strong><span>eventi</span>
         </button>
         <button className="stats-card" onClick={() => { setActiveTab('questions'); scrollTo(contradictionsRef); }}>
           <AlertTriangle /><strong>{d.contradictions.length}</strong><span>contraddizioni</span>
         </button>
         <button className="stats-card" onClick={() => { setActiveTab('deadlines'); scrollTo(deadlinesRef); }}>
-          <BriefcaseBusiness /><strong>{nextDeadline ? formatShortDate(nextDeadline.due_date) : '—'}</strong><span>priorità</span>
+          <CalendarClock /><strong>{nextDeadline ? formatShortDate(nextDeadline.due_date) : '—'}</strong><span>priorità</span>
         </button>
       </section>
 
@@ -3579,10 +3655,12 @@ function App() {
   }, []);
 
   const openChat = useCallback((initialKeyOrText?: string) => {
-    if (initialKeyOrText && activeCaseData) {
-      const ctx = buildCaseContext(activeCaseData);
+    if (initialKeyOrText) {
+      const ctx = activeCaseData ? buildCaseContext(activeCaseData) : null;
       const promptFn = DOC_PROMPTS[initialKeyOrText as keyof typeof DOC_PROMPTS];
-      const content = promptFn ? promptFn(ctx) : `${ctx}\n\n---\n${initialKeyOrText}`;
+      const content = ctx
+        ? (promptFn ? promptFn(ctx) : `${ctx}\n\n---\n${initialKeyOrText}`)
+        : initialKeyOrText;
       const userMsg: ChatMsg = { role: 'user', content, id: crypto.randomUUID() };
       setChat(prev => ({ ...prev, open: true, messages: [...prev.messages, userMsg] }));
       sendToApi([...chat.messages, userMsg]);
@@ -3653,7 +3731,7 @@ function App() {
       setChat(prev => ({
         ...prev,
         messages: prev.messages.map(m =>
-          m.id === m.id && m.role === 'assistant' && m.content === ''
+          m.id === assistantId && m.role === 'assistant' && m.content === ''
             ? { ...m, content: `Errore: ${(e as Error).message}` }
             : m
         ),
@@ -3664,8 +3742,8 @@ function App() {
   }, [activeCaseData]);
 
   if (session === undefined) return (
-    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
-      <Loader2 size={28} className="spin" style={{ color: 'var(--accent)' }} />
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617' }}>
+      <Loader2 size={28} className="spin" style={{ color: '#7c3aed' }} />
     </div>
   );
 
@@ -3675,7 +3753,7 @@ function App() {
     <>
       {view === 'case' && selectedCaseId
         ? <CaseDetailView caseId={selectedCaseId} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
-        : <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onToggleChat={() => setChat(prev => ({ ...prev, open: !prev.open }))} />
+        : <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onOpenChat={openChat} />
       }
       <FloatingChatButton onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))} hasContext={!!activeCaseData} />
       <ChatDrawer
