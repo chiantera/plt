@@ -11,6 +11,7 @@ import './styles.css';
 import { formatDate, formatDateFull, formatShortDate } from './dateUtils';
 import { dbSave, dbList, dbGet, dbDelete } from './db';
 import { installMockApi } from './data/mockApi';
+import { decryptPltContainer, exportEncryptedPlt, exportPlainPlt, parsePltFile } from './pltExport';
 import { createClient, type Session } from '@supabase/supabase-js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -1708,7 +1709,18 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
             if (!file) return;
             try {
               const text = await file.text();
-              const data = JSON.parse(text);
+              const parsed = await parsePltFile<CaseAnalysis>(text);
+              let data: CaseAnalysis;
+              if (parsed.kind === 'encrypted') {
+                const password = prompt('Fascicolo protetto\n\nQuesto file .plt è cifrato. Inserisci la password usata al momento dell’esportazione.');
+                if (!password) throw new Error('Importazione annullata');
+                data = await decryptPltContainer<CaseAnalysis>(parsed.container, password);
+              } else {
+                if (!confirm('Questo .plt non è protetto da password. Importalo solo se proviene da una fonte affidabile.\n\nContinuare?')) {
+                  throw new Error('Importazione annullata');
+                }
+                data = parsed.caseData;
+              }
               if (!data.case_id || !data.case_title) throw new Error('File non valido');
               const existing = await dbGet(data.case_id);
               if (existing) {
@@ -2348,7 +2360,7 @@ function RedactionDrawer({
       <aside className="source-drawer redact-drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div><p className="eyebrow">Privacy</p><h2>Gestione redazione</h2></div>
+          <div><p className="eyebrow">Privacy</p><h2>Anonimizza dati sensibili</h2></div>
           <button onClick={onClose} className="ghost-button">Chiudi</button>
         </div>
 
@@ -2406,7 +2418,7 @@ function AnonModal({ text, onClose }: { text: string; onClose: () => void }) {
       <aside className="source-drawer anon-modal" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div><p className="eyebrow">Versione anonimizzata</p><h2>Testo redatto</h2></div>
+          <div><p className="eyebrow">Versione anonimizzata</p><h2>Testo anonimizzato</h2></div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="ghost-button" onClick={() => navigator.clipboard.writeText(text).catch(() => {})}><Copy size={15} /></button>
             {typeof navigator.share === 'function' && (
@@ -2424,6 +2436,106 @@ function AnonModal({ text, onClose }: { text: string; onClose: () => void }) {
               })
             : <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '40px 0' }}><Loader2 className="spin" size={28} /><p>Anonimizzazione in corso…</p></div>
           }
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function ExportCaseDrawer({
+  onClose,
+  onExport,
+  hasAnonymizationRules,
+}: {
+  onClose: () => void;
+  onExport: (opts: { includeDocs: boolean; protectedFile: boolean; password?: string; anonymized: boolean }) => Promise<void>;
+  hasAnonymizationRules: boolean;
+}) {
+  const [mode, setMode] = useState<'protected' | 'plain'>('protected');
+  const [includeDocs, setIncludeDocs] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [anonymized, setAnonymized] = useState(hasAnonymizationRules);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    setError(null);
+    if (mode === 'protected') {
+      if (!password.trim()) { setError('Inserisci una password per proteggere il fascicolo.'); return; }
+      if (password !== confirmPassword) { setError('Le password non coincidono.'); return; }
+    } else if (!confirm('Confermi di voler esportare un file non protetto?\nIl contenuto sarà leggibile da chiunque abbia accesso al file.')) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await onExport({ includeDocs, protectedFile: mode === 'protected', password, anonymized: mode === 'plain' && anonymized });
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="drawer-backdrop" onClick={onClose}>
+      <aside className="source-drawer export-drawer" onClick={e => e.stopPropagation()}>
+        <div className="drawer-handle" />
+        <div className="drawer-header">
+          <div>
+            <p className="eyebrow">Condivisione locale</p>
+            <h2>Esporta fascicolo</h2>
+          </div>
+          <button className="ghost-button" onClick={onClose}><X size={16} /></button>
+        </div>
+
+        <p className="export-privacy-copy">
+          I fascicoli restano su questo dispositivo. L’esportazione crea un file .plt che puoi trasferire manualmente su un altro dispositivo o inviare a un collega.
+        </p>
+
+        <div className="export-mode-grid">
+          <button className={`export-mode-card${mode === 'protected' ? ' active' : ''}`} onClick={() => setMode('protected')}>
+            <ShieldCheck size={18} />
+            <strong>Proteggi con password — consigliato</strong>
+            <span>Il contenuto viene cifrato nel browser prima del download. PLT non salva il file e non conosce la password.</span>
+          </button>
+          <button className={`export-mode-card export-mode-card-warning${mode === 'plain' ? ' active' : ''}`} onClick={() => setMode('plain')}>
+            <ShieldAlert size={18} />
+            <strong>Esporta senza password</strong>
+            <span>Solo per debug, archiviazione locale sicura o dopo aver anonimizzato i dati sensibili.</span>
+          </button>
+        </div>
+
+        {mode === 'protected' ? (
+          <div className="export-fields">
+            <label>Password <input type="password" value={password} onChange={e => setPassword(e.target.value)} /></label>
+            <label>Conferma password <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></label>
+            <p className="export-note">Chi riceve il file potrà aprirlo su un altro dispositivo, ma solo con questa password. Se la perdi, PLT non può recuperarla.</p>
+            <p className="export-note">Consiglio: invia la password con un canale diverso dal file.</p>
+          </div>
+        ) : (
+          <div className="export-warning-box">
+            <strong>File non protetto</strong>
+            <p>Il file .plt non protetto contiene i dati del fascicolo in chiaro. Prima di inviare un .plt non protetto, usa “Anonimizza” per sostituire nomi, indirizzi, numeri di procedimento e altri dati identificativi.</p>
+            <label className="export-check-row">
+              <input type="checkbox" checked={anonymized} disabled={!hasAnonymizationRules} onChange={e => setAnonymized(e.target.checked)} />
+              Esporta copia anonimizzata {hasAnonymizationRules ? '' : '(aggiungi prima regole da “Anonimizza”)'}
+            </label>
+          </div>
+        )}
+
+        <label className="export-check-row">
+          <input type="checkbox" checked={includeDocs} onChange={e => setIncludeDocs(e.target.checked)} />
+          Includi documenti originali
+        </label>
+
+        {error && <p className="form-error">{error}</p>}
+
+        <div className="drawer-actions">
+          <button className="ghost-button" onClick={onClose}>Annulla</button>
+          <button className="primary-button" disabled={busy} onClick={submit}>
+            {busy ? <Loader2 className="spin" size={15} /> : <Share2 size={15} />}
+            {mode === 'protected' ? 'Esporta .plt protetto' : 'Esporta comunque'}
+          </button>
         </div>
       </aside>
     </div>
@@ -2456,6 +2568,7 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
   const [redactionActive, setRedactionActive] = useState(false);
   const [showRedactionDrawer, setShowRedactionDrawer] = useState(false);
   const [anonModal, setAnonModal] = useState<string | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [anonymizingDocId, setAnonymizingDocId] = useState<string | null>(null);
 
   const { toast, showToast, dismissToast } = useToast();
@@ -2652,23 +2765,49 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
     showToast("Materiale eliminato");
   }, [caseData, showToast]);
 
-  const handleExport = useCallback((includeDocs = false) => {
-    if (!caseData) return;
-    const exportData = {
-      ...caseData,
-      raw_documents: includeDocs ? caseData.raw_documents : [],
-      redaction_rules: [],
-      analyzed_doc_ids: [],
-    };
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const downloadPlt = useCallback((container: unknown, filename: string) => {
+    const blob = new Blob([JSON.stringify(container, null, 2)], { type: 'application/vnd.pocket-legal-triage.case+json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${caseData.case_id}.plt`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    showToast(includeDocs ? 'Fascicolo esportato con documenti originali' : 'Fascicolo esportato');
-  }, [caseData, showToast]);
+  }, []);
+
+  const buildExportCase = useCallback((includeDocs = false, anonymized = false) => {
+    if (!caseData) return null;
+    const rules = mergeRedactionRules(globalRules, caseData.redaction_rules ?? []);
+    const base = anonymized ? applyRedactionToCase(caseData, rules) : caseData;
+    return {
+      ...base,
+      raw_documents: includeDocs ? base.raw_documents : [],
+      redaction_rules: [],
+      analyzed_doc_ids: [],
+    };
+  }, [caseData, globalRules]);
+
+  const handleExport = useCallback(async ({
+    includeDocs = false,
+    protectedFile = true,
+    password = '',
+    anonymized = false,
+  }: { includeDocs?: boolean; protectedFile?: boolean; password?: string; anonymized?: boolean }) => {
+    if (!caseData) return;
+    try {
+      const exportData = buildExportCase(includeDocs, anonymized);
+      if (!exportData) return;
+      const container = protectedFile
+        ? await exportEncryptedPlt(exportData, password)
+        : exportPlainPlt(exportData);
+      downloadPlt(container, `${caseData.case_id}.plt`);
+      showToast(protectedFile
+        ? 'Fascicolo protetto esportato'
+        : (anonymized ? 'Copia anonimizzata esportata senza password' : 'Fascicolo non protetto esportato'));
+    } catch (e) {
+      showToast(`Esportazione fallita: ${(e as Error).message}`, 'error');
+    }
+  }, [buildExportCase, caseData, downloadPlt, showToast]);
 
   const updateCase = useCallback(async (updater: (c: CaseAnalysis) => CaseAnalysis) => {
     if (!caseData) return;
@@ -2869,38 +3008,25 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
               </div>
             )}
             <button
-              className={`ghost-button redact-toggle-btn${redactionActive ? ' redact-toggle-active' : ''}`}
+              className={`anonymize-action-btn${redactionActive ? ' anonymize-action-active' : ''}`}
               onClick={() => setShowRedactionDrawer(true)}
-              title="Gestione redazione dati"
+              title="Anonimizza dati sensibili prima di condividere"
             >
-              {redactionActive ? <EyeOff size={13} /> : <Eye size={13} />}
-              {redactionActive ? 'Redatto' : 'Redigi'}
+              {redactionActive ? <EyeOff size={13} /> : <ShieldCheck size={13} />}
+              {redactionActive ? 'Vista anonimizzata' : `Anonimizza${mergedRules.filter(r => r.enabled).length ? ` · ${mergedRules.filter(r => r.enabled).length}` : ''}`}
             </button>
-            <div className="export-dropdown" style={{ position: 'relative' }}>
-              <button
-                className="ghost-button"
-                onClick={() => {
-                  const el = document.getElementById('export-menu');
-                  el?.classList.toggle('export-menu--open');
-                }}
-                title="Esporta fascicolo"
-              >
-                <Share2 size={13} /> Esporta
-              </button>
-              <div id="export-menu" className="export-menu">
-                <button onClick={() => { handleExport(false); document.getElementById('export-menu')?.classList.remove('export-menu--open'); }}>
-                  Senza documenti originali
-                </button>
-                <button onClick={() => { handleExport(true); document.getElementById('export-menu')?.classList.remove('export-menu--open'); }}>
-                  Con documenti originali
-                </button>
-              </div>
-            </div>
+            <button
+              className="ghost-button"
+              onClick={() => setShowExportModal(true)}
+              title="Esporta fascicolo"
+            >
+              <Share2 size={13} /> Esporta
+            </button>
             {mergedRules.some(r => r.enabled) && (
               <button
                 className={`ghost-button redact-toggle-btn${redactionActive ? ' redact-toggle-active' : ''}`}
                 onClick={() => setRedactionActive(v => !v)}
-                title={redactionActive ? 'Mostra dati originali' : 'Attiva modalità redatta'}
+                title={redactionActive ? 'Mostra dati originali' : 'Mostra vista anonimizzata'}
               >
                 {redactionActive ? <Eye size={13} /> : <EyeOff size={13} />}
               </button>
@@ -3532,6 +3658,13 @@ function CaseDetailView({ caseId, onBack, onOpenChat, onCaseLoaded, onCaseAnalyz
         />
       )}
       {anonModal !== null && <AnonModal text={anonModal} onClose={() => setAnonModal(null)} />}
+      {showExportModal && (
+        <ExportCaseDrawer
+          onClose={() => setShowExportModal(false)}
+          onExport={handleExport}
+          hasAnonymizationRules={mergedRules.some(r => r.enabled && r.original.trim())}
+        />
+      )}
       {showUpload && (
         <MultiFileUploadDrawer
           queue={uploadQueue}

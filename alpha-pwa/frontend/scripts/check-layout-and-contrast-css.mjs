@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 
 const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
 const main = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
+const pltExport = readFileSync(new URL('../src/pltExport.ts', import.meta.url), 'utf8');
+const appSource = `${main}\n${pltExport}`;
 
 const ruleBody = selector => {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -140,6 +142,23 @@ for (const selector of ['.status-chip.confirmed', '.status-chip.candidate', '.st
     failures.push(`${selector} contrast with white text is ${ratio.toFixed(2)}:1; expected at least 4.5:1`);
   }
 }
+
+for (const text of [
+  'Anonimizza',
+  'Proteggi con password — consigliato',
+  'PLT non salva il file e non conosce la password',
+  'Chi riceve il file potrà aprirlo su un altro dispositivo, ma solo con questa password',
+  'Prima di inviare un .plt non protetto, usa “Anonimizza”',
+  'Fascicolo protetto',
+  'Password errata o file danneggiato.',
+]) {
+  if (!appSource.includes(text)) failures.push(`app source must include export/privacy copy: ${text}`);
+}
+
+if (!main.includes('anonymize-action-btn')) failures.push('Anonimizza toolbar button must use the dedicated prominent anonymize-action-btn class');
+if (!hasRule('.anonymize-action-btn', /linear-gradient\s*\(/)) failures.push('Anonimizza button must use a visible multi-color gradient accent');
+if (!hasRule('.anonymize-action-btn', /color\s*:\s*#ffffff\s*;/i)) failures.push('Anonimizza button must use explicit high-contrast white text');
+if (!hasRule('.anonymize-action-btn:focus-visible', /outline\s*:/)) failures.push('Anonimizza button needs a keyboard-visible focus outline');
 
 if (failures.length) {
   console.error(failures.map(f => `- ${f}`).join('\n'));
