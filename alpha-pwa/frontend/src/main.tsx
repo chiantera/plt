@@ -553,7 +553,7 @@ function Editable({ value, onChange, placeholder, multiline, className, readOnly
 
 function RowDelete({ onClick, label }: { onClick: () => void; label?: string }) {
   return (
-    <button
+    <button title="Elimina elemento"
       className="row-delete-btn"
       onClick={e => { e.stopPropagation(); if (confirm(label ? `Eliminare "${label}"?` : 'Eliminare questa voce?')) onClick(); }}
       title="Elimina voce"
@@ -565,7 +565,7 @@ function RowDelete({ onClick, label }: { onClick: () => void; label?: string }) 
 
 function AddRowButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button className="add-row-btn" onClick={onClick}>
+    <button title="Aggiungi nuova riga" className="add-row-btn" onClick={onClick}>
       <Plus size={14} /> {label}
     </button>
   );
@@ -721,7 +721,7 @@ function RawDocDrawer({ doc, onClose, onDelete }: { doc: RawDocument | null; onC
         <div className="drawer-header">
           <div><p className="eyebrow">{doc.name}</p><h2>{doc.description || doc.name}</h2></div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => { onDelete(doc.doc_id); onClose(); }} className="ghost-button" style={{ color: '#ef4444' }}><Trash2 size={16} /></button>
+            <button title="Esegui azione" onClick={() => { onDelete(doc.doc_id); onClose(); }} className="ghost-button" style={{ color: '#ef4444' }}><Trash2 size={16} /></button>
             <button onClick={onClose} className="ghost-button" title="Chiudi la finestra corrente">Chiudi</button>
           </div>
         </div>
@@ -743,7 +743,7 @@ function NewCaseDrawer({ onClose, onCreate }: { onClose: () => void; onCreate: (
         <div className="drawer-handle" />
         <div className="drawer-header">
           <div><p className="eyebrow">Fascicolo</p><h2>Nuovo fascicolo</h2></div>
-          <button onClick={onClose} className="ghost-button"><X size={18} /></button>
+          <button title="Chiudi o annulla" onClick={onClose} className="ghost-button"><X size={18} /></button>
         </div>
         <div className="upload-field">
           <label>Titolo del caso</label>
@@ -758,7 +758,7 @@ function NewCaseDrawer({ onClose, onCreate }: { onClose: () => void; onCreate: (
         </div>
         <div className="upload-actions">
           <button className="ghost-button" onClick={onClose} title="Annulla operazione">Annulla</button>
-          <button className="primary-button" disabled={!title.trim()} onClick={() => title.trim() && onCreate(title.trim())}>
+          <button title="Conferma operazione principale" className="primary-button" disabled={!title.trim()} onClick={() => title.trim() && onCreate(title.trim())}>
             <FolderPlus size={15} /> Crea fascicolo
           </button>
         </div>
@@ -852,7 +852,7 @@ function MultiFileUploadDrawer({
             <p className="eyebrow">Elaborazione locale</p>
             <h2>Aggiungi documenti</h2>
           </div>
-          <button onClick={onClose} className="ghost-button"><X size={18} /></button>
+          <button title="Chiudi o annulla" onClick={onClose} className="ghost-button"><X size={18} /></button>
         </div>
 
         {/* Drop zone (multi-file) */}
@@ -916,7 +916,7 @@ function MultiFileUploadDrawer({
                   )}
                 </div>
                 {(item.status === 'pending' || item.status === 'done' || item.status === 'error') && (
-                  <button className="upload-queue-action" onClick={() => onRemoveItem(item.id)} title="Rimuovi">
+                  <button title="Esegui azione" className="upload-queue-action" onClick={() => onRemoveItem(item.id)} title="Rimuovi">
                     <X size={14} />
                   </button>
                 )}
@@ -929,7 +929,7 @@ function MultiFileUploadDrawer({
         <div className="upload-field">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <label style={{ margin: 0 }}>Incolla testo o registra nota vocale</label>
-            <button
+            <button title="Esegui azione"
               type="button"
               onClick={recording ? stopRecording : startRecording}
               disabled={transcribing}
@@ -959,7 +959,7 @@ function MultiFileUploadDrawer({
               rows={3}
               style={{ flex: 1, minHeight: 80 }}
             />
-            <button
+            <button title="Conferma operazione principale"
               className="primary-button"
               disabled={!pasteText.trim()}
               onClick={() => { onAddTextItem(pasteText.trim()); setPasteText(''); }}
@@ -993,7 +993,7 @@ function MultiFileUploadDrawer({
             {errorCount > 0 && <span style={{ fontSize: '0.75rem', color: '#f87171' }}>{errorCount} errore/i</span>}
             <button className="ghost-button" onClick={onClose} title="Chiudi la finestra corrente">Chiudi</button>
             {doneCount > 0 && onAnalyze && (
-              <button
+              <button title="Conferma operazione principale"
                 className="primary-button upload-analyze-btn"
                 onClick={() => {
                   onAnalyze();
@@ -1053,12 +1053,12 @@ function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClos
       <div className="aula-header">
         <div className="aula-brand"><Gavel size={13} /> AULA MODE</div>
         <div className="aula-clock"><Clock size={12} /> {time.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
-        <button className="aula-close" onClick={onClose}><X size={19} /></button>
+        <button title="Chiudi o annulla" className="aula-close" onClick={onClose}><X size={19} /></button>
       </div>
 
       <div className="aula-dots">
         {Array.from({ length: AULA_SLIDES }, (_, i) => (
-          <button key={i} className={`aula-dot${slide === i ? ' active' : ''}`} onClick={() => setSlide(i)} />
+          <button title="Esegui azione" key={i} className={`aula-dot${slide === i ? ' active' : ''}`} onClick={() => setSlide(i)} />
         ))}
       </div>
 
@@ -1153,11 +1153,11 @@ function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClos
       </div>
 
       <div className="aula-nav">
-        <button className="aula-nav-btn" onClick={() => setSlide(s => Math.max(s - 1, 0))} disabled={slide === 0}>
+        <button title="Scorri diapositive" className="aula-nav-btn" onClick={() => setSlide(s => Math.max(s - 1, 0))} disabled={slide === 0}>
           <ArrowLeft size={22} />
         </button>
         <span className="aula-nav-counter">{slide + 1} / {AULA_SLIDES}</span>
-        <button className="aula-nav-btn" onClick={() => setSlide(s => Math.min(s + 1, AULA_SLIDES - 1))} disabled={slide === AULA_SLIDES - 1}>
+        <button title="Scorri diapositive" className="aula-nav-btn" onClick={() => setSlide(s => Math.min(s + 1, AULA_SLIDES - 1))} disabled={slide === AULA_SLIDES - 1}>
           <ArrowRight size={22} />
         </button>
       </div>
@@ -1289,9 +1289,7 @@ function ChatDrawer({
 }
 
 function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasContext: boolean }) {
-  const [pos, setPos] = React.useState<{ x: number; y: number } | null>(() => {
-    try { const s = localStorage.getItem('giulia-fab-pos'); return s ? JSON.parse(s) : null; } catch { return null; }
-  });
+  const [pos, setPos] = React.useState<{ x: number; y: number } | null>(null);
   const dragging = React.useRef(false);
   const moved = React.useRef(false);
   const origin = React.useRef({ px: 0, py: 0, bx: 0, by: 0 });
@@ -1302,7 +1300,7 @@ function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasC
     const el = fabRef.current!;
     const rect = el.getBoundingClientRect();
     const bx = pos ? pos.x : window.innerWidth - rect.width - 24;
-    const by = pos ? pos.y : window.innerHeight - rect.height - 52;
+    const by = pos ? pos.y : window.innerHeight - rect.height - 110;
     origin.current = { px: e.clientX, py: e.clientY, bx, by };
     el.setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -1321,7 +1319,6 @@ function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasC
   const onUp = (e: React.PointerEvent) => {
     if (fabRef.current) fabRef.current.releasePointerCapture(e.pointerId);
     dragging.current = false;
-    if (pos) localStorage.setItem('giulia-fab-pos', JSON.stringify(pos));
     if (!moved.current) onClick();
   };
   const onCancel = (e: React.PointerEvent) => {
@@ -1335,7 +1332,7 @@ function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasC
     : { cursor: 'grab' };
 
   return (
-    <button
+    <button title="Esegui azione"
       ref={fabRef}
       className={`chat-fab${hasContext ? ' chat-fab--context' : ''}`}
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onCancel}
@@ -1504,7 +1501,7 @@ function AuthScreen() {
           <div className="auth-card-kicker">Accesso riservato</div>
           <div className="auth-tabs">
             {(['login', 'signup'] as const).map(t => (
-              <button key={t} className={`auth-tab${tab === t ? ' auth-tab--active' : ''}`} onClick={() => setTab(t)}>
+              <button title="Cambia modalità di accesso" key={t} className={`auth-tab${tab === t ? ' auth-tab--active' : ''}`} onClick={() => setTab(t)}>
                 {t === 'login' ? 'Accedi' : 'Registrati'}
               </button>
             ))}
@@ -1561,7 +1558,7 @@ function ProfileDrawer({ session, onClose }: { session: Session; onClose: () => 
             <input className="profile-input" value={profile[key] ?? ''} onChange={e => setProfile(p => ({ ...p, [key]: e.target.value }))} placeholder={placeholder} />
           </div>
         ))}
-        <button className={`profile-save${saved ? ' profile-save--saved' : ''}`} onClick={handleSave} disabled={saving}>
+        <button title="Salva modifiche profilo" className={`profile-save${saved ? ' profile-save--saved' : ''}`} onClick={handleSave} disabled={saving}>
           {saving ? 'Salvataggio…' : saved ? 'Salvato ✓' : 'Salva profilo'}
         </button>
         <button className="profile-logout" title="Disconnettiti dall'applicazione" onClick={() => supabase.auth.signOut()}>
@@ -1608,7 +1605,7 @@ function GiuliaPromptBar({ onOpenChat }: { onOpenChat: (msg?: string) => void })
           }
         }}
       />
-      <button className="giulia-prompt-send" onClick={submit} tabIndex={-1} aria-label="Invia" style={{ marginBottom: 2 }}>
+      <button title="Invia domanda a GiulIA" className="giulia-prompt-send" onClick={submit} tabIndex={-1} aria-label="Invia" style={{ marginBottom: 2 }}>
         <Send size={14} />
       </button>
     </div>
@@ -1719,7 +1716,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
               <div className="home-brand-tagline">{profileTagline ?? 'Il tuo studio'}</div>
             </div>
           </div>
-          <button onClick={() => setShowProfile(true)} style={{ background: 'rgba(148,163,184,0.1)', border: '1px solid rgba(148,163,184,0.18)', borderRadius: 10, padding: '9px 11px', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center' }} title="Profilo">
+          <button title="Esegui azione" onClick={() => setShowProfile(true)} style={{ background: 'rgba(148,163,184,0.1)', border: '1px solid rgba(148,163,184,0.18)', borderRadius: 10, padding: '9px 11px', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center' }} title="Profilo">
             <User size={16} />
           </button>
         </div>
@@ -1750,7 +1747,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
         <button className="primary-button home-new-btn" title="Crea un nuovo fascicolo vuoto" onClick={() => setShowUpload(true)}>
           <Plus size={15} /> Nuovo fascicolo
         </button>
-        <button className="secondary-button" onClick={() => document.getElementById('import-file-input')?.click()}>
+        <button title="Esegui azione" className="secondary-button" onClick={() => document.getElementById('import-file-input')?.click()}>
           <Upload size={14} /> Importa
         </button>
         <input
@@ -1830,7 +1827,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
               Inizia creando un nuovo fascicolo vuoto per analizzare documenti, oppure importa un file <code>.plt</code> protetto.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button className="primary-button" onClick={() => setShowUpload(true)} title="Crea un nuovo fascicolo vuoto">
+              <button title="Conferma operazione principale" className="primary-button" onClick={() => setShowUpload(true)} title="Crea un nuovo fascicolo vuoto">
                 <Plus size={15} /> Nuovo Fascicolo
               </button>
             </div>
@@ -1847,7 +1844,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
                   <span className="case-local-badge">locale</span>
                 )}
                 {localIds.has(c.case_id) && (
-                  <button className="case-delete-btn" onClick={e => handleDelete(c.case_id, e)} title="Elimina fascicolo" type="button">
+                  <button title="Elimina elemento" className="case-delete-btn" onClick={e => handleDelete(c.case_id, e)} title="Elimina fascicolo" type="button">
                     <Trash2 size={14} />
                   </button>
                 )}
@@ -2236,7 +2233,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
               addLabel="Aggiungi domanda"
             />
             <SourceRow refs={w.source_refs} onSelect={onSelectSource} />
-            <button
+            <button title="Esegui azione"
               className="giulia-ctx-btn"
               onClick={() => onOpenChat(`Preparami una sequenza di controesame per ${w.witness_name} (${w.role}, credibilità ${Math.round(w.credibility_score * 100)}%). Testimonianza chiave: "${w.key_testimony}". Vulnerabilità note: ${w.vulnerabilities.join('; ') || 'da sviluppare'}. Usa domande chiuse sì/no per massimizzare l'impatto.`)}
             >
@@ -2439,8 +2436,8 @@ function RedactionDrawer({
             <input className="upload-input" placeholder="[OMISSIS]" value={replInput} onChange={e => setReplInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRule('global')} />
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('global')} title="Aggiungi regola a tutti i fascicoli" disabled={!origInput.trim()}>+ Globale</button>
-            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('case')} title="Aggiungi regola solo a questo fascicolo" disabled={!origInput.trim()}>+ Solo questo caso</button>
+            <button title="Azione secondaria" className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('global')} title="Aggiungi regola a tutti i fascicoli" disabled={!origInput.trim()}>+ Globale</button>
+            <button title="Azione secondaria" className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('case')} title="Aggiungi regola solo a questo fascicolo" disabled={!origInput.trim()}>+ Solo questo caso</button>
           </div>
         </div>
 
@@ -2449,7 +2446,7 @@ function RedactionDrawer({
 
         <div className="redact-section">
           <p className="eyebrow">Rilevamento AI</p>
-          <button className="ghost-button" style={{ width: '100%', justifyContent: 'center', gap: 8 }} onClick={handleDetect} disabled={detecting}>
+          <button title="Azione secondaria" className="ghost-button" style={{ width: '100%', justifyContent: 'center', gap: 8 }} onClick={handleDetect} disabled={detecting}>
             {detecting ? <><Loader2 size={14} className="spin" /> Analisi in corso…</> : <><Sparkles size={14} /> Rileva dati sensibili con AI</>}
           </button>
           {suggested.length > 0 && (
@@ -2460,13 +2457,13 @@ function RedactionDrawer({
                   <span className="redact-original">{r.original}</span>
                   <span className="redact-arrow">→</span>
                   <span className="redact-replacement">{r.replacement}</span>
-                  <button className="ghost-button" style={{ fontSize: '0.7rem', padding: '4px 8px', borderRadius: 6 }}
+                  <button title="Azione secondaria" className="ghost-button" style={{ fontSize: '0.7rem', padding: '4px 8px', borderRadius: 6 }}
                     onClick={() => { setCaseRules([...caseRules, r]); setSuggested(suggested.filter(s => s.id !== r.id)); }}>
                     + Aggiungi
                   </button>
                 </div>
               ))}
-              <button className="primary-button" style={{ marginTop: 8, width: '100%', justifyContent: 'center' }}
+              <button title="Conferma operazione principale" className="primary-button" style={{ marginTop: 8, width: '100%', justifyContent: 'center' }}
                 onClick={() => { setCaseRules([...caseRules, ...suggested]); setSuggested([]); }}>
                 Accetta tutte
               </button>
@@ -2487,9 +2484,9 @@ function AnonModal({ text, onClose }: { text: string; onClose: () => void }) {
         <div className="drawer-header">
           <div><p className="eyebrow">Versione anonimizzata</p><h2>Testo anonimizzato</h2></div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="ghost-button" onClick={() => navigator.clipboard.writeText(text).catch(() => {})}><Copy size={15} /></button>
+            <button title="Azione secondaria" className="ghost-button" onClick={() => navigator.clipboard.writeText(text).catch(() => {})}><Copy size={15} /></button>
             {typeof navigator.share === 'function' && (
-              <button className="ghost-button" onClick={() => navigator.share({ title: 'Testo anonimizzato', text }).catch(() => {})}><Share2 size={15} /></button>
+              <button title="Azione secondaria" className="ghost-button" onClick={() => navigator.share({ title: 'Testo anonimizzato', text }).catch(() => {})}><Share2 size={15} /></button>
             )}
             <button className="ghost-button" onClick={onClose} title="Chiudi la finestra corrente">Chiudi</button>
           </div>
@@ -2599,7 +2596,7 @@ function ExportCaseDrawer({
 
         <div className="drawer-actions">
           <button className="ghost-button" onClick={onClose} title="Annulla operazione">Annulla</button>
-          <button className="primary-button" disabled={busy} onClick={submit}>
+          <button title="Conferma operazione principale" className="primary-button" disabled={busy} onClick={submit}>
             {busy ? <Loader2 className="spin" size={15} /> : <Share2 size={15} />}
             {mode === 'protected' ? 'Esporta .plt protetto' : 'Esporta comunque'}
           </button>
@@ -3049,7 +3046,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   if (error) return (
     <main className="app-shell loading-shell">
       <AlertTriangle /><h1>Errore</h1><p>{error}</p>
-      <button className="ghost-button" onClick={onBack}>← Torna ai fascicoli</button>
+      <button title="Azione secondaria" className="ghost-button" onClick={onBack}>← Torna ai fascicoli</button>
     </main>
   );
 
@@ -3097,7 +3094,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
-              <button
+              <button title="Esegui azione"
                 className={`anonymize-action-btn${redactionActive ? ' anonymize-action-active' : ''}`}
                 onClick={() => setShowRedactionDrawer(true)}
                 title="Anonimizza dati sensibili prima di condividere"
@@ -3106,7 +3103,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 {redactionActive ? 'Vista anonimizzata' : `Anonimizza${mergedRules.filter(r => r.enabled).length ? ` · ${mergedRules.filter(r => r.enabled).length}` : ''}`}
               </button>
               {mergedRules.some(r => r.enabled) && (
-                <button
+                <button title="Azione secondaria"
                   className={`ghost-button redact-toggle-btn${redactionActive ? ' redact-toggle-active' : ''}`}
                   style={{ padding: '0 10px', height: 'auto', borderRadius: 999 }}
                   onClick={() => setRedactionActive(v => !v)}
@@ -3116,7 +3113,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 </button>
               )}
             </div>
-            <button
+            <button title="Azione secondaria"
               className="ghost-button"
               onClick={() => setShowExportModal(true)}
               title="Esporta fascicolo"
@@ -3143,7 +3140,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           />
         </p>
         <div className="hero-actions">
-          <button className="primary-button" onClick={() => setShowUpload(true)} title="Carica nuovi documenti PDF o immagini" style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
+          <button title="Conferma operazione principale" className="primary-button" onClick={() => setShowUpload(true)} title="Carica nuovi documenti PDF o immagini" style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
             <Upload size={15} /> Aggiungi documento
             {uploadQueue.length > 0 && (
               <span className="upload-badge-hero">
@@ -3154,7 +3151,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             )}
           </button>
           {(!hasExistingAnalysis || unanalyzedCount > 0) && (
-            <button
+            <button title="Esegui azione"
               className="secondary-button"
               onClick={handleAnalyze}
               disabled={analyzing || rawDocs.length === 0}
@@ -3166,7 +3163,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             </button>
           )}
           {hasExistingAnalysis && (
-            <button
+            <button title="Azione secondaria"
               className="ghost-button"
               onClick={() => {
                 const updated = { ...caseData, analyzed_doc_ids: [], case_summary: '', materials: [], timeline: [], people: [], evidence: [], open_questions: [], missing_documents: [], contradictions: [], procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, legal_analysis: null };
@@ -3209,7 +3206,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             <h2>{nextDeadline.title}</h2>
             <p>{formatDate(nextDeadline.due_date)}{nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''} · {nextDeadline.status === 'confirmed' ? 'confermato' : 'da confermare'}</p>
             <p>{nextDeadline.description}</p>
-            <button
+            <button title="Esegui azione"
               className="giulia-ctx-btn"
               onClick={e => { e.stopPropagation(); onOpenChat(`Cosa devo preparare per l'udienza "${nextDeadline.title}" del ${nextDeadline.due_date}? Indicami le priorità operative e gli atti da predisporre.`); }}
             >
@@ -3223,7 +3220,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {/* Tab bar (scrollable) */}
       <nav className="tab-bar">
         {tabs.map(tab => (
-          <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>
+          <button title="Esegui azione" key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>
             {tab.id === 'legal' && la && (
               <span className="tab-risk-dot" style={{ background: riskColor(la.risk_level) }} />
             )}
@@ -3371,7 +3368,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 <ul className="task-list">
                   {dl.tasks.map((t, ti) => (
                     <li key={ti} className={`task-item${isDone(dl.title, ti) ? ' task-done' : ''}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                      <button
+                      <button title="Esegui azione"
                         onClick={() => toggleTask(dl.title, ti)}
                         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', marginTop: 2 }}
                       >
@@ -3501,10 +3498,10 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 <p className="muted" style={{ fontSize: '0.85rem' }}>Carica dei documenti e clicca su <strong>Analizza con AI</strong> per estrarre in automatico capi di imputazione e strategia, oppure clicca qui sotto per creare l'analisi manualmente.</p>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-                <button className="primary-button" onClick={handleAnalyze} disabled={analyzing || rawDocs.length === 0}>
+                <button title="Conferma operazione principale" className="primary-button" onClick={handleAnalyze} disabled={analyzing || rawDocs.length === 0}>
                   <Sparkles size={14} /> Analizza con AI
                 </button>
-                <button
+                <button title="Esegui azione"
                   className="secondary-button"
                   onClick={() => updateCase(c => ({ ...c, legal_analysis: {
                     risk_level: 'medium',
