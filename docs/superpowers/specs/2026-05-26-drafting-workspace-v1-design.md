@@ -142,9 +142,10 @@ Every click on a purple drafting/preparation button creates a **new drafting wor
 
 Workspace tab behavior:
 
-- new tab title defaults from document type and timestamp/context, e.g. `Memoria difensiva — 26 mag 09:42` or `Controesame Testa — v1`;
-- do not show internal classifier labels in the UI; if a label is needed, use the human document title already chosen by the button, otherwise omit it;
+- new tab title defaults from the lawyer-facing button/card title and timestamp/context, e.g. `Preparazione udienza — 26 mag 09:42`, `Memoria difensiva — 26 mag 09:42`, or `Controesame Testa — v1`;
+- do not show internal classifier labels in the UI; if a label is needed, use the human document title already chosen by the button/card, otherwise omit it;
 - tabs can be renamed by the user;
+- the generated Markdown must use the same specific lawyer-facing title as its H1 heading. Do not emit generic type headings such as `# Analisi Strategica` when the selected action title is more specific, e.g. use `# Preparazione udienza` for a `Preparazione udienza di conferma`/hearing-preparation action;
 - tabs persist with the fascicolo in local storage;
 - closing a tab should mean hiding/archiving it, not deleting content without confirmation;
 - deleted workspaces require explicit confirmation.
@@ -241,9 +242,16 @@ V1 should reuse the current purple-button prompt tails as the drafting instructi
 Implementation pattern:
 
 - build case context from original or anonymized fascicolo;
+- pass the selected action’s lawyer-facing title into generation as `requested_title`/`workspace_title`, separate from the internal `DraftType`;
 - append the existing document-specific prompt tail for the selected purple button;
-- prepend/append the global drafting guardrails from this spec, especially source-linking, lawyer-in-control copy, and the hard anti-invented-precedent rule;
+- prepend/append the global drafting guardrails from this spec, especially source-linking, lawyer-in-control copy, title fidelity, and the hard anti-invented-precedent rule;
 - persist the result as a `DraftArtifact` in the new workspace tab.
+
+Title fidelity rule:
+
+- The model must infer the intended draft/preparation task from the specific workspace/action title, not only from the broad internal type. If the title says `Preparazione udienza di conferma`, the draft should be a hearing-preparation document; the Markdown should start with a specific heading such as `# Preparazione udienza` or `# Preparazione udienza di conferma`, not a generic `# Analisi Strategica`.
+- Internal categories such as `strategy`, `crossExam`, or `memoria` are routing hints only. They must not leak into generic Markdown headings when the user-facing title is more precise.
+- If the title is ambiguous, the model may add a short `Obiettivo della bozza` section clarifying its interpretation, but it should still draft the best matching document instead of falling back to a generic template.
 
 Do not rewrite the legal substance of the current prompts unless a prompt conflicts with the anti-invented-precedent policy. For example, prompt text that currently asks for `Precedenti della Cassazione Penale (sezione, numero, anno)` must be amended with `solo se verificabili; altrimenti DA VERIFICARE`.
 
@@ -416,16 +424,18 @@ Minimum checks:
 11. Non-encrypted `.docx` and plaintext `.plt` exports show the warning to use whole-fascicolo protected `.plt` export if encryption is desired.
 12. Existing `I tuoi fascicoli` `.plt` import still accepts protected/plain `.plt` files after draft artifacts are added to the case model.
 13. Drafting generation reuses the existing purple-button prompt tail for the selected document type, with anti-invented-precedent amendments where needed.
-14. Drafting prompt contains `DIVIETO ASSOLUTO: non inventare precedenti giurisprudenziali` or equivalent.
-15. UI displays the precedent verification warning.
-16. Every substantive generated claim is either source-linked or marked `DA VERIFICARE` / `unsupported` in the review panel.
-17. Unsourced Cassazione-like citations are flagged `DA VERIFICARE` and not presented as verified.
-18. Anonymized export contains no sensitive identifiers covered by active rules in title/body/source excerpts/metadata.
-19. Draft status transitions persist and “approved” requires explicit user action.
-20. Multiple clicks on purple drafting buttons create multiple persisted workspace tabs; none are overwritten silently.
-21. Protected export validates password confirmation and preserves state on failure.
-22. Frontend production build passes.
-23. Browser QA verifies no console errors in the drafting flow.
+14. Drafting prompt passes the selected lawyer-facing title into generation and instructs the model to draft according to that title.
+15. Generated Markdown H1 uses the specific workspace/action title, not a generic internal type heading; e.g. `Preparazione udienza di conferma` must not render as `# Analisi Strategica`.
+16. Drafting prompt contains `DIVIETO ASSOLUTO: non inventare precedenti giurisprudenziali` or equivalent.
+17. UI displays the precedent verification warning.
+18. Every substantive generated claim is either source-linked or marked `DA VERIFICARE` / `unsupported` in the review panel.
+19. Unsourced Cassazione-like citations are flagged `DA VERIFICARE` and not presented as verified.
+20. Anonymized export contains no sensitive identifiers covered by active rules in title/body/source excerpts/metadata.
+21. Draft status transitions persist and “approved” requires explicit user action.
+22. Multiple clicks on purple drafting buttons create multiple persisted workspace tabs; none are overwritten silently.
+23. Protected export validates password confirmation and preserves state on failure.
+24. Frontend production build passes.
+25. Browser QA verifies no console errors in the drafting flow.
 
 ## Implementation Notes
 
