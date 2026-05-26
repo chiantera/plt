@@ -123,7 +123,7 @@ type CaseAnalysis = {
 
 Persistence: use the existing local case persistence path (`dbSave`, `dbGet`) by saving the updated `CaseAnalysis` with `draft_artifacts` included.
 
-Storage guardrail for v1: cap an individual draft artifact at roughly 500 KB of Markdown/metadata and keep at most 20 active drafts per case before prompting the user to archive/delete older drafts. This avoids uncontrolled case-record growth while keeping implementation local-first. If drafts become large or numerous, move them to a separate IndexedDB object store keyed by `case_id` in a follow-up slice.
+Storage guardrail for v1: cap an individual draft artifact at roughly 500 KB of Markdown/metadata, but do **not** impose a hard limit on the number of drafting workspaces per fascicolo. The user may create as many drafting workspaces as desired. If the count grows large, improve navigation with search/filter/archive affordances rather than blocking creation. If drafts become large or numerous enough to affect performance, move them to a separate IndexedDB object store keyed by `case_id` in a follow-up slice.
 
 ## UI Design
 
@@ -136,6 +136,16 @@ onOpenDraftWorkspace({ type, witnessId?, initialScope? })
 ```
 
 They must not call `onOpenChat(...)`.
+
+Every click on a purple drafting/preparation button creates a **new drafting workspace tab** for the current fascicolo. Existing draft tabs remain accessible. This is deliberate: a lawyer may want separate workspaces for alternative defensive theories, multiple memorie, separate witnesses, or different versions of a strategy. Do not silently reuse/overwrite an existing workspace unless the user explicitly chooses to revise that existing draft.
+
+Workspace tab behavior:
+
+- new tab title defaults from document type and timestamp/context, e.g. `Memoria difensiva — 26 mag 09:42` or `Controesame Testa — v1`;
+- tabs can be renamed by the user;
+- tabs persist with the fascicolo in local storage;
+- closing a tab should mean hiding/archiving it, not deleting content without confirmation;
+- deleted workspaces require explicit confirmation.
 
 ### Workspace layout
 
@@ -221,6 +231,19 @@ async function generateDraftArtifact(input: DraftGenerationInput): Promise<Draft
 7. Save returned artifact into `caseData.draft_artifacts` and persist locally.
 8. Show generated draft in the editor.
 
+### Prompt source strategy
+
+V1 should reuse the current purple-button prompt tails as the drafting instructions for each document type. Today those tails live in `DOC_PROMPTS` and describe the desired output for `memoria`, `cassazione`, `eccezione`, `crossExam`, `strategy`, plus the witness-specific controesame prompt. Keep that useful legal drafting intent, but move it behind `generateDraftArtifact(...)` instead of sending it to the floating chat.
+
+Implementation pattern:
+
+- build case context from original or anonymized fascicolo;
+- append the existing document-specific prompt tail for the selected purple button;
+- prepend/append the global drafting guardrails from this spec, especially source-linking, lawyer-in-control copy, and the hard anti-invented-precedent rule;
+- persist the result as a `DraftArtifact` in the new workspace tab.
+
+Do not rewrite the legal substance of the current prompts unless a prompt conflicts with the anti-invented-precedent policy. For example, prompt text that currently asks for `Precedenti della Cassazione Penale (sezione, numero, anno)` must be amended with `solo se verificabili; altrimenti DA VERIFICARE`.
+
 ## Prompt Policy: Never Invent Precedents
 
 Every drafting prompt must include this rule verbatim or substantially equivalent:
@@ -281,6 +304,16 @@ Use existing Web Crypto `.plt` encryption for protected exports:
 
 For `.md`, `.txt`, `.html`, and `.docx`, v1 exports are readable plaintext files. If the user asks for encryption with those formats, wrap the document in a protected `.plt` container instead of pretending those formats are encrypted.
 
+Whenever the user exports a **non-encrypted** file (`.md`, `.txt`, `.html`, `.docx`, or plaintext `.plt`), show a clear warning:
+
+> Questo file non è cifrato. Chiunque lo riceva o lo apra potrà leggerne il contenuto. Se vuoi proteggere il materiale con password, esporta l’intero fascicolo come `.plt` protetto.
+
+For non-`.plt` formats, the UI should not offer a fake encryption toggle. Instead it should offer a nearby action:
+
+> Esporta fascicolo `.plt` protetto
+
+This takes the user to the existing whole-fascicolo encrypted export flow, because the safest encrypted sharing unit is the full protected PLT container.
+
 ### Export payload
 
 For draft `.plt` export, use a draft-specific container payload such as:
@@ -321,7 +354,8 @@ Redaction scope for draft export includes:
 - if rules exist and export is plaintext, default to `Copia anonimizzata`;
 - if no rules exist, offer `Apri Anonimizza`;
 - if original + plaintext is selected, require explicit confirmation;
-- encrypted `.plt` may default to original but still offers anonymized copy.
+- encrypted `.plt` may default to original but still offers anonymized copy;
+- every non-encrypted export surface must remind the user that password protection is available through whole-fascicolo `.plt` export.
 
 Acceptance criterion: anonymized exports must not contain known sensitive strings covered by active rules in body, title, metadata, filenames embedded in the payload, or source excerpts.
 
@@ -365,8 +399,8 @@ The UI must show status and persist it across reloads. “Approved” means only
 
 Minimum checks:
 
-1. Clicking each `Redazione atti con AI` card opens Drafting Workspace, not chat.
-2. Witness `Prepara controesame con GiulIA` opens the workspace with witness scope.
+1. Clicking each `Redazione atti con AI` card opens a new Drafting Workspace tab, not chat.
+2. Witness `Prepara controesame con GiulIA` opens a new workspace tab with witness scope.
 3. Generated draft is saved in `caseData.draft_artifacts`.
 4. Draft persists after reload.
 5. Anonymized generation uses `applyRedactionToCase` on the source context.
@@ -375,15 +409,18 @@ Minimum checks:
 8. Encrypted `.plt` draft export does not contain known sensitive strings in plaintext.
 9. `.md`, `.txt`, `.html` downloads contain the expected draft content.
 10. `.docx` download opens as a Word-readable document.
-11. Drafting prompt contains `DIVIETO ASSOLUTO: non inventare precedenti giurisprudenziali` or equivalent.
-12. UI displays the precedent verification warning.
-13. Every substantive generated claim is either source-linked or marked `DA VERIFICARE` / `unsupported` in the review panel.
-14. Unsourced Cassazione-like citations are flagged `DA VERIFICARE` and not presented as verified.
-15. Anonymized export contains no sensitive identifiers covered by active rules in title/body/source excerpts/metadata.
-16. Draft status transitions persist and “approved” requires explicit user action.
-17. Protected export validates password confirmation and preserves state on failure.
-18. Frontend production build passes.
-19. Browser QA verifies no console errors in the drafting flow.
+11. Non-encrypted `.md`, `.txt`, `.html`, `.docx`, and plaintext `.plt` exports show the warning to use whole-fascicolo protected `.plt` export if encryption is desired.
+12. Drafting generation reuses the existing purple-button prompt tail for the selected document type, with anti-invented-precedent amendments where needed.
+13. Drafting prompt contains `DIVIETO ASSOLUTO: non inventare precedenti giurisprudenziali` or equivalent.
+14. UI displays the precedent verification warning.
+15. Every substantive generated claim is either source-linked or marked `DA VERIFICARE` / `unsupported` in the review panel.
+16. Unsourced Cassazione-like citations are flagged `DA VERIFICARE` and not presented as verified.
+17. Anonymized export contains no sensitive identifiers covered by active rules in title/body/source excerpts/metadata.
+18. Draft status transitions persist and “approved” requires explicit user action.
+19. Multiple clicks on purple drafting buttons create multiple persisted workspace tabs; none are overwritten silently.
+20. Protected export validates password confirmation and preserves state on failure.
+21. Frontend production build passes.
+22. Browser QA verifies no console errors in the drafting flow.
 
 ## Implementation Notes
 
