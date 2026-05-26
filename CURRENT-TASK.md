@@ -1,6 +1,6 @@
 # CURRENT TASK — PLT Pro analysis flow + web deployment
 
-_Last updated: 2026-05-27 00:09 Europe/Berlin by Hermes/Turing_
+_Last updated: 2026-05-27 01:25 Europe/Berlin by Hermes/Turing_
 
 ## Current status
 
@@ -91,13 +91,20 @@ Before this edit, `git status --short --branch` was:
 
 No blocker remains for the completed Pro recommendation/deployment slice.
 
+Current documentation/handoff slice added after the deployment slice:
+
+- Refreshed `07-prompts/2026-05-26-plt-ai-prompts-map.md` against current source.
+- Updated `AGENT.md` and `AGENTS.md` so future Hermes/new-agent threads know the repo path, GitHub remote, current priorities, and critical PLT markdowns to read first.
+- The prompt map now records the current Flash/Pro policy split, Pro recommendation/confirmation gate, extracted frontend prompt modules, and the main Cassazione hallucination risk: some chat/quick-action paths still ask for precedents without always receiving the draft workspace no-invented-precedents guardrail.
+
 Optional follow-ups:
 
-1. **Authenticated E2E check:** log into the live Netlify app and run a demo case that should trigger the Pro recommendation card.
-2. **Remove build-trigger comment:** once Netlify deployment confidence is settled, remove the temporary build-trigger comment from `alpha-pwa/frontend/src/main.tsx`.
-3. **Bundle splitting:** address Vite's >500 KB chunk warning with dynamic imports or Rollup `manualChunks`.
-4. **Continue frontend restructuring:** keep extracting UI primitives/screens from `main.tsx`; do this before any `alpha-pwa` folder rename.
-5. **Lawyer validation:** validate Pro recommendation copy and paid-flow expectations with real criminal-defense lawyers before expanding paid Pro flows.
+1. **Prompt safety implementation:** reuse the draft workspace `DRAFT_PRECEDENT_GUARDRAIL` language in backend/default chat and frontend/system chat prompts; replace “Cita sempre ... precedenti della Cassazione” with verified-or-`DA VERIFICARE` wording.
+2. **Authenticated E2E check:** log into the live Netlify app and run a fictional/demo case that should trigger the Pro recommendation card.
+3. **Remove build-trigger comment:** once Netlify deployment confidence is settled, remove the temporary build-trigger comment from `alpha-pwa/frontend/src/main.tsx`.
+4. **Bundle splitting:** address Vite's >500 KB chunk warning with dynamic imports or Rollup `manualChunks`.
+5. **Continue frontend restructuring:** keep extracting UI primitives/screens from `main.tsx`; do this before any `alpha-pwa` folder rename.
+6. **Lawyer validation:** validate Pro recommendation copy and paid-flow expectations with real criminal-defense lawyers before expanding paid Pro flows.
 
 ## Guardrails for next PLT session
 
