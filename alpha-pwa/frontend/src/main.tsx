@@ -3122,7 +3122,10 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         content_markdown: generated || 'Nessun contenuto generato. Riprova dalla chat o modifica manualmente questa bozza.',
         updated_at: new Date().toISOString(),
       });
-      updateCase(c => updateDraftArtifact(c, finalized));
+      const finalizedCase = updateDraftArtifact(createdCase, finalized);
+      await dbSave(localOwnerId, finalizedCase);
+      setCaseData(finalizedCase);
+      onCaseLoaded(finalizedCase);
       showToast('Bozza salvata nel fascicolo');
     } catch (e) {
       const failed = {
@@ -3134,7 +3137,10 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         },
         updated_at: new Date().toISOString(),
       };
-      updateCase(c => updateDraftArtifact(c, failed));
+      const failedCase = updateDraftArtifact(createdCase, failed);
+      await dbSave(localOwnerId, failedCase);
+      setCaseData(failedCase);
+      onCaseLoaded(failedCase);
       showToast(`Generazione bozza fallita: ${(e as Error).message}`, 'error');
     }
   }, [caseData, redactionActive, hasActiveRules, mergedRules, localOwnerId, onCaseLoaded, fetchChatFull, showToast, updateCase]);
