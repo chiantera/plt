@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+// Build trigger: 2026-05-26T19:32Z — fresh deploy
 import {
   AlertTriangle, ArrowLeft, ArrowRight, BookOpen,
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
