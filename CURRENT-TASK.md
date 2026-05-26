@@ -1,242 +1,110 @@
-# CURRENT TASK — PLT AI-app prompts + renaming/restructuring
+# CURRENT TASK — PLT Pro analysis flow + web deployment
 
-_Last updated: 2026-05-26 13:xx Europe/Berlin by Hermes/Turing_
+_Last updated: 2026-05-27 00:09 Europe/Berlin by Hermes/Turing_
 
-## Purpose
+## Current status
 
-Resume the PLT renaming/restructuring work in a way that survives context loss, Telegram compression, OpenAI rate limits, or model restarts.
+The previous active PLT task is complete and pushed to GitHub.
 
-User intent:
-- Keep this new Telegram thread focused on **PLT AI-app prompts** and related architecture cleanup.
-- Continue the **sensible renaming/restructuring** task.
-- Save often, commit coherent slices often, and leave enough markdown state here for a later session to resume without guessing.
-
-## Target repo
+Target verified before updating this file:
 
 - Repo: `/home/deckard/plt`
 - Branch: `main`
 - Remote: `origin https://github.com/chiantera/plt.git`
-- Current app path: `alpha-pwa/`
-  - Frontend: `alpha-pwa/frontend` — React/Vite/TypeScript/Capacitor
-  - Backend: `alpha-pwa/backend` — FastAPI/Pydantic
+- Local/remote head at time of update: `6e300b7a6f2eb7dbfeaed844b4143422d7a3ec31`
 
-## Current git state at start of this thread
-
-`git status --short --untracked-files=all` showed:
+Latest relevant commits on `main`:
 
 ```text
-?? .hermes/plans/2026-05-26_134436-plt-sensible-renaming-and-architecture.md
-?? 07-prompts/2026-05-26-plt-ai-prompts-map.md
+6e300b7a chore: build trigger fresh deploy
+31f1e989 Add Pro analysis recommendation flow
+cd413861 refactor(web): extract PLT domain utilities
+b672b885 refactor(web): extract PLT prompt modules
+7ff2111e refactor(web): extract PLT domain types
+9ed9ad01 docs: inventory PLT path references
+4b434782 docs: checkpoint PLT prompt and restructure plan
 ```
 
-Recent commits:
+## Completed in this slice
+
+- Added a Flash-vs-Pro analysis policy split in the backend.
+- Added the `ProRecommendation` response model and integrated it into case analysis responses.
+- Added Italian UI flow for **Approfondimento Pro con GiulIA**.
+- Added explicit confirmation before Pro analysis runs.
+- Preserved the no-auto-charge/no-automatic-Pro behavior.
+- Restored and verified DOCX export disclaimers in Italian and English.
+- Added backend tests covering Pro recommendations and mode-specific prompt policy.
+- Built the frontend successfully.
+- Pushed the changes to `chiantera/plt` `main`.
+- Triggered a fresh Netlify deploy with a lightweight build-trigger commit.
+- Verified public endpoints load:
+  - Frontend: `https://pocket-legal-triage.netlify.app`
+  - Backend health: `https://plt-backend.onrender.com/api/health`
+  - Backend docs: `https://plt-backend.onrender.com/docs`
+
+## Verification already run
+
+Backend:
 
 ```text
-c2cec545 Respect priority titles in draft prompts
-877abc0a Add drafting title fidelity rule
-f830d330 Polish drafting workspace label copy
-2d18327c Persist generated draft workspace updates safely
-b03d5ad0 Route deadline preparation to draft workspace
+pytest tests/test_pro_recommendation.py -q
+4 passed in 0.06s
+
+pytest -q
+23 passed in 0.35s
 ```
 
-## Existing plan to execute
+Targeted suite:
 
-Primary plan file:
-
-- `.hermes/plans/2026-05-26_134436-plt-sensible-renaming-and-architecture.md`
-
-Important judgment from the plan and PLT skill:
-
-- Do **not** rename `alpha-pwa` first.
-- First extract architecture from the huge frontend files while paths are stable.
-- Then do the mechanical folder move to `apps/web` + `apps/api`.
-- Keep product names unchanged: **Pocket Legal Triage**, **PLT**, `.plt`, **GiulIA**.
-- Keep redaction language Italian-correct: **Anonimizza** for privacy/redaction; reserve **Redigi** for legal drafting.
-
-## High-level execution order
-
-1. Preserve current dirty/untracked work.
-2. Commit the current planning/prompt-map docs as a safe checkpoint.
-3. Create a path/reference inventory for `alpha-pwa`, `frontend`, `backend`, deploy/test/doc references.
-4. Start Phase 1 extraction before folder rename:
-   - `src/domain/types.ts`
-   - `src/domain/caseContext.ts`
-   - `src/domain/caseMerge.ts`
-   - `src/domain/redaction.ts`
-   - `src/prompts/*`
-   - later UI primitives/screens/styles
-5. Run targeted frontend checks after each slice.
-6. Commit each coherent slice.
-7. Keep this file updated after each slice with:
-   - files changed
-   - commands run and result
-   - next exact step
-   - known blockers
-
-## Immediate next steps
-
-### Step A — Save/commit documentation checkpoint
-
-Files expected:
-- `.hermes/plans/2026-05-26_134436-plt-sensible-renaming-and-architecture.md`
-- `07-prompts/2026-05-26-plt-ai-prompts-map.md`
-- `CURRENT-TASK.md`
-
-Command:
-
-```bash
-cd /home/deckard/plt
-git add CURRENT-TASK.md .hermes/plans/2026-05-26_134436-plt-sensible-renaming-and-architecture.md 07-prompts/2026-05-26-plt-ai-prompts-map.md
-git commit -m "docs: checkpoint PLT prompt and restructure plan"
+```text
+pytest -q tests/test_pro_recommendation.py tests/test_legal_schema.py tests/test_frontend_copy.py tests/test_demo_case.py tests/test_ocr_contract.py
+21 passed in 0.26s
 ```
-
-### Step B — Create path/reference inventory
-
-Create:
-- `docs/plans/2026-05-26-plt-path-reference-inventory.md`
-
-Command pattern:
-
-```bash
-cd /home/deckard/plt
-rg -n "alpha-pwa|cd frontend|cd backend|frontend/|backend/|plt-alpha-backend|Pocket Legal Triage Alpha" \
-  --glob '!**/node_modules/**' \
-  --glob '!**/.venv/**' \
-  --glob '!**/dist/**' \
-  --glob '!**/build/**' \
-  --glob '!**/.gradle/**' \
-  . > docs/plans/2026-05-26-plt-path-reference-inventory.md
-```
-
-Then classify references as:
-- path/config requiring update;
-- product copy to keep;
-- generated artifact to ignore/regenerate;
-- legacy docs note.
-
-Commit:
-
-```bash
-git add docs/plans/2026-05-26-plt-path-reference-inventory.md CURRENT-TASK.md
-git commit -m "docs: inventory PLT path references"
-```
-
-### Step C — First code slice: extract domain types
-
-Create:
-- `alpha-pwa/frontend/src/domain/types.ts`
-
-Modify:
-- `alpha-pwa/frontend/src/main.tsx`
-- possibly `alpha-pwa/frontend/src/draftArtifacts.ts`, `db.ts`, `pltExport.ts` if type imports are needed
-
-Move/export from `main.tsx`:
-- `SourceRef`
-- `Material`
-- `TimelineEvent`
-- `Person`
-- `EvidenceItem`
-- `OpenQuestion`
-- `MissingDocument`
-- `Contradiction`
-- `ProceduralDeadline`
-- `UsageEstimate`
-- `ChargeElement`
-- `ChargeAnalysis`
-- `DefenseStrategy`
-- `ConstitutionalIssue`
-- `WitnessAssessment`
-- `EvidenceBalance`
-- `LegalAnalysis`
-- `RawDocument`
-- `UploadQueueItem`
-- `RedactionRule`
-- `CaseAnalysis`
-- `CaseSummary`
-- `TabId`
-- `ChatMsg`
-- `ChatState`
-- `UserProfile`
-
-Verify:
-
-```bash
-cd /home/deckard/plt/alpha-pwa/frontend
-npm run build
-```
-
-Expected:
-- TypeScript passes.
-- Vite may still warn about chunk size; that is acceptable until later extraction/lazy-loading.
-
-Commit:
-
-```bash
-cd /home/deckard/plt
-git add alpha-pwa/frontend/src/domain/types.ts alpha-pwa/frontend/src/main.tsx CURRENT-TASK.md
-git commit -m "refactor(web): extract PLT domain types"
-```
-
-## Verification commands to use over the full restructuring run
 
 Frontend:
 
-```bash
-cd /home/deckard/plt/alpha-pwa/frontend
+```text
 npm run build
-npm run test:auth-onboarding
-npm run test:date-formatters
-npm run test:question-layout
-npm run test:plt-export
-npm run test:local-case-scope
-npm run test:draft-workspace
-npm run test:draft-workspace-ui
 ```
 
-Backend, before/after folder moves:
+Result: build succeeded. Vite still reports the known large chunk warning for the main JS bundle; no TypeScript/build error.
 
-```bash
-cd /home/deckard/plt/alpha-pwa/backend
-.venv/bin/python -m pytest tests -q
+Git hygiene:
+
+```text
+git diff --check
 ```
 
-## Current progress log
+Result: clean.
 
-### 2026-05-26 — New Telegram thread recovery
+## Current git state after this handoff update
 
-Completed:
-- Loaded PLT legal-product skill and renaming/refactor reference.
-- Found existing detailed plan in `.hermes/plans/2026-05-26_134436-plt-sensible-renaming-and-architecture.md`.
-- Confirmed dirty/untracked state consists of two untracked docs before creating this file.
-- Created this `CURRENT-TASK.md` as restart/rate-limit handoff.
+This file was updated after the feature/deploy push so the repository may have a local documentation change until committed.
 
-Completed:
-- Documentation checkpoint committed: `4b434782 docs: checkpoint PLT prompt and restructure plan`.
-- Path/reference inventory committed: `9ed9ad01 docs: inventory PLT path references`.
-- First code slice committed: `7ff2111e refactor(web): extract PLT domain types`.
-- Second code slice committed: `b672b885 refactor(web): extract PLT prompt modules`.
-- Third code slice implemented: extracted domain utilities into:
-  - `alpha-pwa/frontend/src/domain/caseContext.ts`
-  - `alpha-pwa/frontend/src/domain/caseMerge.ts`
-  - `alpha-pwa/frontend/src/domain/redaction.ts`
-- Verification for domain utility extraction:
-  - `npm run build` passed; Vite still reports expected >500 KB chunk warning (`index-CUedulNC.js` 556.17 kB, gzip 159.23 kB).
-  - `npm run test:plt-export` passed.
-  - `npm run test:local-case-scope` passed.
-  - `npm run test:draft-workspace` passed.
-  - `npm run test:draft-workspace-ui` passed.
+Before this edit, `git status --short --branch` was:
 
-In progress:
-- Commit domain utility extraction slice.
+```text
+## main...origin/main
+```
 
-Next exact action:
-- Commit `src/domain/caseContext.ts`, `caseMerge.ts`, `redaction.ts`, `main.tsx`, and this updated handoff.
-- Then start next extraction slice: UI primitives or major screens. Prefer UI primitives first (`Editable`, `SourceBadge`, drawers) before screen-level moves.
+## Is anything left to do?
 
-## Caution notes
+No blocker remains for the completed Pro recommendation/deployment slice.
 
-- This repo is on `main`; user explicitly said “YOU ONLY LIVE ONCE”, but still keep commits coherent and reversible.
-- Do not mix generated artifacts (`dist`, Android `build`, `.gradle`, `.netlify`, Python `.venv`) into refactor commits.
-- Do not rename `alpha-pwa` before extracting the worst `main.tsx`/`styles.css` structure.
-- Do not turn PLT into an “AI lawyer” in docs/copy.
-- Do not expose provider/model plumbing in normal lawyer-facing UI copy.
+Optional follow-ups:
+
+1. **Authenticated E2E check:** log into the live Netlify app and run a demo case that should trigger the Pro recommendation card.
+2. **Remove build-trigger comment:** once Netlify deployment confidence is settled, remove the temporary build-trigger comment from `alpha-pwa/frontend/src/main.tsx`.
+3. **Bundle splitting:** address Vite's >500 KB chunk warning with dynamic imports or Rollup `manualChunks`.
+4. **Continue frontend restructuring:** keep extracting UI primitives/screens from `main.tsx`; do this before any `alpha-pwa` folder rename.
+5. **Lawyer validation:** validate Pro recommendation copy and paid-flow expectations with real criminal-defense lawyers before expanding paid Pro flows.
+
+## Guardrails for next PLT session
+
+- Do not frame PLT as an “AI lawyer”.
+- Keep lawyer control explicit; outputs are drafts, not decisions.
+- Keep source-linked factual claims and confidence language.
+- Keep **Anonimizza** for privacy/redaction and reserve **Redigi** for legal drafting.
+- Do not expose provider/model plumbing in ordinary lawyer-facing UI copy.
+- Do not commit generated artifacts (`dist`, Android build outputs, `.gradle`, `.netlify`, Python `.venv`).
+- Redact secrets from summaries and docs; `netlify.toml` contains deploy/env values that must not be pasted raw.
