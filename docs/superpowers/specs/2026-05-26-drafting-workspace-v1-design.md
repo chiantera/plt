@@ -251,7 +251,7 @@ Title fidelity rule:
 
 - The model must infer the intended draft/preparation task from the specific workspace/action title, not only from the broad internal type. If the title says `Preparazione udienza di conferma`, the draft should be a hearing-preparation document; the Markdown should start with a specific heading such as `# Preparazione udienza` or `# Preparazione udienza di conferma`, not a generic `# Analisi Strategica`.
 - Internal categories such as `strategy`, `crossExam`, or `memoria` are routing hints only. They must not leak into generic Markdown headings when the user-facing title is more precise.
-- If the title is ambiguous, the model may add a short `Obiettivo della bozza` section clarifying its interpretation, but it should still draft the best matching document instead of falling back to a generic template.
+- If the title is ambiguous, the model must not pretend certainty. It should open with a short confidence caveat such as: `Non sono pienamente certa di cosa significhi la prossima priorità "[titolo]"; ecco la mia lettura operativa e, in subordine, un'analisi strategica da verificare.` Then it should proceed with the best matching interpretation without inventing facts.
 
 Do not rewrite the legal substance of the current prompts unless a prompt conflicts with the anti-invented-precedent policy. For example, prompt text that currently asks for `Precedenti della Cassazione Penale (sezione, numero, anno)` must be amended with `solo se verificabili; altrimenti DA VERIFICARE`.
 

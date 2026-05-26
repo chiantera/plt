@@ -31,12 +31,29 @@ const prompt = buildDraftPrompt({
   promptTail: ctx => `${ctx}\n\n---\nPredisponi un ricorso per Cassazione con motivi ex art. 606 c.p.p. e Precedenti della Cassazione favorevoli (cita sezione e numero).`,
   buildCaseContext: c => `FASCICOLO: ${c.case_title}\nSINTESI: ${c.case_summary}`,
   anonymized: false,
+  workspaceTitle: 'Ricorso Cassazione',
 });
 
 assert.match(prompt, /Predisponi un ricorso per Cassazione/);
 assert.match(prompt, /DIVIETO ASSOLUTO: non inventare precedenti giurisprudenziali\./);
 assert.match(prompt, /DA VERIFICARE/);
 assert.match(prompt, /FASCICOLO: Furto aggravato - Mario Rossi/);
+assert.match(prompt, /TITOLO WORKSPACE \/ PROSSIMA PRIORITÀ: "Ricorso Cassazione"/);
+assert.match(prompt, /# Ricorso Cassazione/);
+assert.doesNotMatch(prompt, /Non sostituirlo con un'etichetta interna come "Analisi strategica" se il titolo utente è più specifico[\s\S]*TIPO BOZZA: Analisi strategica/);
+
+const nextPriorityPrompt = buildDraftPrompt({
+  caseData: baseCase,
+  type: 'strategy',
+  promptTail: ctx => `${ctx}\n\n---\nAnalisi strategica approfondita del caso.`,
+  buildCaseContext: c => `FASCICOLO: ${c.case_title}`,
+  workspaceTitle: 'Deposito lista testi',
+  extraInstruction: 'Prepara una bozza operativa sulla prossima priorità "Deposito lista testi".',
+});
+assert.match(nextPriorityPrompt, /TITOLO WORKSPACE \/ PROSSIMA PRIORITÀ: "Deposito lista testi"/);
+assert.match(nextPriorityPrompt, /# Deposito lista testi/);
+assert.match(nextPriorityPrompt, /Non sono pienamente certa di cosa significhi la prossima priorità 'Deposito lista testi'/);
+assert.match(nextPriorityPrompt, /Non sostituirlo con un'etichetta interna come "Analisi strategica"/);
 
 const first = createDraftArtifact({
   caseData: baseCase,

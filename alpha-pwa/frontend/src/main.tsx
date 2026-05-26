@@ -3098,6 +3098,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       buildCaseContext,
       anonymized: redactionActive && hasActiveRules,
       extraInstruction: type === 'witnessCrossExam' ? '' : extraInstruction,
+      workspaceTitle: title || draftTypeLabel(type),
     });
     const placeholder = createDraftArtifact({
       caseData,
@@ -3471,8 +3472,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 e.stopPropagation();
                 handleOpenDraftWorkspace(
                   'strategy',
-                  `Preparazione udienza — ${nextDeadline.title}`,
-                  `Prepara una bozza operativa per l'udienza "${nextDeadline.title}" del ${nextDeadline.due_date}${nextDeadline.due_time ? ` alle ${nextDeadline.due_time}` : ''}. Indica priorità difensive, documenti da portare, atti da predisporre, rischi, verifiche fattuali e fonti da controllare. Descrizione scadenza: ${nextDeadline.description}`
+                  nextDeadline.title,
+                  `Prepara una bozza operativa sulla prossima priorità "${nextDeadline.title}" (${nextDeadline.due_date}${nextDeadline.due_time ? ` alle ${nextDeadline.due_time}` : ''}). Indica priorità difensive, documenti da portare o acquisire, atti da predisporre, rischi, verifiche fattuali e fonti da controllare. Descrizione scadenza/priorità: ${nextDeadline.description}`
                 );
               }}
             >

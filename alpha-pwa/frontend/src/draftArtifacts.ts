@@ -127,6 +127,7 @@ export function buildDraftPrompt<TCase>({
   buildCaseContext,
   anonymized = false,
   extraInstruction = '',
+  workspaceTitle = '',
 }: {
   caseData: TCase;
   type: DraftArtifactType;
@@ -134,10 +135,16 @@ export function buildDraftPrompt<TCase>({
   buildCaseContext: (caseData: TCase) => string;
   anonymized?: boolean;
   extraInstruction?: string;
+  workspaceTitle?: string;
 }): string {
   const ctx = buildCaseContext(caseData);
+  const trimmedTitle = workspaceTitle.trim();
+  const titleInstruction = trimmedTitle
+    ? `TITOLO WORKSPACE / PROSSIMA PRIORITÀ: "${trimmedTitle}". La bozza deve riguardare precisamente questo titolo e usarlo come H1 Markdown iniziale: "# ${trimmedTitle}". Non sostituirlo con un'etichetta interna come "Analisi strategica" se il titolo utente è più specifico. Se il titolo non è sufficientemente chiaro o non capisci con sicurezza quale attività richieda, dillo esplicitamente all'inizio: "Non sono pienamente certa di cosa significhi la prossima priorità '${trimmedTitle}'; ecco la mia lettura operativa e, in subordine, un'analisi strategica da verificare." Poi procedi con la migliore interpretazione possibile senza inventare fatti.`
+    : '';
   return [
     promptTail(ctx),
+    titleInstruction,
     extraInstruction.trim(),
     anonymized ? 'CONTESTO PRIVACY: usa esclusivamente la versione anonimizzata del fascicolo.' : '',
     DRAFT_PRECEDENT_GUARDRAIL.trim(),
