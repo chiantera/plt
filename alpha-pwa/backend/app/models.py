@@ -30,6 +30,14 @@ class TimelineEvent(BaseModel):
     source_refs: list[SourceRef] = []
     confidence: float = Field(default=0.5, ge=0, le=1)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _null_required_strings(cls, data: dict) -> dict:
+        for field in ("title", "description"):
+            if field in data and data[field] is None:
+                data[field] = ""
+        return data
+
 
 class Person(BaseModel):
     name: str = ""
@@ -37,12 +45,28 @@ class Person(BaseModel):
     notes: str = ""
     source_refs: list[SourceRef] = []
 
+    @model_validator(mode="before")
+    @classmethod
+    def _null_required_strings(cls, data: dict) -> dict:
+        for field in ("name", "role", "notes"):
+            if field in data and data[field] is None:
+                data[field] = ""
+        return data
+
 
 class EvidenceItem(BaseModel):
     title: str = ""
     status: str = ""
     notes: str = ""
     source_refs: list[SourceRef] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def _null_required_strings(cls, data: dict) -> dict:
+        for field in ("title", "status", "notes"):
+            if field in data and data[field] is None:
+                data[field] = ""
+        return data
 
 
 class OpenQuestion(BaseModel):
@@ -80,6 +104,14 @@ class ProceduralDeadline(BaseModel):
     source_refs: list[SourceRef] = []
     tasks: list[str] = []
 
+    @model_validator(mode="before")
+    @classmethod
+    def _null_required_strings_to_empty(cls, data: dict) -> dict:
+        for field in ("title", "due_date", "description"):
+            if field in data and data[field] is None:
+                data[field] = ""
+        return data
+
 
 class UsageEstimate(BaseModel):
     pages: int = 0
@@ -100,6 +132,14 @@ class ChargeElement(BaseModel):
     notes: str
     source_refs: list[SourceRef] = []
 
+    @model_validator(mode="before")
+    @classmethod
+    def _null_required_strings(cls, data: dict) -> dict:
+        for field in ("element", "description", "notes"):
+            if field in data and data[field] is None:
+                data[field] = ""
+        return data
+
 
 class ChargeAnalysis(BaseModel):
     """Full analysis of a single criminal charge."""
@@ -111,6 +151,14 @@ class ChargeAnalysis(BaseModel):
     prosecution_strength: float = Field(ge=0, le=1)
     notes: str
     source_refs: list[SourceRef] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def _null_required_strings(cls, data: dict) -> dict:
+        for field in ("charge_code", "charge_name", "max_sentence", "notes"):
+            if field in data and data[field] is None:
+                data[field] = ""
+        return data
 
 
 class DefenseStrategy(BaseModel):

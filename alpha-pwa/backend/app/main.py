@@ -87,14 +87,23 @@ def get_demo_case() -> CaseAnalysis:
 
 @app.post("/api/analyze-text", response_model=CaseAnalysis)
 def analyze_text(request: AnalyzeRequest) -> CaseAnalysis:
-    """Run AI analysis on provided text materials using Claude."""
+    """Run AI analysis on provided text materials."""
     logger.info("analyze-text: title=%s, materials=%d, mode=%s, lang=%s",
                 request.case_title, len(request.materials), request.mode, request.language)
     try:
         return analyze_case(request)
+    except ValueError as exc:
+        # Model-level issues (truncation, invalid JSON) — surface the real message
+        msg = str(exc)
+        logger.error("analyze-text value error: %s", msg)
+        raise HTTPException(status_code=422, detail=msg) from exc
     except Exception as exc:
         logger.error("analyze-text failed: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail="Analisi non disponibile. Riprova tra qualche secondo.") from exc
+        raise HTTPException(
+            status_code=500,
+            detail="Analisi non disponibile. Riprova tra qualche secondo. "
+                   "Se il problema persiste, prova con meno documenti o in modalità Pro."
+        ) from exc
 
 
 # ── Chat (SSE streaming) ─────────────────────────────────────────────────────

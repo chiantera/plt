@@ -130,12 +130,66 @@ Cita sempre norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Ca
 
 # ── Analysis (non-streaming) ──────────────────────────────────────────────────
 
+# Token budgets: flash model analysis needs significant headroom because the
+# structured JSON schema is verbose.  Five-page documents routinely produce
+# 15-25K output tokens.  Budgets are set with ~2x safety margin.
+_FLASH_MAX_TOKENS = int(os.environ.get("PLT_FLASH_MAX_TOKENS", "32000"))
+_PRO_MAX_TOKENS = int(os.environ.get("PLT_PRO_MAX_TOKENS", "64000"))
+# Cap input text to avoid overwhelming context window (DeepSeek V4 = 128K)
+_MAX_INPUT_CHARS = int(os.environ.get("PLT_MAX_ANALYSIS_CHARS", "60000"))
+
+def _max_tokens(mode: str) -> int:
+    return _PRO_MAX_TOKENS if mode == "pro" else _FLASH_MAX_TOKENS
+
+
+def _truncate_materials(materials: list, max_chars: int) -> list:
+    """Truncate material texts to stay within a total character budget.
+
+    Longest materials are truncated first; short materials are left intact
+    when possible.  A trailing truncation marker is appended so the model
+    knows the text was cut.
+    """
+    total = sum(len(m.text) for m in materials)
+    if total <= max_chars:
+        return materials
+
+    # Sort by length descending — truncate longest first
+    indexed = sorted(enumerate(materials), key=lambda x: len(x[1].text), reverse=True)
+    budget = max_chars
+    result = [None] * len(materials)
+
+    for i, m in indexed:
+        if budget <= 0:
+            result[i] = m.model_copy(update={"text": "[TESTO OMESSO — limite analisi]"})
+            continue
+        if len(m.text) <= budget:
+            result[i] = m
+            budget -= len(m.text)
+        else:
+            truncated = m.text[:max(1, budget - 40)] + "\n\n[...TESTO TRONCATO — materiale troppo lungo per l'analisi corrente]"
+            result[i] = m.model_copy(update={"text": truncated})
+            budget = 0
+
+    return result
+
+
 def analyze_case(request: AnalyzeRequest) -> CaseAnalysis:
     """Produce a full CaseAnalysis JSON from raw text materials."""
     model = _model(request.mode)
+    max_tok = _max_tokens(request.mode)
+
+    # Truncate materials to fit within the analysis budget
+    truncated = _truncate_materials(request.materials, _MAX_INPUT_CHARS)
+    if any(len(m.text) < len(orig.text) for m, orig in zip(truncated, request.materials)):
+        logger.warning(
+            "analyze_case: input truncated from %d to %d chars",
+            sum(len(m.text) for m in request.materials),
+            sum(len(m.text) for m in truncated),
+        )
+
     materials_text = "\n\n".join(
         f"=== {m.name} ({m.kind}) ===\n{m.text}"
-        for m in request.materials
+        for m in truncated
     )
     user_message = f"""\
 Titolo del caso: {request.case_title}
@@ -159,16 +213,23 @@ Istruzioni specifiche:
 - L'analisi legale deve essere pratica e orientata all'udienza.
 """
 
-    logger.info("analyze_case: title=%s, materials=%d, prompt_chars=%d",
-                request.case_title, len(request.materials), len(user_message))
+    logger.info("analyze_case: title=%s, materials=%d, prompt_chars=%d, max_tokens=%d",
+                request.case_title, len(request.materials), len(user_message), max_tok)
 
     if _use_deepseek():
-        raw, usage = _deepseek_complete(model, _SYSTEM_PROMPT, user_message)
+        raw, usage, finish_reason = _deepseek_complete(model, _SYSTEM_PROMPT, user_message, max_tok)
     else:
-        raw, usage = _anthropic_complete(model, _SYSTEM_PROMPT, user_message)
+        raw, usage, finish_reason = _anthropic_complete(model, _SYSTEM_PROMPT, user_message, max_tok)
 
-    logger.info("analyze_case: AI response=%d chars, input_tokens=%d, output_tokens=%d",
-                len(raw), usage["input"], usage["output"])
+    logger.info("analyze_case: AI response=%d chars, input_tokens=%d, output_tokens=%d, finish=%s",
+                len(raw), usage["input"], usage["output"], finish_reason)
+
+    if finish_reason == "length":
+        logger.error("analyze_case: output truncated by token limit (max_tokens=%d)", max_tok)
+        raise ValueError(
+            f"L'analisi è stata troncata dal limite di token ({max_tok}). "
+            "Prova a caricare meno documenti alla volta o usa la modalità Pro per analisi più lunghe."
+        )
 
     # Strip markdown fences and extract the outermost JSON object robustly
     if "```" in raw:
@@ -197,27 +258,29 @@ Istruzioni specifiche:
     return CaseAnalysis.model_validate(data)
 
 
-def _deepseek_complete(model: str, system: str, user: str) -> tuple[str, dict]:
+def _deepseek_complete(model: str, system: str, user: str, max_tokens: int) -> tuple[str, dict, str]:
     client = _get_openai_client()
     resp = client.chat.completions.create(
         model=model,
-        max_tokens=16000,
+        max_tokens=max_tokens,
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
     )
     text = resp.choices[0].message.content or ""
     usage = {"input": resp.usage.prompt_tokens, "output": resp.usage.completion_tokens}
-    return text, usage
+    finish = resp.choices[0].finish_reason or "stop"
+    return text, usage, finish
 
 
-def _anthropic_complete(model: str, system: str, user: str) -> tuple[str, dict]:
+def _anthropic_complete(model: str, system: str, user: str, max_tokens: int) -> tuple[str, dict, str]:
     client = _get_anthropic_client()
     msg = client.messages.create(
-        model=model, max_tokens=8192, system=system,
+        model=model, max_tokens=max_tokens, system=system,
         messages=[{"role": "user", "content": user}],
     )
     text = msg.content[0].text
     usage = {"input": msg.usage.input_tokens, "output": msg.usage.output_tokens}
-    return text, usage
+    finish = msg.stop_reason or "stop"
+    return text, usage, finish
 
 
 # ── Chat (streaming SSE) ──────────────────────────────────────────────────────
