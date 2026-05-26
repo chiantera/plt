@@ -553,7 +553,7 @@ function Editable({ value, onChange, placeholder, multiline, className, readOnly
 
 function RowDelete({ onClick, label }: { onClick: () => void; label?: string }) {
   return (
-    <button title="Elimina elemento"
+    <button
       className="row-delete-btn"
       onClick={e => { e.stopPropagation(); if (confirm(label ? `Eliminare "${label}"?` : 'Eliminare questa voce?')) onClick(); }}
       title="Elimina voce"
@@ -916,7 +916,7 @@ function MultiFileUploadDrawer({
                   )}
                 </div>
                 {(item.status === 'pending' || item.status === 'done' || item.status === 'error') && (
-                  <button title="Esegui azione" className="upload-queue-action" onClick={() => onRemoveItem(item.id)} title="Rimuovi">
+                  <button className="upload-queue-action" onClick={() => onRemoveItem(item.id)} title="Rimuovi">
                     <X size={14} />
                   </button>
                 )}
@@ -1716,7 +1716,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
               <div className="home-brand-tagline">{profileTagline ?? 'Il tuo studio'}</div>
             </div>
           </div>
-          <button title="Esegui azione" onClick={() => setShowProfile(true)} style={{ background: 'rgba(148,163,184,0.1)', border: '1px solid rgba(148,163,184,0.18)', borderRadius: 10, padding: '9px 11px', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center' }} title="Profilo">
+          <button onClick={() => setShowProfile(true)} style={{ background: 'rgba(148,163,184,0.1)', border: '1px solid rgba(148,163,184,0.18)', borderRadius: 10, padding: '9px 11px', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center' }} title="Profilo">
             <User size={16} />
           </button>
         </div>
@@ -1827,7 +1827,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
               Inizia creando un nuovo fascicolo vuoto per analizzare documenti, oppure importa un file <code>.plt</code> protetto.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button title="Conferma operazione principale" className="primary-button" onClick={() => setShowUpload(true)} title="Crea un nuovo fascicolo vuoto">
+              <button className="primary-button" onClick={() => setShowUpload(true)} title="Crea un nuovo fascicolo vuoto">
                 <Plus size={15} /> Nuovo Fascicolo
               </button>
             </div>
@@ -1844,7 +1844,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
                   <span className="case-local-badge">locale</span>
                 )}
                 {localIds.has(c.case_id) && (
-                  <button title="Elimina elemento" className="case-delete-btn" onClick={e => handleDelete(c.case_id, e)} title="Elimina fascicolo" type="button">
+                  <button className="case-delete-btn" onClick={e => handleDelete(c.case_id, e)} title="Elimina fascicolo" type="button">
                     <Trash2 size={14} />
                   </button>
                 )}
@@ -2436,8 +2436,8 @@ function RedactionDrawer({
             <input className="upload-input" placeholder="[OMISSIS]" value={replInput} onChange={e => setReplInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRule('global')} />
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button title="Azione secondaria" className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('global')} title="Aggiungi regola a tutti i fascicoli" disabled={!origInput.trim()}>+ Globale</button>
-            <button title="Azione secondaria" className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('case')} title="Aggiungi regola solo a questo fascicolo" disabled={!origInput.trim()}>+ Solo questo caso</button>
+            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('global')} title="Aggiungi regola a tutti i fascicoli" disabled={!origInput.trim()}>+ Globale</button>
+            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('case')} title="Aggiungi regola solo a questo fascicolo" disabled={!origInput.trim()}>+ Solo questo caso</button>
           </div>
         </div>
 
@@ -3094,7 +3094,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
-              <button title="Esegui azione"
+              <button
                 className={`anonymize-action-btn${redactionActive ? ' anonymize-action-active' : ''}`}
                 onClick={() => setShowRedactionDrawer(true)}
                 title="Anonimizza dati sensibili prima di condividere"
@@ -3103,7 +3103,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 {redactionActive ? 'Vista anonimizzata' : `Anonimizza${mergedRules.filter(r => r.enabled).length ? ` · ${mergedRules.filter(r => r.enabled).length}` : ''}`}
               </button>
               {mergedRules.some(r => r.enabled) && (
-                <button title="Azione secondaria"
+                <button
                   className={`ghost-button redact-toggle-btn${redactionActive ? ' redact-toggle-active' : ''}`}
                   style={{ padding: '0 10px', height: 'auto', borderRadius: 999 }}
                   onClick={() => setRedactionActive(v => !v)}
@@ -3113,7 +3113,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 </button>
               )}
             </div>
-            <button title="Azione secondaria"
+            <button
               className="ghost-button"
               onClick={() => setShowExportModal(true)}
               title="Esporta fascicolo"
@@ -3140,7 +3140,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           />
         </p>
         <div className="hero-actions">
-          <button title="Conferma operazione principale" className="primary-button" onClick={() => setShowUpload(true)} title="Carica nuovi documenti PDF o immagini" style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
+          <button className="primary-button" onClick={() => setShowUpload(true)} title="Carica nuovi documenti PDF o immagini" style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
             <Upload size={15} /> Aggiungi documento
             {uploadQueue.length > 0 && (
               <span className="upload-badge-hero">
@@ -3163,7 +3163,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             </button>
           )}
           {hasExistingAnalysis && (
-            <button title="Azione secondaria"
+            <button
               className="ghost-button"
               onClick={() => {
                 const updated = { ...caseData, analyzed_doc_ids: [], case_summary: '', materials: [], timeline: [], people: [], evidence: [], open_questions: [], missing_documents: [], contradictions: [], procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, legal_analysis: null };
