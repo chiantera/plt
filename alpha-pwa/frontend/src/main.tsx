@@ -12,6 +12,18 @@ import { formatDate, formatDateFull, formatShortDate } from './dateUtils';
 import { dbSave, dbList, dbGet, dbDelete, dbClaimLegacyCases, localOwnerIdFromSession } from './db';
 import { installMockApi } from './data/mockApi';
 import { decryptPltContainer, exportEncryptedPlt, exportPlainPlt, parsePltFile } from './pltExport';
+import {
+  addDraftArtifact,
+  buildDraftPrompt,
+  createDraftArtifact,
+  DRAFT_PLAINTEXT_EXPORT_WARNING,
+  draftTypeLabel,
+  exportDraftArtifact,
+  flagUnverifiedCassationCitations,
+  updateDraftArtifact,
+  type DraftArtifact,
+  type DraftArtifactType,
+} from './draftArtifacts';
 import { createClient, type Session } from '@supabase/supabase-js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -92,6 +104,7 @@ type CaseAnalysis = {
   contradictions: Contradiction[]; procedural_deadlines: ProceduralDeadline[];
   brief_markdown: string; usage_estimate: UsageEstimate; legal_analysis: LegalAnalysis | null;
   is_pending?: boolean; raw_documents?: RawDocument[]; redaction_rules?: RedactionRule[]; analyzed_doc_ids?: string[];
+  draft_artifacts?: DraftArtifact[];
 };
 
 type CaseSummary = {
@@ -102,7 +115,7 @@ type CaseSummary = {
   is_pending?: boolean;
 };
 
-type TabId = 'timeline' | 'deadlines' | 'facts' | 'legal' | 'questions' | 'brief';
+type TabId = 'timeline' | 'deadlines' | 'facts' | 'legal' | 'drafts' | 'questions' | 'brief';
 
 type ChatMsg = { role: 'user' | 'assistant'; content: string; id: string; };
 type ChatState = { open: boolean; messages: ChatMsg[]; caseContext: string | null; activeCaseId: string | null; };
@@ -1876,10 +1889,11 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
 // ── Legal analysis tab ────────────────────────────────────────────────────────
 
 
-function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
+function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdate }: {
   la: LegalAnalysis;
   onSelectSource: (s: SourceRef) => void;
   onOpenChat: (key: string) => void;
+  onOpenDraft: (type: DraftArtifactType, title?: string, extraInstruction?: string) => void;
   onUpdate: (updater: (la: LegalAnalysis) => LegalAnalysis) => void;
 }) {
   const [expandedCharge, setExpandedCharge] = useState<number | null>(0);
@@ -2235,7 +2249,11 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
             <SourceRow refs={w.source_refs} onSelect={onSelectSource} />
             <button title="Esegui azione"
               className="giulia-ctx-btn"
-              onClick={() => onOpenChat(`Preparami una sequenza di controesame per ${w.witness_name} (${w.role}, credibilità ${Math.round(w.credibility_score * 100)}%). Testimonianza chiave: "${w.key_testimony}". Vulnerabilità note: ${w.vulnerabilities.join('; ') || 'da sviluppare'}. Usa domande chiuse sì/no per massimizzare l'impatto.`)}
+              onClick={() => onOpenDraft(
+                'witnessCrossExam',
+                `Controesame — ${w.witness_name || 'testimone'}`,
+                `Preparami una sequenza di controesame per ${w.witness_name} (${w.role}, credibilità ${Math.round(w.credibility_score * 100)}%). Testimonianza chiave: "${w.key_testimony}". Vulnerabilità note: ${w.vulnerabilities.join('; ') || 'da sviluppare'}. Usa domande chiuse sì/no per massimizzare l'impatto.`
+              )}
             >
               <MessageSquare size={12} /> Prepara controesame con GiulIA
             </button>
@@ -2334,7 +2352,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
             { key: 'crossExam',  label: 'Controesame',           desc: 'Schema domande per ciascun testimone dell\'accusa', icon: Users },
             { key: 'strategy',   label: 'Analisi strategica',    desc: 'Valutazione realistica di ogni linea difensiva', icon: Sparkles },
           ] as const).map(({ key, label, desc, icon: Icon }) => (
-            <button key={key} className="legal-drafting-card" title="Genera automaticamente questa bozza" onClick={() => onOpenChat(key)}>
+            <button key={key} className="legal-drafting-card" title="Apri una nuova bozza nel workspace" onClick={() => onOpenDraft(key, label)}>
               <div className="legal-drafting-card-icon"><Icon size={18} /></div>
               <div className="legal-drafting-card-label">{label}</div>
               <div className="legal-drafting-card-desc">{desc}</div>
@@ -2342,7 +2360,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
           ))}
         </div>
         <p className="legal-drafting-note">
-          L'AI conosce il Codice Penale, il c.p.p. e la giurisprudenza della Cassazione. Puoi anche fare domande libere nella chat.
+          L'AI prepara bozze locali modificabili: l'avvocato resta in controllo e verifica fonti, norme e precedenti prima del deposito.
         </p>
       </div>
     </section>
@@ -2606,6 +2624,141 @@ function ExportCaseDrawer({
   );
 }
 
+function DraftingWorkspace({
+  caseTitle,
+  drafts,
+  activeDraftId,
+  onSelectDraft,
+  onUpdateDraft,
+  onDeleteDraft,
+  onExportDraft,
+  onOpenProtectedPltExport,
+}: {
+  caseTitle: string;
+  drafts: DraftArtifact[];
+  activeDraftId: string | null;
+  onSelectDraft: (id: string) => void;
+  onUpdateDraft: (draft: DraftArtifact) => void;
+  onDeleteDraft: (id: string) => void;
+  onExportDraft: (draft: DraftArtifact, format: 'md' | 'txt' | 'html' | 'docx') => void;
+  onOpenProtectedPltExport: () => void;
+}) {
+  const activeDraft = drafts.find(d => d.id === activeDraftId) ?? drafts[0] ?? null;
+
+  if (!drafts.length) {
+    return (
+      <section className="panel draft-workspace-panel">
+        <div className="draft-empty-state">
+          <Sparkles size={24} />
+          <h2>Workspace redazione atti</h2>
+          <p className="muted">Clicca una card viola in “Analisi legale” per aprire una nuova bozza persistente. La chat resta solo per rifiniture e domande.</p>
+        </div>
+      </section>
+    );
+  }
+
+  const verified = activeDraft.claim_refs.filter(c => c.status === 'sourced').length;
+  const toCheck = activeDraft.claim_refs.filter(c => c.status !== 'sourced').length;
+
+  return (
+    <section className="panel draft-workspace-panel">
+      <div className="draft-workspace-header">
+        <div>
+          <p className="eyebrow">Workspace redazione atti</p>
+          <h2>{caseTitle}</h2>
+          <p className="muted">Bozze locali del fascicolo. Ogni click su una card viola crea una nuova workspace tab.</p>
+        </div>
+        <button className="ghost-button" onClick={onOpenProtectedPltExport} title="Esporta l'intero fascicolo in .plt protetto">
+          <ShieldCheck size={14} /> .plt protetto
+        </button>
+      </div>
+
+      <div className="draft-tabs" role="tablist" aria-label="Bozze del fascicolo">
+        {drafts.map((draft, idx) => (
+          <button
+            key={draft.id}
+            role="tab"
+            className={`draft-tab${draft.id === activeDraft.id ? ' active' : ''}`}
+            onClick={() => onSelectDraft(draft.id)}
+            title="Apri questa bozza"
+          >
+            <span>{idx + 1}. {draft.title}</span>
+            <small>{draft.status} · {new Date(draft.created_at).toLocaleString('it')}</small>
+          </button>
+        ))}
+      </div>
+
+      <div className="draft-editor-grid">
+        <div className="draft-editor-main">
+          <label className="draft-title-field">
+            Titolo bozza
+            <input
+              value={activeDraft.title}
+              onChange={e => onUpdateDraft({ ...activeDraft, title: e.target.value })}
+            />
+          </label>
+          <div className="draft-toolbar">
+            <label>
+              Stato
+              <select
+                value={activeDraft.status}
+                onChange={e => onUpdateDraft({ ...activeDraft, status: e.target.value as DraftArtifact['status'] })}
+              >
+                <option value="draft">bozza</option>
+                <option value="reviewing">in revisione</option>
+                <option value="approved">approvata dall'avvocato</option>
+                <option value="archived">archiviata</option>
+              </select>
+            </label>
+            <button className="ghost-button" onClick={() => onDeleteDraft(activeDraft.id)} title="Archivia/elimina questa workspace"><Trash2 size={13} /> Elimina</button>
+          </div>
+          <textarea
+            className="editable-input editable-input-multi draft-editor"
+            value={activeDraft.content_markdown}
+            onChange={e => onUpdateDraft({ ...activeDraft, content_markdown: e.target.value })}
+            rows={24}
+            placeholder="La bozza generata comparirà qui. Puoi modificarla liberamente: resta salvata nel fascicolo locale."
+          />
+        </div>
+
+        <aside className="draft-side-panel">
+          <div className="draft-guardrail-card">
+            <ShieldAlert size={16} />
+            <strong>Divieto precedenti inventati</strong>
+            <p>Le citazioni Cassazione-like senza fonte sono marcate <strong>DA VERIFICARE</strong>. Prima del deposito verifica sempre banca dati, norme e fonti.</p>
+          </div>
+
+          <div className="draft-check-card">
+            <h3>Verifiche</h3>
+            <p><strong>{verified}</strong> claim con fonte · <strong>{toCheck}</strong> da verificare/unsupported</p>
+            {activeDraft.claim_refs.length === 0 && <p className="muted">Nessuna citazione sospetta rilevata automaticamente.</p>}
+            {activeDraft.claim_refs.map(claim => (
+              <div key={claim.id} className={`draft-claim draft-claim-${claim.status}`}>
+                <span>{claim.status === 'da_verificare' ? 'DA VERIFICARE' : claim.status}</span>
+                <p>{claim.claim_text}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="draft-export-card">
+            <h3>Esporta bozza</h3>
+            <p className="export-note">{DRAFT_PLAINTEXT_EXPORT_WARNING}</p>
+            <div className="draft-export-buttons">
+              <button className="brief-action-btn" onClick={() => onExportDraft(activeDraft, 'md')}><FileText size={13} /> .md</button>
+              <button className="brief-action-btn" onClick={() => onExportDraft(activeDraft, 'txt')}><FileText size={13} /> .txt</button>
+              <button className="brief-action-btn" onClick={() => onExportDraft(activeDraft, 'html')}><FileText size={13} /> .html</button>
+              <button className="brief-action-btn" onClick={() => onExportDraft(activeDraft, 'docx')}><FileText size={13} /> .docx</button>
+            </div>
+            <button className="primary-button draft-protected-export" onClick={onOpenProtectedPltExport} title="Proteggi tutto il fascicolo">
+              <ShieldCheck size={14} /> Proteggi tutto come .plt
+            </button>
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
 // ── Case detail view ──────────────────────────────────────────────────────────
 
 const tabs: Array<{ id: TabId; label: string }> = [
@@ -2613,6 +2766,7 @@ const tabs: Array<{ id: TabId; label: string }> = [
   { id: 'deadlines', label: 'Agenda' },
   { id: 'facts', label: 'Persone & prove' },
   { id: 'legal', label: 'Analisi legale' },
+  { id: 'drafts', label: 'Bozze' },
   { id: 'questions', label: 'Da verificare' },
   { id: 'brief', label: 'Promemoria' },
 ];
@@ -2633,12 +2787,17 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const [showRedactionDrawer, setShowRedactionDrawer] = useState(false);
   const [anonModal, setAnonModal] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [anonymizingDocId, setAnonymizingDocId] = useState<string | null>(null);
   const localOwnerId = useMemo(() => localOwnerIdFromSession(session), [session]);
 
   const { toast, showToast, dismissToast } = useToast();
   const { toggle: toggleTask, isDone, doneCount } = useCompletedTasks(caseId);
   const { globalRules, setGlobalRules } = useRedactionRules();
+  const caseRedactionRules = caseData?.redaction_rules ?? [];
+  const mergedRules = mergeRedactionRules(globalRules, caseRedactionRules);
+  const hasActiveRules = mergedRules.some(r => r.enabled && r.original.trim());
+  const redactionActive = redactionOverride !== null ? redactionOverride : hasActiveRules;
 
   const exportBrief = useCallback(async () => {
     if (!caseData) return;
@@ -2916,6 +3075,104 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     return full;
   }, []);
 
+  const downloadTextFile = useCallback((content: string | Blob, filename: string, mime: string) => {
+    const blob = content instanceof Blob ? content : new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleOpenDraftWorkspace = useCallback(async (type: DraftArtifactType, title?: string, extraInstruction = '') => {
+    if (!caseData) return;
+    const sourceCase = redactionActive && hasActiveRules ? applyRedactionToCase(caseData, mergedRules) : caseData;
+    const promptTail = type === 'witnessCrossExam'
+      ? (ctx: string) => `${ctx}\n\n---\n${extraInstruction}`
+      : DOC_PROMPTS[type] ?? DOC_PROMPTS.strategy;
+    const prompt = buildDraftPrompt({
+      caseData: sourceCase,
+      type,
+      promptTail,
+      buildCaseContext,
+      anonymized: redactionActive && hasActiveRules,
+      extraInstruction: type === 'witnessCrossExam' ? '' : extraInstruction,
+    });
+    const placeholder = createDraftArtifact({
+      caseData,
+      type,
+      title: title || draftTypeLabel(type),
+      prompt,
+      anonymized: redactionActive && hasActiveRules,
+      contentMarkdown: 'Generazione bozza in corso…\n\nLa workspace è già salvata nel fascicolo locale.',
+    });
+    const createdCase = addDraftArtifact(caseData, placeholder);
+    await dbSave(localOwnerId, createdCase);
+    setCaseData(createdCase);
+    onCaseLoaded(createdCase);
+    setActiveDraftId(placeholder.id);
+    setActiveTab('drafts');
+    showToast('Nuova workspace bozza creata');
+
+    try {
+      const generated = await fetchChatFull(prompt);
+      const finalized = flagUnverifiedCassationCitations({
+        ...placeholder,
+        content_markdown: generated || 'Nessun contenuto generato. Riprova dalla chat o modifica manualmente questa bozza.',
+        updated_at: new Date().toISOString(),
+      });
+      updateCase(c => updateDraftArtifact(c, finalized));
+      showToast('Bozza salvata nel fascicolo');
+    } catch (e) {
+      const failed = {
+        ...placeholder,
+        content_markdown: `Generazione non riuscita: ${(e as Error).message}\n\nPuoi comunque usare questa workspace: il prompt è salvato nei metadati della bozza.`,
+        generation_notes: {
+          ...placeholder.generation_notes,
+          warnings: [...placeholder.generation_notes.warnings, `Generazione fallita: ${(e as Error).message}`],
+        },
+        updated_at: new Date().toISOString(),
+      };
+      updateCase(c => updateDraftArtifact(c, failed));
+      showToast(`Generazione bozza fallita: ${(e as Error).message}`, 'error');
+    }
+  }, [caseData, redactionActive, hasActiveRules, mergedRules, localOwnerId, onCaseLoaded, fetchChatFull, showToast, updateCase]);
+
+  const handleUpdateDraft = useCallback((draft: DraftArtifact) => {
+    updateCase(c => updateDraftArtifact(c, flagUnverifiedCassationCitations(draft)));
+  }, [updateCase]);
+
+  const handleDeleteDraft = useCallback((id: string) => {
+    updateCase(c => ({ ...c, draft_artifacts: (c.draft_artifacts ?? []).filter(draft => draft.id !== id) }));
+    setActiveDraftId(prev => prev === id ? null : prev);
+    showToast('Workspace bozza eliminata');
+  }, [updateCase, showToast]);
+
+  const handleExportDraft = useCallback(async (draft: DraftArtifact, format: 'md' | 'txt' | 'html' | 'docx') => {
+    if (format !== 'docx') {
+      const exported = exportDraftArtifact(flagUnverifiedCassationCitations(draft), format);
+      if (!confirm(`${exported.warning}\n\nProcedere con export ${format.toUpperCase()} non cifrato?`)) return;
+      downloadTextFile(exported.content, exported.filename, exported.mime);
+      showToast(`Bozza esportata in .${format}`);
+      return;
+    }
+    if (!confirm(`${DRAFT_PLAINTEXT_EXPORT_WARNING}\n\nProcedere con export DOCX non cifrato?`)) return;
+    try {
+      const res = await fetch(`${API}/api/export-brief`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ case_title: draft.title, brief_markdown: draft.content_markdown }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const blob = await res.blob();
+      downloadTextFile(blob, `${draft.title.replace(/[^\w\s-]/g, '').trim() || 'bozza'}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      showToast('Bozza esportata in DOCX');
+    } catch (e) {
+      showToast(`Export DOCX fallito: ${(e as Error).message}`, 'error');
+    }
+  }, [downloadTextFile, showToast]);
+
   const handleAnonymizeBrief = useCallback(async () => {
     if (!caseData) return;
     setAnonModal(''); // empty = loading
@@ -3060,10 +3317,6 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const analyzedIdsSet = new Set(caseData.analyzed_doc_ids ?? []);
   const unanalyzedCount = rawDocs.filter(d => !analyzedIdsSet.has(d.doc_id)).length;
   const hasExistingAnalysis = caseData.legal_analysis != null;
-  const caseRedactionRules = caseData.redaction_rules ?? [];
-  const mergedRules = mergeRedactionRules(globalRules, caseRedactionRules);
-  const hasActiveRules = mergedRules.some(r => r.enabled && r.original.trim());
-  const redactionActive = redactionOverride !== null ? redactionOverride : hasActiveRules;
   const setRedactionActive = (val: boolean | ((prev: boolean) => boolean)) => {
     setRedactionOverride(prev => typeof val === 'function' ? val(prev !== null ? prev : hasActiveRules) : val);
   };
@@ -3489,6 +3742,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               la={la}
               onSelectSource={setSelectedSource}
               onOpenChat={onOpenChat}
+              onOpenDraft={handleOpenDraftWorkspace}
               onUpdate={updater => updateCase(c => ({ ...c, legal_analysis: c.legal_analysis ? updater(c.legal_analysis) : null }))}
             />
           : (
@@ -3520,6 +3774,20 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               </div>
             </section>
           )
+      )}
+
+      {/* Drafting workspace */}
+      {activeTab === 'drafts' && (
+        <DraftingWorkspace
+          caseTitle={caseData.case_title}
+          drafts={caseData.draft_artifacts ?? []}
+          activeDraftId={activeDraftId}
+          onSelectDraft={setActiveDraftId}
+          onUpdateDraft={handleUpdateDraft}
+          onDeleteDraft={handleDeleteDraft}
+          onExportDraft={handleExportDraft}
+          onOpenProtectedPltExport={() => setShowExportModal(true)}
+        />
       )}
 
       {/* Questions / contradictions */}
