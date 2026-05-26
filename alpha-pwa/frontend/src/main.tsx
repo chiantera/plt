@@ -3459,9 +3459,16 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             <h2>{nextDeadline.title}</h2>
             <p>{formatDate(nextDeadline.due_date)}{nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''} · {nextDeadline.status === 'confirmed' ? 'confermato' : 'da confermare'}</p>
             <p>{nextDeadline.description}</p>
-            <button title="Esegui azione"
+            <button title="Apri una nuova bozza di preparazione udienza"
               className="giulia-ctx-btn"
-              onClick={e => { e.stopPropagation(); onOpenChat(`Cosa devo preparare per l'udienza "${nextDeadline.title}" del ${nextDeadline.due_date}? Indicami le priorità operative e gli atti da predisporre.`); }}
+              onClick={e => {
+                e.stopPropagation();
+                handleOpenDraftWorkspace(
+                  'strategy',
+                  `Preparazione udienza — ${nextDeadline.title}`,
+                  `Prepara una bozza operativa per l'udienza "${nextDeadline.title}" del ${nextDeadline.due_date}${nextDeadline.due_time ? ` alle ${nextDeadline.due_time}` : ''}. Indica priorità difensive, documenti da portare, atti da predisporre, rischi, verifiche fattuali e fonti da controllare. Descrizione scadenza: ${nextDeadline.description}`
+                );
+              }}
             >
               <MessageSquare size={12} /> Prepara con GiulIA
             </button>

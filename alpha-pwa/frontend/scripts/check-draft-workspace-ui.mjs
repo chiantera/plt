@@ -9,6 +9,8 @@ assert.match(main, /onOpenDraft=\{handleOpenDraftWorkspace\}/);
 assert.match(main, /onClick=\{\(\) => onOpenDraft\(key, label\)\}/);
 assert.equal(/onClick=\{\(\) => onOpenChat\(key\)\}/.test(main), false, 'drafting cards must not open chat by key');
 assert.equal(/Prepara controesame con GiulIA[\s\S]{0,260}onOpenChat/.test(main), false, 'witness controesame button must not open chat');
+assert.equal(/Prepara con GiulIA[\s\S]{0,260}onOpenChat/.test(main), false, 'deadline preparation button must not open chat');
+assert.match(main, /handleOpenDraftWorkspace\(\s*'strategy',\s*`Preparazione udienza/);
 assert.match(main, /DRAFT_PLAINTEXT_EXPORT_WARNING/);
 assert.match(main, /Proteggi tutto come \.plt/);
 assert.match(main, /flagUnverifiedCassationCitations/);
