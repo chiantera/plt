@@ -11,6 +11,7 @@ from .models import (
     AnalyzeRequest,
     CaseAnalysis,
     ChatRequest,
+    ProRecommendation,
 )
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -55,17 +56,30 @@ def _model(mode: str) -> str:
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
+_FLASH_POLICY = """\
+Extract, structure, do not over-reason. Prefer concise fields. If uncertain, mark as candidate. Do not infer legal strategy.
+"""
+
+_PRO_POLICY = """\
+Reason deeply across the entire case state. Identify contradictions, procedural risks, defensive hypotheses, missing evidence, and next actions. Do not invent case law, deadlines, facts, or citations. Tie every factual claim to source references. Mark assumptions explicitly.
+"""
+
+def _analysis_prompt_policy(mode: str) -> str:
+    return _PRO_POLICY if mode == "pro" else _FLASH_POLICY
+
 _SYSTEM_PROMPT = """\
-Sei un assistente legale AI specializzato in diritto penale italiano e statunitense.
+Sei GiulIA, assistente di triage per avvocati penalisti italiani. Non sei l'autorità legale:
+organizzi il fascicolo, estrai elementi verificabili e prepari materiale controllabile dal difensore.
 Il tuo compito è analizzare i materiali di un fascicolo difensivo e produrre un'analisi
 strutturata completa in formato JSON valido.
 
 REGOLE FONDAMENTALI:
 1. Ogni affermazione deve essere collegata alla fonte specifica (source_refs).
 2. Non inventare fatti non presenti nei materiali.
-3. Segnala incertezze con confidence bassa (< 0.7).
+3. Segnala incertezze con confidence bassa (< 0.7) e stato candidate/needs_review.
 4. La struttura JSON deve essere completa e validabile.
 5. Usa la lingua specificata nel campo "language" della richiesta.
+6. Non trasformare l'analisi standard in consulenza strategica: la strategia profonda è Pro.
 
 OUTPUT: Restituisci SOLO JSON valido, nessun testo aggiuntivo prima o dopo.
 """
@@ -142,6 +156,82 @@ def _max_tokens(mode: str) -> int:
     return _PRO_MAX_TOKENS if mode == "pro" else _FLASH_MAX_TOKENS
 
 
+_PRO_MESSAGE_PREFIX = "Ho rilevato elementi che meritano un approfondimento"
+_PRO_REASON_LABELS = {
+    "contradictions": "contraddizioni tra versioni",
+    "candidate_deadline": "una scadenza candidata",
+    "urgent_deadline": "una scadenza processuale ravvicinata",
+    "serious_charge": "un profilo di rischio serio",
+    "custody_or_precautionary_measure": "misure cautelari o custodia",
+    "missing_key_document": "documenti mancanti",
+    "evidence_conflicts": "conflitti probatori",
+    "strategy_or_drafting_needed": "richieste di strategia o redazione atti",
+}
+
+
+def _contains_any(text: str, needles: tuple[str, ...]) -> bool:
+    lowered = text.lower()
+    return any(n in lowered for n in needles)
+
+
+def _build_pro_recommendation(case: CaseAnalysis, mode: str) -> ProRecommendation:
+    """Suggest Pro at lawyer-anxiety moments, without running or charging for Pro."""
+    if mode == "pro":
+        return ProRecommendation(recommended=False, reasons=[], message="")
+
+    reasons: list[str] = []
+
+    if len(case.contradictions) >= 1:
+        reasons.append("contradictions")
+
+    if any(d.status in {"candidate", "needs_review"} for d in case.procedural_deadlines):
+        reasons.append("candidate_deadline")
+    if any(d.urgency == "alta" and d.due_date for d in case.procedural_deadlines):
+        reasons.append("urgent_deadline")
+
+    if any(d.priority == "alta" for d in case.missing_documents) or len(case.missing_documents) >= 1:
+        reasons.append("missing_key_document")
+
+    la = case.legal_analysis
+    if la:
+        if la.risk_level in {"high", "critical"}:
+            reasons.append("serious_charge")
+        combined = " ".join(
+            [la.risk_summary, *la.immediate_actions, la.client_summary]
+            + [c.charge_name + " " + c.notes for c in la.charges]
+            + [s.title + " " + s.description for s in la.strategies]
+        )
+        if _contains_any(combined, ("custodia", "cautelar", "carcere", "arrest", "domiciliar")):
+            reasons.append("custody_or_precautionary_measure")
+        if la.evidence_balance and (
+            la.evidence_balance.critical_gaps
+            or abs(la.evidence_balance.prosecution_strength - la.evidence_balance.defense_strength) <= 0.15
+        ):
+            reasons.append("evidence_conflicts")
+        if la.strategies or _contains_any(combined, ("strateg", "redigi", "redazione", "atto", "argoment", "udienza", "deposito")):
+            reasons.append("strategy_or_drafting_needed")
+
+    ordered_unique = list(dict.fromkeys(reasons))
+    if not ordered_unique:
+        return ProRecommendation(recommended=False, reasons=[], message="")
+
+    natural = [_PRO_REASON_LABELS[r] for r in ordered_unique[:3]]
+    if len(natural) == 1:
+        detail = natural[0]
+    else:
+        detail = ", ".join(natural[:-1]) + " e " + natural[-1]
+
+    return ProRecommendation(
+        recommended=True,
+        reasons=ordered_unique,
+        message=f"{_PRO_MESSAGE_PREFIX}: {detail}. Puoi continuare con l’analisi standard oppure avviare un’Analisi Pro.",
+        cta_label="Avvia Analisi Pro",
+        alternate_label="Continua con analisi standard",
+        requires_confirmation=True,
+        auto_charge=False,
+    )
+
+
 def _truncate_materials(materials: list, max_chars: int) -> list:
     """Truncate material texts to stay within a total character budget.
 
@@ -191,10 +281,14 @@ def analyze_case(request: AnalyzeRequest) -> CaseAnalysis:
         f"=== {m.name} ({m.kind}) ===\n{m.text}"
         for m in truncated
     )
+    prompt_policy = _analysis_prompt_policy(request.mode)
     user_message = f"""\
 Titolo del caso: {request.case_title}
 Lingua output: {request.language}
 Modalità: {request.mode}
+
+POLICY MODALITÀ:
+{prompt_policy}
 
 MATERIALI DEL FASCICOLO:
 {materials_text}
@@ -205,12 +299,10 @@ Analizza i materiali e restituisci un JSON completo conforme a questo schema:
 Istruzioni specifiche:
 - Estrai tutti gli eventi con date e orari precisi dalla documentazione.
 - Identifica TUTTE le contraddizioni tra le fonti.
-- Per ogni accusa/capo d'imputazione, analizza gli elementi costitutivi e la loro robustezza; assegna un charge_code chiaro (es. "Capo A").
-- Proponi strategie difensive ordinate per priorità e collega ogni strategia al relativo capo con target_charge_id quando applicabile.
-- Calcola i termini processuali come candidati da verificare; se applichi la sospensione feriale dei termini processuali (1-31 agosto), imposta feriale_applied=true e spiega la fonte.
-- Segnala qualsiasi problema procedurale o costituzionale.
+- Calcola i termini processuali solo come candidati da verificare; se applichi la sospensione feriale dei termini processuali (1-31 agosto), imposta feriale_applied=true e spiega la fonte.
 - Per ogni affermazione, includi la source_ref con la citazione esatta dal testo.
-- L'analisi legale deve essere pratica e orientata all'udienza.
+- Se la modalità è flash: organizza il fascicolo, non inventare strategia difensiva e lascia vuoti/concisi i campi strategici se i materiali non li supportano.
+- Se la modalità è pro: approfondisci contraddizioni, rischi procedurali, ipotesi difensive, prove mancanti e prossime azioni, sempre con fonti e assunzioni esplicite.
 """
 
     logger.info("analyze_case: title=%s, materials=%d, prompt_chars=%d, max_tokens=%d",
@@ -255,7 +347,8 @@ Istruzioni specifiche:
     })
     data["usage_estimate"].setdefault("pages", len(request.materials))
     data["usage_estimate"].setdefault("audio_minutes", 0)
-    return CaseAnalysis.model_validate(data)
+    case = CaseAnalysis.model_validate(data)
+    return case.model_copy(update={"pro_recommendation": _build_pro_recommendation(case, request.mode)})
 
 
 def _deepseek_complete(model: str, system: str, user: str, max_tokens: int) -> tuple[str, dict, str]:

@@ -60,6 +60,22 @@ p { color: #cbd5e1; line-height: 1.55; margin-bottom: 8px; }
 }
 .hero-actions { margin-top: 22px; position: relative; z-index: 1; display: flex; gap: 6px; flex-wrap: wrap; }
 .hero-actions button { padding: 9px 12px !important; font-size: 0.9em !important; gap: 6px !important; }
+.pro-recommendation-card {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(168, 85, 247, 0.38);
+  background: linear-gradient(135deg, rgba(88, 28, 135, 0.32), rgba(15, 23, 42, 0.74));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  position: relative;
+  z-index: 1;
+}
+.pro-recommendation-card p { margin: 0 0 6px; }
+.pro-recommendation-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; min-width: min(100%, 260px); }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 button {

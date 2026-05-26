@@ -2940,8 +2940,12 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     }
   }, [caseData, fetchChatFull, showToast]);
 
-  const handleAnalyze = useCallback(async () => {
+  const handleAnalyze = useCallback(async (mode: 'flash' | 'pro' = 'flash') => {
     if (!caseData) return;
+    if (mode === 'pro') {
+      const ok = confirm('Avviare un Approfondimento Pro con GiulIA? Verrà eseguita un’analisi più profonda solo dopo questa conferma.');
+      if (!ok) return;
+    }
     const docs = caseData.raw_documents ?? [];
     if (docs.length === 0) {
       showToast('Aggiungi almeno un documento prima di analizzare', 'error');
@@ -2963,7 +2967,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       const res = await fetch(`${API}/api/analyze-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ case_title: caseData.case_title, materials, mode: 'flash', language: 'it' }),
+        body: JSON.stringify({ case_title: caseData.case_title, materials, mode, language: 'it' }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
       const merged = mergeWithAi(caseData, await res.json() as CaseAnalysis);
@@ -2974,6 +2978,9 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       setCaseData(updated);
       onCaseLoaded(updated);
       onCaseAnalyzed?.(updated);
+      if (updated.pro_recommendation?.recommended) {
+        showToast('Analisi standard completata. GiulIA suggerisce un Approfondimento Pro: nessun addebito senza conferma.', 'info');
+      }
     } catch (e) {
       showToast(`Errore analisi: ${(e as Error).message}`, 'error');
     } finally {
@@ -3143,7 +3150,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           {(!hasExistingAnalysis || unanalyzedCount > 0) && (
             <button title="Esegui azione"
               className="secondary-button"
-              onClick={handleAnalyze}
+              onClick={() => handleAnalyze('flash')}
               disabled={analyzing || rawDocs.length === 0}
             >
               <Sparkles size={14} />
@@ -3156,7 +3163,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             <button
               className="ghost-button"
               onClick={() => {
-                const updated = { ...caseData, analyzed_doc_ids: [], case_summary: '', materials: [], timeline: [], people: [], evidence: [], open_questions: [], missing_documents: [], contradictions: [], procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, legal_analysis: null };
+                const updated = { ...caseData, analyzed_doc_ids: [], case_summary: '', materials: [], timeline: [], people: [], evidence: [], open_questions: [], missing_documents: [], contradictions: [], procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, pro_recommendation: { recommended: false, reasons: [], message: '', cta_label: 'Avvia Analisi Pro', alternate_label: 'Continua con analisi standard', requires_confirmation: true, auto_charge: false }, legal_analysis: null };
                 dbSave(localOwnerId, updated).then(() => { setCaseData(updated); onCaseLoaded(updated); showToast('Analisi resettata. Ora puoi ri-analizzare da capo.'); });
               }}
               title="Resetta l'analisi e ri-analizza tutti i documenti da capo"
@@ -3168,6 +3175,26 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             <Gavel size={14} /> Aula
           </button>
         </div>
+        {d.pro_recommendation?.recommended && (
+          <div className="pro-recommendation-card" role="status" aria-live="polite">
+            <div>
+              <p className="eyebrow">Approfondimento Pro con GiulIA</p>
+              <p>{d.pro_recommendation.message}</p>
+              <p className="muted">L’analisi standard resta inclusa. Pro parte solo con conferma: nessun addebito automatico.</p>
+            </div>
+            <div className="pro-recommendation-actions">
+              <button className="primary-button" onClick={() => handleAnalyze('pro')} disabled={analyzing || rawDocs.length === 0}>
+                <Sparkles size={14} /> {d.pro_recommendation.cta_label}
+              </button>
+              <button
+                className="ghost-button"
+                onClick={() => updateCase(c => ({ ...c, pro_recommendation: { ...c.pro_recommendation!, recommended: false } }))}
+              >
+                {d.pro_recommendation.alternate_label}
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <GiuliaPromptBar onOpenChat={(msg) => onOpenChat(msg ?? '')} />
@@ -3496,7 +3523,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 <p className="muted" style={{ fontSize: '0.85rem' }}>Carica dei documenti e clicca su <strong>Analizza con AI</strong> per estrarre in automatico capi di imputazione e strategia, oppure clicca qui sotto per creare l'analisi manualmente.</p>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-                <button title="Conferma operazione principale" className="primary-button" onClick={handleAnalyze} disabled={analyzing || rawDocs.length === 0}>
+                <button title="Conferma operazione principale" className="primary-button" onClick={() => handleAnalyze('flash')} disabled={analyzing || rawDocs.length === 0}>
                   <Sparkles size={14} /> Analizza con AI
                 </button>
                 <button title="Esegui azione"
@@ -3788,7 +3815,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           onRetryItem={handleRetryQueueItem}
           onAddTextItem={handleAddTextItem}
           processing={uploadProcessing}
-          onAnalyze={handleAnalyze}
+          onAnalyze={() => handleAnalyze('flash')}
         />
       )}
       {aulaModeActive && <AulaModeOverlay caseData={caseData} onClose={() => setAulaModeActive(false)} />}

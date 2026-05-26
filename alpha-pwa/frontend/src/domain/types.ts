@@ -81,6 +81,16 @@ export type UsageEstimate = {
   model_route: string;
 };
 
+export type ProRecommendation = {
+  recommended: boolean;
+  reasons: string[];
+  message: string;
+  cta_label: string;
+  alternate_label: string;
+  requires_confirmation: boolean;
+  auto_charge: boolean;
+};
+
 export type ChargeElement = {
   element: string;
   description: string;
@@ -194,6 +204,7 @@ export type CaseAnalysis = {
   procedural_deadlines: ProceduralDeadline[];
   brief_markdown: string;
   usage_estimate: UsageEstimate;
+  pro_recommendation?: ProRecommendation;
   legal_analysis: LegalAnalysis | null;
   is_pending?: boolean;
   raw_documents?: RawDocument[];

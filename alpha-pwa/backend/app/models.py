@@ -122,6 +122,17 @@ class UsageEstimate(BaseModel):
     model_route: str = "unknown"
 
 
+class ProRecommendation(BaseModel):
+    """Non-binding upgrade prompt. It must never trigger billing by itself."""
+    recommended: bool = False
+    reasons: list[str] = []
+    message: str = ""
+    cta_label: str = "Avvia Analisi Pro"
+    alternate_label: str = "Continua con analisi standard"
+    requires_confirmation: bool = True
+    auto_charge: bool = False
+
+
 # ── Legal Analysis models ────────────────────────────────────────────────────
 
 class ChargeElement(BaseModel):
@@ -264,6 +275,7 @@ class CaseAnalysis(BaseModel):
     procedural_deadlines: list[ProceduralDeadline]
     brief_markdown: str
     usage_estimate: UsageEstimate
+    pro_recommendation: ProRecommendation = ProRecommendation()
     legal_analysis: LegalAnalysis | None = None
 
     @model_validator(mode="before")
