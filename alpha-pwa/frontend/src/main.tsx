@@ -5,7 +5,7 @@ import {
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
   Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, LogOut, MessageSquare, Mic, Plus, RefreshCw,
   Scale, Search, Send, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles,
-  Square, Trash2, Upload, User, Users, X, Zap,
+  Square, Trash2, Upload, User, Users, X, Zap, FolderOpen,
 } from 'lucide-react';
 import './styles.css';
 import { formatDate, formatDateFull, formatShortDate } from './dateUtils';
@@ -447,7 +447,7 @@ function ToastNotification({ message, type, onDismiss }: { message: string; type
 
 function SourceBadge({ refItem, onSelect }: { refItem: SourceRef; onSelect: (s: SourceRef) => void }) {
   return (
-    <button className="source-badge" onClick={() => onSelect(refItem)}>
+    <button className="source-badge" title="Visualizza il documento sorgente" onClick={() => onSelect(refItem)}>
       <FileText size={12} /> {refItem.source_name} · {pct(refItem.confidence)}
     </button>
   );
@@ -679,7 +679,7 @@ function SourceDrawer({ source, onClose }: { source: SourceRef | null; onClose: 
         <div className="drawer-handle" />
         <div className="drawer-header">
           <div><p className="eyebrow">Fonte collegata</p><h2>{source.source_name}</h2></div>
-          <button onClick={onClose} className="ghost-button">Chiudi</button>
+          <button onClick={onClose} className="ghost-button" title="Chiudi la finestra corrente">Chiudi</button>
         </div>
         <blockquote>&ldquo;{source.quote}&rdquo;</blockquote>
         <div className="drawer-meta">
@@ -700,7 +700,7 @@ function MaterialDrawer({ material, onClose }: { material: Material | null; onCl
         <div className="drawer-handle" />
         <div className="drawer-header">
           <div><p className="eyebrow">Documento</p><h2>{material.name}</h2></div>
-          <button onClick={onClose} className="ghost-button">Chiudi</button>
+          <button onClick={onClose} className="ghost-button" title="Chiudi la finestra corrente">Chiudi</button>
         </div>
         <div className="material-content">
           {material.content
@@ -722,7 +722,7 @@ function RawDocDrawer({ doc, onClose, onDelete }: { doc: RawDocument | null; onC
           <div><p className="eyebrow">{doc.name}</p><h2>{doc.description || doc.name}</h2></div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => { onDelete(doc.doc_id); onClose(); }} className="ghost-button" style={{ color: '#ef4444' }}><Trash2 size={16} /></button>
-            <button onClick={onClose} className="ghost-button">Chiudi</button>
+            <button onClick={onClose} className="ghost-button" title="Chiudi la finestra corrente">Chiudi</button>
           </div>
         </div>
         <div className="material-content">
@@ -757,7 +757,7 @@ function NewCaseDrawer({ onClose, onCreate }: { onClose: () => void; onCreate: (
           />
         </div>
         <div className="upload-actions">
-          <button className="ghost-button" onClick={onClose}>Annulla</button>
+          <button className="ghost-button" onClick={onClose} title="Annulla operazione">Annulla</button>
           <button className="primary-button" disabled={!title.trim()} onClick={() => title.trim() && onCreate(title.trim())}>
             <FolderPlus size={15} /> Crea fascicolo
           </button>
@@ -871,6 +871,17 @@ function MultiFileUploadDrawer({
           <input ref={fileRef} type="file" style={{ display: 'none' }} multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.csv,.rtf,image/*,audio/*" onChange={onFileChange} />
         </label>
 
+        {queue.length === 0 && (
+          <div style={{ marginTop: 16, padding: 16, background: 'rgba(56,189,248,0.05)', borderRadius: 12, border: '1px solid rgba(56,189,248,0.15)' }}>
+            <h4 style={{ color: '#7dd3fc', fontSize: '0.85rem', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ShieldCheck size={14} /> Elaborazione Sicura
+            </h4>
+            <p className="muted" style={{ fontSize: '0.8rem', lineHeight: 1.5, margin: 0 }}>
+              I documenti caricati verranno processati localmente. Il testo estratto sarà aggiunto al fascicolo e inviato all'AI solo quando deciderai di avviare l'analisi. Puoi anche usare dispositivi mobili per fotografare atti cartacei.
+            </p>
+          </div>
+        )}
+
         {/* Queue */}
         {queue.length > 0 && (
           <div className="upload-queue">
@@ -980,7 +991,7 @@ function MultiFileUploadDrawer({
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {errorCount > 0 && <span style={{ fontSize: '0.75rem', color: '#f87171' }}>{errorCount} errore/i</span>}
-            <button className="ghost-button" onClick={onClose}>Chiudi</button>
+            <button className="ghost-button" onClick={onClose} title="Chiudi la finestra corrente">Chiudi</button>
             {doneCount > 0 && onAnalyze && (
               <button
                 className="primary-button upload-analyze-btn"
@@ -1217,7 +1228,7 @@ function ChatDrawer({
                 <Trash2 size={16} />
               </button>
             )}
-            <button className="chat-close-btn" onClick={onClose}><X size={20} /></button>
+            <button className="chat-close-btn" onClick={onClose} title="Chiudi pannello"><X size={20} /></button>
           </div>
         </div>
 
@@ -1225,7 +1236,7 @@ function ChatDrawer({
         {state.caseContext && (
           <div className="chat-quick-bar">
             {QUICK_ACTIONS.map(({ key, label, icon: Icon }) => (
-              <button key={key} className="chat-quick-chip" onClick={() => onQuickAction(key)} disabled={streaming}>
+              <button key={key} className="chat-quick-chip" title="Esegui prompt rapido" onClick={() => onQuickAction(key)} disabled={streaming}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -1268,7 +1279,7 @@ function ChatDrawer({
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
           />
-          <button className="chat-send-btn" onClick={submit} disabled={!input.trim() || streaming}>
+          <button className="chat-send-btn" title="Invia messaggio" onClick={submit} disabled={!input.trim() || streaming}>
             {streaming ? <Loader2 size={18} className="spin" /> : <Send size={18} />}
           </button>
         </div>
@@ -1504,7 +1515,7 @@ function AuthScreen() {
             <input className="auth-input" type="password" placeholder="Password (min. 6 caratteri)" value={password} onChange={e => setPassword(e.target.value)} required />
             {error && <div className="auth-error">{error}</div>}
             {info && <div className="auth-info">{info}</div>}
-            <button className="auth-submit" type="submit" disabled={loading}>
+            <button className="auth-submit" title="Conferma dati di accesso" type="submit" disabled={loading}>
               {loading ? 'Caricamento…' : tab === 'login' ? 'Accedi' : 'Crea account'}
             </button>
           </form>
@@ -1537,7 +1548,7 @@ function ProfileDrawer({ session, onClose }: { session: Session; onClose: () => 
       <div className="profile-drawer" onClick={e => e.stopPropagation()}>
         <div className="profile-header">
           <div className="profile-title">Profilo</div>
-          <button className="profile-close" onClick={onClose}><X size={18} /></button>
+          <button className="profile-close" title="Chiudi profilo" onClick={onClose}><X size={18} /></button>
         </div>
         <div className="profile-email">{session.user.email}</div>
         {[
@@ -1553,7 +1564,7 @@ function ProfileDrawer({ session, onClose }: { session: Session; onClose: () => 
         <button className={`profile-save${saved ? ' profile-save--saved' : ''}`} onClick={handleSave} disabled={saving}>
           {saving ? 'Salvataggio…' : saved ? 'Salvato ✓' : 'Salva profilo'}
         </button>
-        <button className="profile-logout" onClick={() => supabase.auth.signOut()}>
+        <button className="profile-logout" title="Disconnettiti dall'applicazione" onClick={() => supabase.auth.signOut()}>
           <LogOut size={15} /> Esci dall'account
         </button>
       </div>
@@ -1733,10 +1744,10 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
-            {search && <button className="cases-search-clear" onClick={() => setSearch('')}><X size={14} /></button>}
+            {search && <button className="cases-search-clear" title="Azzera ricerca" onClick={() => setSearch('')}><X size={14} /></button>}
           </div>
         )}
-        <button className="primary-button home-new-btn" onClick={() => setShowUpload(true)}>
+        <button className="primary-button home-new-btn" title="Crea un nuovo fascicolo vuoto" onClick={() => setShowUpload(true)}>
           <Plus size={15} /> Nuovo fascicolo
         </button>
         <button className="secondary-button" onClick={() => document.getElementById('import-file-input')?.click()}>
@@ -1806,13 +1817,27 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
 
       {/* ── Cases grid ── */}
       <div className="cases-grid">
-        {filtered.length === 0 && cases && (
+        {filtered.length === 0 && cases && cases.length > 0 && (
           <p className="muted" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '32px 0' }}>
             Nessun fascicolo corrisponde a &ldquo;{search}&rdquo;
           </p>
         )}
+        {cases && cases.length === 0 && (
+          <div className="empty-state" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '48px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 16, border: '1px dashed rgba(148,163,184,0.2)' }}>
+            <FolderOpen size={48} style={{ color: 'rgba(148,163,184,0.3)', marginBottom: 16 }} />
+            <h3 style={{ fontSize: '1.2rem', color: '#f1f5f9', marginBottom: 8 }}>Nessun fascicolo presente</h3>
+            <p className="muted" style={{ maxWidth: 400, margin: '0 auto 24px', lineHeight: 1.5 }}>
+              Inizia creando un nuovo fascicolo vuoto per analizzare documenti, oppure importa un file <code>.plt</code> protetto.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button className="primary-button" onClick={() => setShowUpload(true)} title="Crea un nuovo fascicolo vuoto">
+                <Plus size={15} /> Nuovo Fascicolo
+              </button>
+            </div>
+          </div>
+        )}
         {filtered.map(c => (
-          <button key={c.case_id} className={`case-card${localIds.has(c.case_id) ? ' case-card-local' : ''}`} onClick={() => onSelect(c.case_id)}>
+          <button key={c.case_id} title="Apri il fascicolo per visualizzare dettagli e documenti" className={`case-card${localIds.has(c.case_id) ? ' case-card-local' : ''}`} onClick={() => onSelect(c.case_id)}>
             <div className="case-card-header">
               <div className="case-card-risk" style={{ background: riskColor(c.risk_level) + '22', border: `1px solid ${riskColor(c.risk_level)}55` }}>
                 <span style={{ color: riskColor(c.risk_level) }}>{riskIcon(c.risk_level)} {riskLabel(c.risk_level)}</span>
@@ -1962,7 +1987,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
         {la.charges.map((charge, ci) => (
           <div key={ci} className="charge-card">
             <div className="charge-card-header">
-              <button className="charge-card-toggle" onClick={() => setExpandedCharge(expandedCharge === ci ? null : ci)}>
+              <button className="charge-card-toggle" title="Espandi o riduci i dettagli del capo di imputazione" onClick={() => setExpandedCharge(expandedCharge === ci ? null : ci)}>
                 {expandedCharge === ci ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </button>
               <div className="charge-card-content">
@@ -2047,7 +2072,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
         {la.strategies.map((s, si) => (
           <div key={si} className={`strategy-card strategy-${s.priority}`}>
             <div className="strategy-header">
-              <button className="strategy-toggle" onClick={() => setExpandedStrategy(expandedStrategy === si ? null : si)}>
+              <button className="strategy-toggle" title="Mostra o nascondi i dettagli della strategia difensiva" onClick={() => setExpandedStrategy(expandedStrategy === si ? null : si)}>
                 {expandedStrategy === si ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
               </button>
               <div className="strategy-content">
@@ -2312,7 +2337,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onUpdate }: {
             { key: 'crossExam',  label: 'Controesame',           desc: 'Schema domande per ciascun testimone dell\'accusa', icon: Users },
             { key: 'strategy',   label: 'Analisi strategica',    desc: 'Valutazione realistica di ogni linea difensiva', icon: Sparkles },
           ] as const).map(({ key, label, desc, icon: Icon }) => (
-            <button key={key} className="legal-drafting-card" onClick={() => onOpenChat(key)}>
+            <button key={key} className="legal-drafting-card" title="Genera automaticamente questa bozza" onClick={() => onOpenChat(key)}>
               <div className="legal-drafting-card-icon"><Icon size={18} /></div>
               <div className="legal-drafting-card-label">{label}</div>
               <div className="legal-drafting-card-desc">{desc}</div>
@@ -2388,10 +2413,10 @@ function RedactionDrawer({
           <span className="redact-original">{r.original}</span>
           <span className="redact-arrow">→</span>
           <span className="redact-replacement">{r.replacement}</span>
-          <button className="redact-toggle-chip" onClick={() => onChange(rules.map((x, j) => j === i ? { ...x, enabled: !x.enabled } : x))}>
+          <button className="redact-toggle-chip" title="Attiva o disattiva questa regola di anonimizzazione" onClick={() => onChange(rules.map((x, j) => j === i ? { ...x, enabled: !x.enabled } : x))}>
             {r.enabled ? <Eye size={12} /> : <EyeOff size={12} />}
           </button>
-          <button className="redact-delete-btn" onClick={() => onChange(rules.filter((_, j) => j !== i))}><X size={12} /></button>
+          <button className="redact-delete-btn" title="Elimina definitivamente questa regola" onClick={() => onChange(rules.filter((_, j) => j !== i))}><X size={12} /></button>
         </div>
       ))}
     </div>
@@ -2403,7 +2428,7 @@ function RedactionDrawer({
         <div className="drawer-handle" />
         <div className="drawer-header">
           <div><p className="eyebrow">Privacy</p><h2>Anonimizza dati sensibili</h2></div>
-          <button onClick={onClose} className="ghost-button">Chiudi</button>
+          <button onClick={onClose} className="ghost-button" title="Chiudi la finestra corrente">Chiudi</button>
         </div>
 
         <div className="redact-add-form">
@@ -2414,8 +2439,8 @@ function RedactionDrawer({
             <input className="upload-input" placeholder="[OMISSIS]" value={replInput} onChange={e => setReplInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRule('global')} />
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('global')} disabled={!origInput.trim()}>+ Globale</button>
-            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('case')} disabled={!origInput.trim()}>+ Solo questo caso</button>
+            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('global')} title="Aggiungi regola a tutti i fascicoli" disabled={!origInput.trim()}>+ Globale</button>
+            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('case')} title="Aggiungi regola solo a questo fascicolo" disabled={!origInput.trim()}>+ Solo questo caso</button>
           </div>
         </div>
 
@@ -2466,7 +2491,7 @@ function AnonModal({ text, onClose }: { text: string; onClose: () => void }) {
             {typeof navigator.share === 'function' && (
               <button className="ghost-button" onClick={() => navigator.share({ title: 'Testo anonimizzato', text }).catch(() => {})}><Share2 size={15} /></button>
             )}
-            <button className="ghost-button" onClick={onClose}>Chiudi</button>
+            <button className="ghost-button" onClick={onClose} title="Chiudi la finestra corrente">Chiudi</button>
           </div>
         </div>
         <div className="material-content anon-content">
@@ -2527,7 +2552,7 @@ function ExportCaseDrawer({
             <p className="eyebrow">Condivisione locale</p>
             <h2>Esporta fascicolo</h2>
           </div>
-          <button className="ghost-button" onClick={onClose}><X size={16} /></button>
+          <button className="ghost-button" onClick={onClose} title="Chiudi"><X size={16} /></button>
         </div>
 
         <p className="export-privacy-copy">
@@ -2535,12 +2560,12 @@ function ExportCaseDrawer({
         </p>
 
         <div className="export-mode-grid">
-          <button className={`export-mode-card${mode === 'protected' ? ' active' : ''}`} onClick={() => setMode('protected')}>
+          <button title="Seleziona questa modalità di esportazione" className={`export-mode-card${mode === 'protected' ? ' active' : ''}`} onClick={() => setMode('protected')}>
             <ShieldCheck size={18} />
             <strong>Proteggi con password — consigliato</strong>
             <span>Il contenuto viene cifrato nel browser prima del download. PLT non salva il file e non conosce la password.</span>
           </button>
-          <button className={`export-mode-card export-mode-card-warning${mode === 'plain' ? ' active' : ''}`} onClick={() => setMode('plain')}>
+          <button title="Seleziona questa modalità di esportazione" className={`export-mode-card export-mode-card-warning${mode === 'plain' ? ' active' : ''}`} onClick={() => setMode('plain')}>
             <ShieldAlert size={18} />
             <strong>Esporta senza password</strong>
             <span>Solo per debug, archiviazione locale sicura o dopo aver anonimizzato i dati sensibili.</span>
@@ -2573,7 +2598,7 @@ function ExportCaseDrawer({
         {error && <p className="form-error">{error}</p>}
 
         <div className="drawer-actions">
-          <button className="ghost-button" onClick={onClose}>Annulla</button>
+          <button className="ghost-button" onClick={onClose} title="Annulla operazione">Annulla</button>
           <button className="primary-button" disabled={busy} onClick={submit}>
             {busy ? <Loader2 className="spin" size={15} /> : <Share2 size={15} />}
             {mode === 'protected' ? 'Esporta .plt protetto' : 'Esporta comunque'}
@@ -3055,7 +3080,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   return (
     <main className="app-shell">
       {/* Back button */}
-      <button className="back-button" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
+      <button className="back-button" title="Torna alla lista principale dei fascicoli" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
 
       {analyzing && (
         <div className="analyzing-banner"><Loader2 className="spin" size={18} /> Analisi AI in corso…</div>
@@ -3118,7 +3143,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           />
         </p>
         <div className="hero-actions">
-          <button className="primary-button" onClick={() => setShowUpload(true)} style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
+          <button className="primary-button" onClick={() => setShowUpload(true)} title="Carica nuovi documenti PDF o immagini" style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
             <Upload size={15} /> Aggiungi documento
             {uploadQueue.length > 0 && (
               <span className="upload-badge-hero">
@@ -3152,7 +3177,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               <RefreshCw size={13} /> Ri-analizza
             </button>
           )}
-          <button className="aula-trigger-btn" onClick={() => setAulaModeActive(true)}>
+          <button className="aula-trigger-btn" title="Avvia la modalità Aula per la consultazione rapida in udienza" onClick={() => setAulaModeActive(true)}>
             <Gavel size={14} /> Aula
           </button>
         </div>
@@ -3162,16 +3187,16 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
 
       {/* Stats */}
       <section className="stats-grid">
-        <button className="stats-card" onClick={() => { scrollTo(materialsRef); }}>
+        <button className="stats-card" title="Vai a questa sezione" onClick={() => { scrollTo(materialsRef); }}>
           <FileText /><strong>{d.materials.length}</strong><span>materiali</span>
         </button>
-        <button className="stats-card" onClick={() => { setActiveTab('timeline'); scrollTo(timelineRef); }}>
+        <button className="stats-card" title="Vai a questa sezione" onClick={() => { setActiveTab('timeline'); scrollTo(timelineRef); }}>
           <Clock /><strong>{d.timeline.length}</strong><span>eventi</span>
         </button>
-        <button className="stats-card" onClick={() => { setActiveTab('questions'); scrollTo(contradictionsRef); }}>
+        <button className="stats-card" title="Vai a questa sezione" onClick={() => { setActiveTab('questions'); scrollTo(contradictionsRef); }}>
           <AlertTriangle /><strong>{d.contradictions.length}</strong><span>contraddizioni</span>
         </button>
-        <button className="stats-card" onClick={() => { setActiveTab('deadlines'); scrollTo(deadlinesRef); }}>
+        <button className="stats-card" title="Vai a questa sezione" onClick={() => { setActiveTab('deadlines'); scrollTo(deadlinesRef); }}>
           <CalendarClock /><strong>{nextDeadline ? formatShortDate(nextDeadline.due_date) : '—'}</strong><span>priorità</span>
         </button>
       </section>
@@ -3211,7 +3236,10 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {activeTab === 'timeline' && (
         <section ref={timelineRef} className="panel timeline-panel">
           {d.timeline.length === 0 && (
-            <p className="muted">Nessun evento ancora. Aggiungi il primo evento.</p>
+            <div style={{ textAlign: 'center', padding: '32px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px dashed rgba(148,163,184,0.2)' }}>
+              <p className="muted" style={{ marginBottom: 12 }}>Nessun evento ancora nella timeline.</p>
+              <p className="muted" style={{ fontSize: '0.85rem' }}>Carica dei documenti e clicca su <strong>Analizza con AI</strong> in alto per estrarre automaticamente la cronologia dei fatti, oppure aggiungi un evento manualmente.</p>
+            </div>
           )}
           {d.timeline.map((ev, i) => (
             <article className="timeline-item" key={i}>
@@ -3468,7 +3496,10 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             />
           : (
             <section className="panel">
-              <p className="muted">Nessuna analisi legale ancora. Avvia l'AI o crea l'analisi manualmente.</p>
+              <div style={{ textAlign: 'center', padding: '32px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px dashed rgba(148,163,184,0.2)' }}>
+                <p className="muted" style={{ marginBottom: 12 }}>Nessuna analisi legale presente.</p>
+                <p className="muted" style={{ fontSize: '0.85rem' }}>Carica dei documenti e clicca su <strong>Analizza con AI</strong> per estrarre in automatico capi di imputazione e strategia, oppure clicca qui sotto per creare l'analisi manualmente.</p>
+              </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
                 <button className="primary-button" onClick={handleAnalyze} disabled={analyzing || rawDocs.length === 0}>
                   <Sparkles size={14} /> Analizza con AI
@@ -3521,7 +3552,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               </p>
               <SourceRow refs={q.source_refs} onSelect={setSelectedSource} />
               {q.question && (
-                <button className="giulia-ctx-btn" onClick={() => onOpenChat(`Come indago questa questione: "${q.question}"? Perché conta: ${q.why_it_matters}. Suggerisci le mosse concrete per rispondere a questa domanda difensiva.`)}>
+                <button className="giulia-ctx-btn" title="Chiedi a GiulIA di analizzare questo elemento in dettaglio" onClick={() => onOpenChat(`Come indago questa questione: "${q.question}"? Perché conta: ${q.why_it_matters}. Suggerisci le mosse concrete per rispondere a questa domanda difensiva.`)}>
                   <MessageSquare size={12} /> Chiedi a GiulIA
                 </button>
               )}
@@ -3596,7 +3627,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               </p>
               <SourceRow refs={ct.source_refs} onSelect={setSelectedSource} />
               {ct.title && (
-                <button className="giulia-ctx-btn" onClick={() => onOpenChat(`Come possiamo sfruttare in udienza la contraddizione "${ct.title}"? ${ct.description} Suggerisci come usarla nella strategia difensiva e quali domande fare ai testimoni.`)}>
+                <button className="giulia-ctx-btn" title="Chiedi a GiulIA di analizzare questo elemento in dettaglio" onClick={() => onOpenChat(`Come possiamo sfruttare in udienza la contraddizione "${ct.title}"? ${ct.description} Suggerisci come usarla nella strategia difensiva e quali domande fare ai testimoni.`)}>
                   <MessageSquare size={12} /> Chiedi a GiulIA
                 </button>
               )}
@@ -3610,11 +3641,11 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {activeTab === 'brief' && (
         <section className="panel brief-panel">
           <div className="brief-toolbar">
-            <button className="brief-action-btn" onClick={exportBriefDocx}><FileText size={14} /> Scarica DOCX</button>
-            <button className="brief-action-btn" onClick={exportBrief}><Copy size={14} /> Copia</button>
-            <button className="brief-action-btn" onClick={shareBrief}><Share2 size={14} /> Condividi</button>
-            <button className="brief-action-btn" onClick={handleAnonymizeBrief}><EyeOff size={14} /> Anonimizza</button>
-            <button className="brief-action-btn" onClick={() => setAulaModeActive(true)}><Gavel size={14} /> Aula Mode</button>
+            <button className="brief-action-btn" title="Azione rapida sul documento" onClick={exportBriefDocx}><FileText size={14} /> Scarica DOCX</button>
+            <button className="brief-action-btn" title="Azione rapida sul documento" onClick={exportBrief}><Copy size={14} /> Copia</button>
+            <button className="brief-action-btn" title="Azione rapida sul documento" onClick={shareBrief}><Share2 size={14} /> Condividi</button>
+            <button className="brief-action-btn" title="Azione rapida sul documento" onClick={handleAnonymizeBrief}><EyeOff size={14} /> Anonimizza</button>
+            <button className="brief-action-btn" title="Azione rapida sul documento" onClick={() => setAulaModeActive(true)}><Gavel size={14} /> Aula Mode</button>
           </div>
           <textarea
             className="editable-input editable-input-multi brief-editor"
@@ -3648,7 +3679,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       <section ref={materialsRef} className="materials-panel">
         <div className="materials-header">
           <h2>Documenti del fascicolo ({rawDocs.length})</h2>
-          <button className="upload-fab" onClick={() => setShowUpload(true)}>
+          <button className="upload-fab" title="Aggiungi nuovi documenti al fascicolo" onClick={() => setShowUpload(true)}>
             <Plus size={16} /> Aggiungi
             {uploadQueue.length > 0 && <span className="upload-badge">{uploadQueue.length}</span>}
           </button>
@@ -3658,7 +3689,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         )}
         {rawDocs.map(doc => (
           <div key={doc.doc_id} className="pending-doc-row">
-            <button className="pending-doc-item pending-doc-item-flex" onClick={() => setSelectedRawDoc(doc)}>
+            <button className="pending-doc-item pending-doc-item-flex" title="Visualizza il contenuto estratto dal documento" onClick={() => setSelectedRawDoc(doc)}>
               <FileText size={18} className="pending-doc-icon" />
               <div>
                 <strong>{doc.description || doc.name}</strong>
@@ -3692,7 +3723,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           </div>
           {d.materials.map((m: Material) => (
             <div key={m.id} className="pending-doc-row">
-              <button className="material-button pending-doc-item-flex" onClick={() => setSelectedMaterial(m)}>
+              <button className="material-button pending-doc-item-flex" title="Visualizza questo materiale investigativo" onClick={() => setSelectedMaterial(m)}>
                 {m.kind === 'audio' ? <Mic size={17} /> : <FileText size={17} />}
                 <div>
                   <strong>{m.name}</strong>
