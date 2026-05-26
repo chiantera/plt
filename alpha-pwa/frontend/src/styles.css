@@ -58,7 +58,8 @@ p { color: #cbd5e1; line-height: 1.55; margin-bottom: 8px; }
   display: flex; align-items: center; justify-content: space-between;
   font-size: 0.82rem; color: #bae6fd; position: relative; z-index: 1; flex-wrap: wrap; gap: 8px;
 }
-.hero-actions { margin-top: 22px; position: relative; z-index: 1; display: flex; gap: 8px; flex-wrap: wrap; }
+.hero-actions { margin-top: 22px; position: relative; z-index: 1; display: flex; gap: 6px; flex-wrap: wrap; }
+.hero-actions button { padding: 9px 12px !important; font-size: 0.9em !important; gap: 6px !important; }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .primary-button, .secondary-button, .ghost-button {
@@ -1077,9 +1078,9 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 .giulia-prompt-input {
   flex: 1; background: none; border: none; outline: none;
   color: #e2e8f0; font: inherit; font-size: 0.88rem;
-  min-width: 0;
+  min-width: 0; resize: none; line-height: 1.4; padding: 2px 0;
 }
-.giulia-prompt-input::placeholder { color: #475569; }
+.giulia-prompt-input::placeholder { color: rgba(255, 255, 255, 0.7); }
 .giulia-prompt-send {
   background: rgba(99,102,241,0.2); border: 1px solid rgba(99,102,241,0.35);
   color: #a5b4fc; border-radius: 8px; padding: 6px 8px;

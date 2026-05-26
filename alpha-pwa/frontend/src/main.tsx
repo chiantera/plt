@@ -1565,18 +1565,39 @@ function ProfileDrawer({ session, onClose }: { session: Session; onClose: () => 
 
 function GiuliaPromptBar({ onOpenChat }: { onOpenChat: (msg?: string) => void }) {
   const [val, setVal] = React.useState('');
-  const submit = () => { onOpenChat(val.trim() || undefined); setVal(''); };
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  const submit = () => {
+    onOpenChat(val.trim() || undefined);
+    setVal('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+  };
+
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setVal(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 150)}px`;
+  };
+
   return (
-    <div className="giulia-prompt-bar">
-      <div className="giulia-prompt-icon"><Sparkles size={16} /></div>
-      <input
+    <div className="giulia-prompt-bar" style={{ alignItems: 'flex-end' }}>
+      <div className="giulia-prompt-icon" style={{ paddingBottom: 6 }}><Sparkles size={16} /></div>
+      <textarea
+        ref={textareaRef}
         className="giulia-prompt-input"
-        placeholder="Chiedimi qualcosa… (diritto penale, strategia, giurisprudenza)"
+        placeholder="Sono GiulIA e sono qui per rispondere alle tue domande. Chiedimi qualcosa..."
         value={val}
-        onChange={e => setVal(e.target.value)}
-        onKeyDown={e => e.key === 'Enter' && submit()}
+        onChange={handleInput}
+        rows={1}
+        style={{ overflowY: 'auto', minHeight: '24px' }}
+        onKeyDown={e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            submit();
+          }
+        }}
       />
-      <button className="giulia-prompt-send" onClick={submit} tabIndex={-1} aria-label="Invia">
+      <button className="giulia-prompt-send" onClick={submit} tabIndex={-1} aria-label="Invia" style={{ marginBottom: 2 }}>
         <Send size={14} />
       </button>
     </div>
@@ -2916,6 +2937,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     const isIncremental = caseData.legal_analysis != null && newDocs.length > 0;
 
     setShowUpload(false);
+    setUploadQueue(prev => prev.filter(i => i.status !== 'done')); // Clear completed items from drawer
     setAnalyzing(true);
     try {
       const sourceDocs = isIncremental ? newDocs : docs;
@@ -2929,9 +2951,9 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       });
       if (!res.ok) throw new Error(`${res.status}`);
       const merged = mergeWithAi(caseData, await res.json() as CaseAnalysis);
-      // Dopo l'analisi, elimina automaticamente i documenti raw processati
+      // Segna i doc come analizzati ma NON li elimina — restano visibili sotto "Documenti del fascicolo"
       const analyzedDocIds = docs.map(d => d.doc_id);
-      const updated = { ...merged, raw_documents: [], analyzed_doc_ids: analyzedDocIds };
+      const updated = { ...merged, raw_documents: docs, analyzed_doc_ids: analyzedDocIds };
       await dbSave(localOwnerId, updated);
       setCaseData(updated);
       onCaseLoaded(updated);
@@ -3098,18 +3120,18 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               </span>
             )}
           </button>
-          <button
-            className="secondary-button"
-            onClick={handleAnalyze}
-            disabled={analyzing || rawDocs.length === 0}
-          >
-            <Sparkles size={14} />
-            {hasExistingAnalysis && unanalyzedCount > 0
-              ? `Incorpora ${unanalyzedCount} documento${unanalyzedCount === 1 ? '' : 'i'}`
-              : hasExistingAnalysis
-                ? `Analizza (${rawDocs.length} documenti)`
+          {(!hasExistingAnalysis || unanalyzedCount > 0) && (
+            <button
+              className="secondary-button"
+              onClick={handleAnalyze}
+              disabled={analyzing || rawDocs.length === 0}
+            >
+              <Sparkles size={14} />
+              {hasExistingAnalysis
+                ? `Incorpora ${unanalyzedCount} documento${unanalyzedCount === 1 ? '' : 'i'}`
                 : 'Analizza con AI'}
-          </button>
+            </button>
+          )}
           {hasExistingAnalysis && (
             <button
               className="ghost-button"
@@ -3705,7 +3727,11 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {showUpload && (
         <MultiFileUploadDrawer
           queue={uploadQueue}
-          onClose={() => setShowUpload(false)}
+          onClose={() => {
+            // Clear completed items from queue so they don't reappear next time
+            setUploadQueue(prev => prev.filter(i => i.status !== 'done'));
+            setShowUpload(false);
+          }}
           onAddFiles={handleAddFiles}
           onRemoveItem={handleRemoveQueueItem}
           onRetryItem={handleRetryQueueItem}
