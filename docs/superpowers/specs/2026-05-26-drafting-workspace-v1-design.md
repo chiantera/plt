@@ -143,6 +143,7 @@ Every click on a purple drafting/preparation button creates a **new drafting wor
 Workspace tab behavior:
 
 - new tab title defaults from document type and timestamp/context, e.g. `Memoria difensiva — 26 mag 09:42` or `Controesame Testa — v1`;
+- do not show internal classifier labels in the UI; if a label is needed, use the human document title already chosen by the button, otherwise omit it;
 - tabs can be renamed by the user;
 - tabs persist with the fascicolo in local storage;
 - closing a tab should mean hiding/archiving it, not deleting content without confirmation;
