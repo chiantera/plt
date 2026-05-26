@@ -2607,7 +2607,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const [uploadProcessing, setUploadProcessing] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [aulaModeActive, setAulaModeActive] = useState(false);
-  const [redactionActive, setRedactionActive] = useState(false);
+  const [redactionOverride, setRedactionOverride] = useState<boolean | null>(null);
   const [showRedactionDrawer, setShowRedactionDrawer] = useState(false);
   const [anonModal, setAnonModal] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -3040,7 +3040,12 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const hasExistingAnalysis = caseData.legal_analysis != null;
   const caseRedactionRules = caseData.redaction_rules ?? [];
   const mergedRules = mergeRedactionRules(globalRules, caseRedactionRules);
-  const d = (redactionActive && mergedRules.some(r => r.enabled && r.original.trim()))
+  const hasActiveRules = mergedRules.some(r => r.enabled && r.original.trim());
+  const redactionActive = redactionOverride !== null ? redactionOverride : hasActiveRules;
+  const setRedactionActive = (val: boolean | ((prev: boolean) => boolean)) => {
+    setRedactionOverride(prev => typeof val === 'function' ? val(prev !== null ? prev : hasActiveRules) : val);
+  };
+  const d = (redactionActive && hasActiveRules)
     ? applyRedactionToCase(caseData, mergedRules) : caseData;
   const la = d.legal_analysis;
   const nextDeadline = [...d.procedural_deadlines].sort((a, b) =>
