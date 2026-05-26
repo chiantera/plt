@@ -3071,14 +3071,26 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 {riskIcon(la.risk_level)} Rischio {riskLabel(la.risk_level)}
               </div>
             )}
-            <button
-              className={`anonymize-action-btn${redactionActive ? ' anonymize-action-active' : ''}`}
-              onClick={() => setShowRedactionDrawer(true)}
-              title="Anonimizza dati sensibili prima di condividere"
-            >
-              {redactionActive ? <EyeOff size={13} /> : <ShieldCheck size={13} />}
-              {redactionActive ? 'Vista anonimizzata' : `Anonimizza${mergedRules.filter(r => r.enabled).length ? ` · ${mergedRules.filter(r => r.enabled).length}` : ''}`}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
+              <button
+                className={`anonymize-action-btn${redactionActive ? ' anonymize-action-active' : ''}`}
+                onClick={() => setShowRedactionDrawer(true)}
+                title="Anonimizza dati sensibili prima di condividere"
+              >
+                {redactionActive ? <EyeOff size={13} /> : <ShieldCheck size={13} />}
+                {redactionActive ? 'Vista anonimizzata' : `Anonimizza${mergedRules.filter(r => r.enabled).length ? ` · ${mergedRules.filter(r => r.enabled).length}` : ''}`}
+              </button>
+              {mergedRules.some(r => r.enabled) && (
+                <button
+                  className={`ghost-button redact-toggle-btn${redactionActive ? ' redact-toggle-active' : ''}`}
+                  style={{ padding: '0 10px', height: 'auto', borderRadius: 999 }}
+                  onClick={() => setRedactionActive(v => !v)}
+                  title={redactionActive ? 'Mostra dati originali' : 'Mostra vista anonimizzata'}
+                >
+                  {redactionActive ? <Eye size={13} /> : <EyeOff size={13} />}
+                </button>
+              )}
+            </div>
             <button
               className="ghost-button"
               onClick={() => setShowExportModal(true)}
@@ -3086,15 +3098,6 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             >
               <Share2 size={13} /> Esporta
             </button>
-            {mergedRules.some(r => r.enabled) && (
-              <button
-                className={`ghost-button redact-toggle-btn${redactionActive ? ' redact-toggle-active' : ''}`}
-                onClick={() => setRedactionActive(v => !v)}
-                title={redactionActive ? 'Mostra dati originali' : 'Mostra vista anonimizzata'}
-              >
-                {redactionActive ? <Eye size={13} /> : <EyeOff size={13} />}
-              </button>
-            )}
           </div>
         </div>
         <h1>
@@ -3716,7 +3719,10 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         <RedactionDrawer
           globalRules={globalRules} setGlobalRules={setGlobalRules}
           caseRules={caseRedactionRules} setCaseRules={setCaseRedactionRules}
-          onClose={() => setShowRedactionDrawer(false)}
+          onClose={() => {
+            setShowRedactionDrawer(false);
+            setRedactionOverride(null);
+          }}
           caseCtx={buildCaseContext(caseData)}
           apiBase={API}
         />
