@@ -214,22 +214,24 @@ Completed:
 - Documentation checkpoint committed: `4b434782 docs: checkpoint PLT prompt and restructure plan`.
 - Path/reference inventory committed: `9ed9ad01 docs: inventory PLT path references`.
 - First code slice committed: `7ff2111e refactor(web): extract PLT domain types`.
-- Second code slice implemented: extracted prompt constants into:
-  - `alpha-pwa/frontend/src/prompts/documentDrafts.ts`
-  - `alpha-pwa/frontend/src/prompts/redaction.ts`
-  - `alpha-pwa/frontend/src/prompts/giulia.ts`
-- Updated `scripts/check-draft-workspace-ui.mjs` so its TabId static check follows the moved type in `src/domain/types.ts`.
-- Verification for prompt extraction:
-  - `npm run build` passed; Vite still reports expected >500 KB chunk warning (`index-Bmn9zA3_.js` 556.16 kB, gzip 159.23 kB).
+- Second code slice committed: `b672b885 refactor(web): extract PLT prompt modules`.
+- Third code slice implemented: extracted domain utilities into:
+  - `alpha-pwa/frontend/src/domain/caseContext.ts`
+  - `alpha-pwa/frontend/src/domain/caseMerge.ts`
+  - `alpha-pwa/frontend/src/domain/redaction.ts`
+- Verification for domain utility extraction:
+  - `npm run build` passed; Vite still reports expected >500 KB chunk warning (`index-CUedulNC.js` 556.17 kB, gzip 159.23 kB).
+  - `npm run test:plt-export` passed.
+  - `npm run test:local-case-scope` passed.
   - `npm run test:draft-workspace` passed.
   - `npm run test:draft-workspace-ui` passed.
 
 In progress:
-- Commit prompt extraction slice.
+- Commit domain utility extraction slice.
 
 Next exact action:
-- Commit `src/prompts/*`, `main.tsx`, `scripts/check-draft-workspace-ui.mjs`, and this updated handoff.
-- Then start next extraction slice: case context/merge/redaction utilities (`src/domain/caseContext.ts`, `caseMerge.ts`, `redaction.ts`).
+- Commit `src/domain/caseContext.ts`, `caseMerge.ts`, `redaction.ts`, `main.tsx`, and this updated handoff.
+- Then start next extraction slice: UI primitives or major screens. Prefer UI primitives first (`Editable`, `SourceBadge`, drawers) before screen-level moves.
 
 ## Caution notes
 

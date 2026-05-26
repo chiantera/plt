@@ -28,6 +28,9 @@ import { createClient, type Session } from '@supabase/supabase-js';
 import { DOC_PROMPTS } from './prompts/documentDrafts';
 import { REDACT_APPLY_PROMPT, REDACT_DETECT_PROMPT } from './prompts/redaction';
 import { SYSTEM_PROMPT_IT } from './prompts/giulia';
+import { buildCaseContext, caseAnalysisToSummary } from './domain/caseContext';
+import { buildUserContextMaterial, mergeWithAi } from './domain/caseMerge';
+import { applyRedactionToCase, mergeRedactionRules } from './domain/redaction';
 import type {
   CaseAnalysis,
   CaseSummary,
@@ -74,81 +77,6 @@ if (import.meta.env.VITE_MOCK_DATA === 'true') installMockApi();
 const API = import.meta.env.VITE_API_URL ?? '';
 
 // ── Domain helpers ───────────────────────────────────────────────────────────
-
-function buildCaseContext(c: CaseAnalysis): string {
-  const la = c.legal_analysis;
-  let ctx = `FASCICOLO: ${c.case_title}\n\nSINTESI: ${c.case_summary}\n\n`;
-
-  if (c.people.length) {
-    ctx += `PARTI:\n${c.people.map(p => `• ${p.name} (${p.role})${p.notes ? ': ' + p.notes : ''}`).join('\n')}\n\n`;
-  }
-
-  if (c.timeline.length) {
-    ctx += `CRONOLOGIA:\n${c.timeline.map(e => `• [${e.date ?? '?'}${e.time ? ' ' + e.time : ''}] ${e.title}: ${e.description}`).join('\n')}\n\n`;
-  }
-
-  if (la) {
-    ctx += `ACCUSE:\n${la.charges.map(ch => `• ${ch.charge_code} — ${ch.charge_name} (max: ${ch.max_sentence})`).join('\n')}\n\n`;
-    ctx += `RISCHIO: ${la.risk_level.toUpperCase()} — ${la.risk_summary}\n\n`;
-    if (la.strategies.length) {
-      ctx += `STRATEGIE DIFENSIVE:\n${la.strategies.map(s => `• [${s.priority}] ${s.title}: ${s.description}`).join('\n')}\n\n`;
-    }
-    if (la.constitutional_issues.length > 0) {
-      ctx += `QUESTIONI PROCEDURALI:\n${la.constitutional_issues.map(i => `• ${i.title} (${i.severity})\n  Base legale: ${i.legal_basis}\n  Rimedio: ${i.remedy}`).join('\n')}\n\n`;
-    }
-    if (la.witness_assessments.length) {
-      ctx += `TESTIMONI:\n${la.witness_assessments.map(w => `• ${w.witness_name} (${w.role}, credibilità ${Math.round(w.credibility_score * 100)}%): ${w.key_testimony}`).join('\n')}\n\n`;
-    }
-    if (la.evidence_balance) {
-      ctx += `BILANCIAMENTO PROVE:\n  Accusa: ${Math.round(la.evidence_balance.prosecution_strength * 100)}% — ${la.evidence_balance.key_prosecution_evidence.join('; ')}\n  Difesa: ${Math.round(la.evidence_balance.defense_strength * 100)}% — ${la.evidence_balance.key_defense_evidence.join('; ')}\n  Lacune critiche: ${la.evidence_balance.critical_gaps.join('; ')}\n\n`;
-    }
-  }
-
-  if (c.contradictions.length) {
-    ctx += `CONTRADDIZIONI:\n${c.contradictions.map(ct => `• ${ct.title}: ${ct.description}`).join('\n')}\n\n`;
-  }
-
-  if (c.open_questions.length) {
-    ctx += `DOMANDE APERTE:\n${c.open_questions.map(q => `• ${q.question} — perché conta: ${q.why_it_matters}`).join('\n')}\n\n`;
-  }
-
-  const urgentDeadlines = c.procedural_deadlines.filter(d => d.urgency === 'alta');
-  if (urgentDeadlines.length) {
-    ctx += `SCADENZE URGENTI:\n${urgentDeadlines.map(d => `• ${d.due_date}${d.due_time ? ' ' + d.due_time : ''} — ${d.title} (${d.deadline_type}): ${d.description}`).join('\n')}\n\n`;
-  }
-
-  if (c.brief_markdown?.trim()) {
-    ctx += `PROMEMORIA DIFENSIVO CORRENTE:\n${c.brief_markdown.trim()}\n\n`;
-  }
-
-  return ctx.trim();
-}
-
-function caseAnalysisToSummary(c: CaseAnalysis): CaseSummary {
-  if (c.is_pending) {
-    const n = c.raw_documents?.length ?? 0;
-    return {
-      case_id: c.case_id, case_title: c.case_title, client_name: '—',
-      case_summary: n === 0 ? 'Fascicolo vuoto — aggiungi documenti' : `${n} documento${n !== 1 ? 'i' : ''} caricato${n !== 1 ? 'i' : ''}, analisi non avviata`,
-      charge_summary: '— da analizzare —', next_deadline_date: null, next_deadline_title: null,
-      contradiction_count: 0, material_count: n, risk_level: null, status: 'pending',
-      created_at: new Date().toISOString(), is_pending: true,
-    };
-  }
-  const la = c.legal_analysis;
-  const nextDeadline = [...c.procedural_deadlines].sort((a, b) =>
-    `${a.due_date}T${a.due_time ?? '23:59'}`.localeCompare(`${b.due_date}T${b.due_time ?? '23:59'}`)
-  )[0];
-  const client = c.people.find(p => /imputat|accusat|defendant|client/i.test(p.role));
-  return {
-    case_id: c.case_id, case_title: c.case_title, client_name: client?.name ?? '—',
-    case_summary: c.case_summary,
-    charge_summary: la?.charges.map(ch => ch.charge_name).join(', ') || 'Accuse da determinare',
-    next_deadline_date: nextDeadline?.due_date ?? null, next_deadline_title: nextDeadline?.title ?? null,
-    contradiction_count: c.contradictions.length, material_count: c.materials.length,
-    risk_level: la?.risk_level ?? null, status: 'active', created_at: new Date().toISOString(),
-  };
-}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -200,106 +128,6 @@ function issueTypeLabel(t: string) {
 }
 
 function markdownToLines(md: string) { return md.split('\n').filter(l => l.trim()); }
-
-function buildUserContextMaterial(c: CaseAnalysis): { name: string; kind: string; text: string } | null {
-  const isIncremental = c.legal_analysis != null && (c.analyzed_doc_ids?.length ?? 0) > 0;
-  const lines: string[] = [];
-  if (c.case_summary?.trim()) lines.push(`SINTESI: ${c.case_summary.trim()}`);
-  if (c.people.length) lines.push('PERSONE:\n' + c.people.map(p => `- ${p.name} (${p.role})${p.notes ? ': ' + p.notes : ''}`).join('\n'));
-  if (c.timeline.length) lines.push('TIMELINE:\n' + c.timeline.map(e => `- [${e.date ?? '?'}${e.time ? ' ' + e.time : ''}] ${e.title}${e.description ? ': ' + e.description : ''}`).join('\n'));
-  if (c.evidence.length) lines.push('PROVE:\n' + c.evidence.map(e => `- ${e.title} (${e.status})${e.notes ? ': ' + e.notes : ''}`).join('\n'));
-  if (c.contradictions.length) lines.push('CONTRADDIZIONI:\n' + c.contradictions.map(ct => `- ${ct.title}: ${ct.description}`).join('\n'));
-  if (c.open_questions.length) lines.push('DOMANDE APERTE:\n' + c.open_questions.map(q => `- ${q.question} (${q.why_it_matters})`).join('\n'));
-  if (c.missing_documents.length) lines.push('DOCUMENTI MANCANTI:\n' + c.missing_documents.map(d => `- ${d.title} (priorità ${d.priority}): ${d.reason}`).join('\n'));
-  if (c.procedural_deadlines.length) lines.push('SCADENZE:\n' + c.procedural_deadlines.map(dl => `- [${dl.due_date}] ${dl.title} (urgenza ${dl.urgency})`).join('\n'));
-  if (c.brief_markdown?.trim()) lines.push(`BOZZA PROMEMORIA DIFENSIVO (aggiorna e migliora con i nuovi documenti):\n${c.brief_markdown.trim()}`);
-  if (!lines.length) return null;
-  let text = lines.join('\n\n');
-  const MAX_CONTEXT_CHARS = 8000;
-  if (text.length > MAX_CONTEXT_CHARS) {
-    text = text.slice(0, MAX_CONTEXT_CHARS) + '\n\n[...contesto troncato per limite di lunghezza — i nuovi documenti sono prioritari...]';
-  }
-  return {
-    name: isIncremental
-      ? 'Analisi esistente consolidata — integra i nuovi documenti che seguono, aggiorna il brief_markdown.'
-      : 'Annotazioni esistenti (inserite dall\'avvocato — integrare, non sovrascrivere)',
-    kind: 'text',
-    text,
-  };
-}
-
-function mergeArrays<T extends Record<string, unknown>>(existing: T[], ai: T[], key: keyof T): T[] {
-  const seen = new Set(existing.map(e => String(e[key] ?? '').toLowerCase().trim()));
-  const novel = ai.filter(a => !seen.has(String(a[key] ?? '').toLowerCase().trim()));
-  return [...existing, ...novel];
-}
-
-function mergeWithAi(existing: CaseAnalysis, ai: CaseAnalysis): CaseAnalysis {
-  const merged: CaseAnalysis = {
-    ...ai,
-    case_id: existing.case_id,
-    raw_documents: existing.raw_documents,
-    analyzed_doc_ids: existing.analyzed_doc_ids,
-    is_pending: false,
-    case_title: existing.case_title?.trim() || ai.case_title,
-    case_summary: existing.case_summary?.trim() || ai.case_summary,
-    brief_markdown: ai.brief_markdown?.trim() || existing.brief_markdown || '',
-    timeline: mergeArrays(existing.timeline, ai.timeline, 'title'),
-    people: mergeArrays(existing.people, ai.people, 'name'),
-    evidence: mergeArrays(existing.evidence, ai.evidence, 'title'),
-    open_questions: mergeArrays(existing.open_questions, ai.open_questions, 'question'),
-    missing_documents: mergeArrays(existing.missing_documents, ai.missing_documents, 'title'),
-    contradictions: mergeArrays(existing.contradictions, ai.contradictions, 'title'),
-    procedural_deadlines: mergeArrays(existing.procedural_deadlines, ai.procedural_deadlines, 'title'),
-    materials: mergeArrays(existing.materials, ai.materials, 'name'),
-  };
-  if (existing.legal_analysis && ai.legal_analysis) {
-    merged.legal_analysis = {
-      ...ai.legal_analysis,
-      risk_level: existing.legal_analysis.risk_level,
-      risk_summary: existing.legal_analysis.risk_summary?.trim() || ai.legal_analysis.risk_summary,
-      immediate_actions: existing.legal_analysis.immediate_actions.length
-        ? existing.legal_analysis.immediate_actions
-        : ai.legal_analysis.immediate_actions,
-    };
-  }
-  return merged;
-}
-
-// ── Redaction helpers ─────────────────────────────────────────────────────────
-
-function redactString(text: string, rules: RedactionRule[]): string {
-  return rules.reduce((t, r) => {
-    if (!r.enabled || !r.original.trim()) return t;
-    const escaped = r.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return t.replace(new RegExp(escaped, 'gi'), r.replacement);
-  }, text);
-}
-
-function redactObj<T>(obj: T, rules: RedactionRule[]): T {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj === 'string') return redactString(obj, rules) as unknown as T;
-  if (Array.isArray(obj)) return (obj as unknown[]).map(item => redactObj(item, rules)) as unknown as T;
-  if (typeof obj === 'object') {
-    const result = {} as T;
-    for (const key of Object.keys(obj as object) as (keyof T)[]) {
-      (result as Record<string, unknown>)[key as string] = redactObj((obj as Record<string, unknown>)[key as string], rules);
-    }
-    return result;
-  }
-  return obj;
-}
-
-function applyRedactionToCase(c: CaseAnalysis, rules: RedactionRule[]): CaseAnalysis {
-  const active = rules.filter(r => r.enabled && r.original.trim());
-  if (!active.length) return c;
-  return redactObj(c, active);
-}
-
-function mergeRedactionRules(global: RedactionRule[], perCase: RedactionRule[]): RedactionRule[] {
-  const seen = new Set(global.map(r => r.id));
-  return [...global, ...perCase.filter(r => !seen.has(r.id))];
-}
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
