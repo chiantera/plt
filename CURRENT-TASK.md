@@ -210,11 +210,16 @@ Completed:
 - Confirmed dirty/untracked state consists of two untracked docs before creating this file.
 - Created this `CURRENT-TASK.md` as restart/rate-limit handoff.
 
+Completed:
+- Documentation checkpoint committed: `4b434782 docs: checkpoint PLT prompt and restructure plan`.
+- Created path/reference inventory: `docs/plans/2026-05-26-plt-path-reference-inventory.md`.
+
 In progress:
-- Documentation checkpoint commit.
+- Commit path/reference inventory.
 
 Next exact action:
-- `git add` + commit the plan, prompt map, and this file.
+- Commit `docs/plans/2026-05-26-plt-path-reference-inventory.md` plus this updated handoff.
+- Then start Step C: extract `alpha-pwa/frontend/src/domain/types.ts` from `main.tsx`.
 
 ## Caution notes
 
