@@ -25,6 +25,32 @@ import {
   type DraftArtifactType,
 } from './draftArtifacts';
 import { createClient, type Session } from '@supabase/supabase-js';
+import type {
+  CaseAnalysis,
+  CaseSummary,
+  ChargeAnalysis,
+  ChargeElement,
+  ChatMsg,
+  ChatState,
+  ConstitutionalIssue,
+  Contradiction,
+  DefenseStrategy,
+  EvidenceBalance,
+  EvidenceItem,
+  LegalAnalysis,
+  Material,
+  OpenQuestion,
+  Person,
+  ProceduralDeadline,
+  RawDocument,
+  RedactionRule,
+  SourceRef,
+  TabId,
+  TimelineEvent,
+  UploadQueueItem,
+  UserProfile,
+  WitnessAssessment,
+} from './domain/types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -44,83 +70,7 @@ if (import.meta.env.VITE_MOCK_DATA === 'true') installMockApi();
 
 const API = import.meta.env.VITE_API_URL ?? '';
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
-type SourceRef = {
-  source_name: string; page: number | null; chunk: string | null;
-  quote: string; confidence: number;
-};
-type Material = { id: string; name: string; kind: string; description: string; excerpt: string; content: string; };
-type TimelineEvent = { date: string | null; time: string | null; title: string; description: string; source_refs: SourceRef[]; confidence: number; };
-type Person = { name: string; role: string; notes: string; source_refs: SourceRef[]; };
-type EvidenceItem = { title: string; status: string; notes: string; source_refs: SourceRef[]; };
-type OpenQuestion = { question: string; why_it_matters: string; source_refs: SourceRef[]; };
-type MissingDocument = { title: string; reason: string; priority: 'alta' | 'media' | 'bassa'; };
-type Contradiction = { title: string; description: string; source_refs: SourceRef[]; };
-type ProceduralDeadline = {
-  title: string; deadline_type: 'hearing' | 'defense_brief' | 'filing' | 'investigation' | 'other';
-  due_date: string; due_time: string | null; status: 'confirmed' | 'candidate' | 'needs_review';
-  urgency: 'alta' | 'media' | 'bassa'; description: string;
-  start_work_date: string | null; internal_target_date: string | null;
-  source_refs: SourceRef[]; tasks: string[];
-};
-type UsageEstimate = { pages: number; audio_minutes: number; flash_input_tokens: number; flash_output_tokens: number; pro_used: boolean; model_route: string; };
-
-type ChargeElement = { element: string; description: string; status: 'proven' | 'disputed' | 'weak' | 'missing'; notes: string; source_refs: SourceRef[]; };
-type ChargeAnalysis = { charge_code: string; charge_name: string; max_sentence: string; elements_required: ChargeElement[]; available_defenses: string[]; prosecution_strength: number; notes: string; source_refs: SourceRef[]; };
-type DefenseStrategy = { title: string; strategy_type: string; priority: 'primary' | 'secondary' | 'fallback'; description: string; strengths: string[]; risks: string[]; required_evidence: string[]; source_refs: SourceRef[]; };
-type ConstitutionalIssue = { title: string; issue_type: string; severity: 'critical' | 'significant' | 'minor'; description: string; legal_basis: string; remedy: string; source_refs: SourceRef[]; };
-type WitnessAssessment = { witness_name: string; role: 'prosecution' | 'defense' | 'neutral' | 'expert'; credibility_score: number; key_testimony: string; strengths: string[]; vulnerabilities: string[]; cross_examination_angles: string[]; source_refs: SourceRef[]; };
-type EvidenceBalance = { prosecution_strength: number; defense_strength: number; key_prosecution_evidence: string[]; key_defense_evidence: string[]; critical_gaps: string[]; overall_assessment: string; };
-type LegalAnalysis = {
-  risk_level: 'low' | 'medium' | 'high' | 'critical'; risk_summary: string; immediate_actions: string[];
-  charges: ChargeAnalysis[]; strategies: DefenseStrategy[]; constitutional_issues: ConstitutionalIssue[];
-  witness_assessments: WitnessAssessment[]; evidence_balance: EvidenceBalance; client_summary: string;
-};
-
-type RawDocument = {
-  doc_id: string; name: string; description: string; text: string; added_at: string;
-};
-
-type UploadQueueItem = {
-  id: string;
-  file: File;
-  name: string;
-  size: number;
-  status: 'pending' | 'uploading' | 'done' | 'error';
-  text?: string;
-  error?: string;
-  description?: string;
-};
-
-type RedactionRule = {
-  id: string; original: string; replacement: string; enabled: boolean;
-};
-
-type CaseAnalysis = {
-  case_id: string; case_title: string; language: string; case_summary: string;
-  materials: Material[]; timeline: TimelineEvent[]; people: Person[];
-  evidence: EvidenceItem[]; open_questions: OpenQuestion[]; missing_documents: MissingDocument[];
-  contradictions: Contradiction[]; procedural_deadlines: ProceduralDeadline[];
-  brief_markdown: string; usage_estimate: UsageEstimate; legal_analysis: LegalAnalysis | null;
-  is_pending?: boolean; raw_documents?: RawDocument[]; redaction_rules?: RedactionRule[]; analyzed_doc_ids?: string[];
-  draft_artifacts?: DraftArtifact[];
-};
-
-type CaseSummary = {
-  case_id: string; case_title: string; client_name: string; case_summary: string;
-  charge_summary: string; next_deadline_date: string | null; next_deadline_title: string | null;
-  contradiction_count: number; material_count: number;
-  risk_level: 'low' | 'medium' | 'high' | 'critical' | null; status: string; created_at: string;
-  is_pending?: boolean;
-};
-
-type TabId = 'timeline' | 'deadlines' | 'facts' | 'legal' | 'drafts' | 'questions' | 'brief';
-
-type ChatMsg = { role: 'user' | 'assistant'; content: string; id: string; };
-type ChatState = { open: boolean; messages: ChatMsg[]; caseContext: string | null; activeCaseId: string | null; };
-
-type UserProfile = { id: string; full_name: string | null; studio: string | null; phone: string | null; };
+// ── Domain helpers ───────────────────────────────────────────────────────────
 
 function buildCaseContext(c: CaseAnalysis): string {
   const la = c.legal_analysis;

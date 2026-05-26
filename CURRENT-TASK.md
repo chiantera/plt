@@ -212,14 +212,16 @@ Completed:
 
 Completed:
 - Documentation checkpoint committed: `4b434782 docs: checkpoint PLT prompt and restructure plan`.
-- Created path/reference inventory: `docs/plans/2026-05-26-plt-path-reference-inventory.md`.
+- Path/reference inventory committed: `9ed9ad01 docs: inventory PLT path references`.
+- First code slice implemented: extracted PLT domain types into `alpha-pwa/frontend/src/domain/types.ts` and imported them in `main.tsx`.
+- Verification for first code slice: `cd /home/deckard/plt/alpha-pwa/frontend && npm run build` passed. Vite still reports expected >500 KB chunk warning (`index-C4B9G6iK.js` 556.18 kB, gzip 159.61 kB).
 
 In progress:
-- Commit path/reference inventory.
+- Commit first code slice.
 
 Next exact action:
-- Commit `docs/plans/2026-05-26-plt-path-reference-inventory.md` plus this updated handoff.
-- Then start Step C: extract `alpha-pwa/frontend/src/domain/types.ts` from `main.tsx`.
+- Commit `alpha-pwa/frontend/src/domain/types.ts`, `alpha-pwa/frontend/src/main.tsx`, and this updated handoff.
+- Then start next extraction slice: case context/merge/redaction utilities or prompt modules.
 
 ## Caution notes
 
