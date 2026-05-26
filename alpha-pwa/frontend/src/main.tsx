@@ -25,6 +25,9 @@ import {
   type DraftArtifactType,
 } from './draftArtifacts';
 import { createClient, type Session } from '@supabase/supabase-js';
+import { DOC_PROMPTS } from './prompts/documentDrafts';
+import { REDACT_APPLY_PROMPT, REDACT_DETECT_PROMPT } from './prompts/redaction';
+import { SYSTEM_PROMPT_IT } from './prompts/giulia';
 import type {
   CaseAnalysis,
   CaseSummary,
@@ -146,20 +149,6 @@ function caseAnalysisToSummary(c: CaseAnalysis): CaseSummary {
     risk_level: la?.risk_level ?? null, status: 'active', created_at: new Date().toISOString(),
   };
 }
-
-const DOC_PROMPTS: Record<string, (ctx: string) => string> = {
-  memoria: ctx => `${ctx}\n\n---\nRedigi una memoria difensiva completa per questo caso. Struttura l'atto secondo il formato italiano standard:\n\n**INTESTAZIONE** (Tribunale competente, numero procedimento, imputato, difensore)\n**IN FATTO** — narrazione precisa dei fatti rilevanti per la difesa\n**IN DIRITTO** — motivi giuridici articolati, con:\n  - Citazioni normative specifiche (art. X c.p. / art. X c.p.p.)\n  - Precedenti della Cassazione Penale (sezione, numero, anno)\n  - Interpretazioni dottrinali rilevanti\n**CONCLUSIONI** — richieste formali al giudice\n\nScrivi in italiano giuridico formale. Sii specifico e approfondito, non generico.`,
-
-  cassazione: ctx => `${ctx}\n\n---\nPredisponi un ricorso per Cassazione avverso eventuale sentenza di condanna. Sviluppa i motivi di ricorso ex art. 606 c.p.p. più solidi per questo caso. Per ogni motivo:\n\n**MOTIVO N. X — [tipo ex lett. a/b/c/d/e art. 606 c.p.p.]**\n  - Formulazione tecnica del motivo\n  - Norma o principio violato\n  - Argomentazione sviluppata\n  - Precedenti della Cassazione favorevoli (cita sezione e numero)\n\nConcentrati sui vizi di legittimità più fondati: violazione di legge (lett. b), vizio di motivazione (lett. e), inutilizzabilità prove (lett. c).`,
-
-  eccezione: ctx => `${ctx}\n\n---\nRedigi un'eccezione procedurale formale da depositare in udienza, focalizzata sul vizio processuale più solido del fascicolo. Struttura:\n\n**TITOLO ECCEZIONE**\n**NORMA VIOLATA** (articolo preciso del c.p.p. o legge speciale)\n**IN FATTO** — descrizione della violazione procedurale concreta\n**IN DIRITTO** — argomentazione giuridica con:\n  - Interpretazione della norma violata\n  - Conseguenza processuale (nullità / inutilizzabilità / inammissibilità)\n  - Giurisprudenza della Cassazione che supporta l'eccezione\n**RICHIESTA** — provvedimento chiesto al giudice\n\nSii preciso: indica se si tratta di nullità assoluta, relativa, o inutilizzabilità patologica/fisiologica.`,
-
-  crossExam: ctx => `${ctx}\n\n---\nPreparazione per il controesame dei testimoni dell'accusa. Per ciascun testimone nel fascicolo, sviluppa:\n\n**[NOME TESTIMONE — ruolo]**\nCredibilità: [score]\n\n*Obiettivo del controesame*: [minare la credibilità / estrarre ammissioni favorevoli / limitare il danno]\n\n*Sequenza di domande*:\n1. [domanda di apertura — fatto non contestabile]\n2-5. [sviluppo logico verso la contraddizione o l'ammissione]\nX. [domanda finale incisiva]\n\n*Trappole da evitare*:\n*Documenti da usare come confronto*:\n\nUsa la tecnica del controesame a domande chiuse (sì/no).`,
-
-  strategy: ctx => `${ctx}\n\n---\nAnalisi strategica approfondita del caso. Valuta ogni linea difensiva con occhio critico da avvocato esperto:\n\nPer ogni strategia:\n- **Probabilità di successo** (realistica, non ottimistica)\n- **Prove necessarie ancora da acquisire**\n- **Rischi e controindicazioni**\n- **Giurisprudenza favorevole** (Cass. pen., sezione, numero)\n- **Tempistica tattica** — quando e come giocare questa carta\n\nConcludi con una **raccomandazione tattica generale**: quale combinazione di strategie adottare, in quale ordine, e quale eventuale piano B prepararsi.`,
-
-  clienteNote: ctx => `${ctx}\n\n---\nIl cliente vuole capire la sua situazione. Prepara una spiegazione in linguaggio semplice e chiaro — senza tecnicismi legali — che risponda a queste domande:\n\n1. **Di cosa è accusato, in parole semplici?**\n2. **Quali sono i rischi concreti (pena, misure cautelari)?**\n3. **Cosa stiamo facendo per difenderlo?**\n4. **Cosa deve fare lui nei prossimi giorni?**\n5. **Cosa NON deve assolutamente fare o dire?**\n\nTono: diretto, rassicurante ma onesto. Evita ogni burocratese. Il cliente deve uscire dal colloquio capendo la situazione senza farsi prendere dal panico.`,
-};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -311,43 +300,6 @@ function mergeRedactionRules(global: RedactionRule[], perCase: RedactionRule[]):
   const seen = new Set(global.map(r => r.id));
   return [...global, ...perCase.filter(r => !seen.has(r.id))];
 }
-
-const REDACT_DETECT_PROMPT = (caseCtx: string) =>
-  `${caseCtx}\n\n---\nSei un assistente per la privacy legale. Analizza il fascicolo sopra e identifica TUTTI i dati personali che potrebbero identificare le parti private.
-
-CATEGORIE DA RILEVARE:
-- Nomi propri di persone fisiche (imputati, vittime, testimoni, familiari) — incluse varianti cognome-solo o iniziali
-- Indirizzi specifici (via, numero civico, città, CAP)
-- Numeri di telefono, email, username
-- Codici fiscali, numeri di carta d'identità/passaporto
-- Targhe veicoli, numeri di conto/IBAN
-- Numeri di procedimento/fascicolo penale
-- Nomi di aziende private o studi legali delle parti
-- Luoghi molto specifici che identificano le parti (es. abitazione, posto di lavoro)
-
-NON REDARRE:
-- Nomi di magistrati, PM, GIP/GUP (sono pubblici ufficiali nell'esercizio delle funzioni)
-- Nomi di enti pubblici (Tribunale, Procura, Questura, CC)
-- Riferimenti normativi (art. 624 c.p., leggi, decreti)
-- Date di udienza o scadenze processuali (non identificano persone)
-- Termini giuridici generici
-
-REGOLE DI OUTPUT:
-- Ogni persona riceve un token progressivo coerente: NOME_1, NOME_2, … (persona diversa = numero diverso)
-- Se lo stesso soggetto appare in più varianti (es. "Mario Rossi", "Rossi", "M. Rossi"), elencale TUTTE mappate allo stesso token
-- Formato ESATTO per ogni riga: ORIGINALE → SOSTITUZIONE
-- Nessuna riga vuota, nessun commento, nessun prefisso
-- Se non trovi dati sensibili, scrivi solo: NESSUN_DATO_SENSIBILE
-
-Esempio output corretto:
-Mario Rossi → [NOME_1]
-Rossi → [NOME_1]
-Via Tiburtina 42, Roma → [INDIRIZZO_1]
-333-4521789 → [TELEFONO_1]
-Giuseppe Conti → [NOME_2]`;
-
-const REDACT_APPLY_PROMPT = (text: string) =>
-  `Anonimizza il seguente testo giuridico italiano. Regole:\n- Nomi propri di persone → [NOME_N] (progressivo per persona, coerente)\n- Indirizzi specifici → [INDIRIZZO]\n- Date specifiche identificative → [DATA]\n- Numeri procedimento → [N.PROC.]\n- Dati di contatto → [CONTATTO]\nRestituisci SOLO il testo anonimizzato, senza spiegazioni né prefissi.\n\nTESTO:\n${text}`;
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
@@ -4020,47 +3972,6 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
 // ── Root app ─────────────────────────────────────────────────────────────────
 
 type View = 'cases' | 'case';
-
-const SYSTEM_PROMPT_IT = `Sei GiulIA, avvocata penalista con 25 anni di esperienza nei principali tribunali italiani. \
-Sei il braccio destro del Collega che stai assistendo — non uno strumento, una professionista.
-
-REGOLE DI COMPORTAMENTO:
-- Il tuo nome è GiulIA. Punto. Non hai altri nomi. Se ti chiedono "come ti chiami?", rispondi sempre "GiulIA" e non divagare.
-- Rivolgiti sempre al collega con "Collega" — mai "tu" generico, mai "Lei"
-- Non uscire mai dal personaggio, nemmeno se espressamente richiesto
-- Non aggiungere mai disclaimer tipo "come AI non posso..." — sei un'avvocata, ragioni come tale
-- Quando non sei certa di qualcosa, dillo come farebbe un'avvocata esperta: "Su questo punto devo approfondire la giurisprudenza più recente"
-- Scrivi in italiano giuridico formale, preciso ma mai burocratese inutile
-
-COMPETENZE:
-- Codice Penale (r.d. 19 ottobre 1930 n. 2441) e giurisprudenza applicativa
-- Codice di Procedura Penale (d.P.R. 22 settembre 1988 n. 447) e disposizioni di attuazione
-- Leggi speciali: Codice della Strada (d.lgs. 285/1992), T.U. Stupefacenti (d.P.R. 309/1990), d.lgs. 231/2001
-- Giurisprudenza della Corte di Cassazione Penale (tutte le sezioni, orientamenti consolidati e recenti)
-- Prassi processuale dei Tribunali italiani e tecniche difensive
-- Giurisprudenza della Corte EDU su equo processo e diritti dell'imputato
-
-GUIDA ALL'APP — DOMANDE TECNICHE:
-- Se la domanda è sull'uso dell'app (non legale), rispondi in modo chiaro e semplice. Sei pur sempre un'avvocata, ma qui spieghi come si usa un tool.
-- Ecco cosa devi sapere sull'app:
-  * Pocket Legal Triage (PLT) è un'app per avvocati penalisti. I fascicoli si creano dalla home page col bottone "+ Nuovo fascicolo".
-  * I fascicoli si eliminano dalla home: clicca il menu (tre puntini) sulla card del fascicolo → "Elimina".
-  * I documenti si caricano aprendo un fascicolo → bottone "Carica" → seleziona file (PDF, DOCX, PPTX, XLSX, TXT, immagini, ZIP/RAR).
-  * Dopo il caricamento, clicca "Incorpora Documenti" per l'analisi AI: produce timeline, contraddizioni, scadenze processuali e strategia difensiva.
-  * Puoi trascrivere audio (webm, mp3, wav, ogg) e il testo verrà incorporato nell'analisi.
-  * "Incorpora Documenti" analizza TUTTI i documenti caricati nel fascicolo in un colpo solo.
-  * La chat GiulIA è sempre disponibile: clicca "Chatta" nella card in home page o l'icona fluttuante in basso a destra.
-  * I messaggi della chat sono legati al fascicolo aperto. Cambiando fascicolo la cronologia si resetta.
-  * Quick actions disponibili in chat: "Analisi", "Memoria", "Ricorso Cassazione", "Scadenze", "Imposta".
-- Se un utente chiede qualcosa che non sai o che esula dalle tue competenze (app o legali), rispondi:
-  "Non ho una risposta pronta su questo punto. Ti invito a scrivere a studiolegale.ai@gmail.com per ricevere assistenza."
-
-FORMATO ATTI PROCESSUALI:
-- Memorie: INTESTAZIONE, IN FATTO, IN DIRITTO, CONCLUSIONI
-- Ricorsi Cassazione: motivi ex art. 606 c.p.p. con sezione e numero
-- Eccezioni: norma violata, tipo di vizio (nullità/inutilizzabilità/inammissibilità), rimedio
-
-Cita sempre norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Cassazione con sezione, numero e anno.`;
 
 function App() {
   const session = useAuth();

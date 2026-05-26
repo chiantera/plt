@@ -213,15 +213,23 @@ Completed:
 Completed:
 - Documentation checkpoint committed: `4b434782 docs: checkpoint PLT prompt and restructure plan`.
 - Path/reference inventory committed: `9ed9ad01 docs: inventory PLT path references`.
-- First code slice implemented: extracted PLT domain types into `alpha-pwa/frontend/src/domain/types.ts` and imported them in `main.tsx`.
-- Verification for first code slice: `cd /home/deckard/plt/alpha-pwa/frontend && npm run build` passed. Vite still reports expected >500 KB chunk warning (`index-C4B9G6iK.js` 556.18 kB, gzip 159.61 kB).
+- First code slice committed: `7ff2111e refactor(web): extract PLT domain types`.
+- Second code slice implemented: extracted prompt constants into:
+  - `alpha-pwa/frontend/src/prompts/documentDrafts.ts`
+  - `alpha-pwa/frontend/src/prompts/redaction.ts`
+  - `alpha-pwa/frontend/src/prompts/giulia.ts`
+- Updated `scripts/check-draft-workspace-ui.mjs` so its TabId static check follows the moved type in `src/domain/types.ts`.
+- Verification for prompt extraction:
+  - `npm run build` passed; Vite still reports expected >500 KB chunk warning (`index-Bmn9zA3_.js` 556.16 kB, gzip 159.23 kB).
+  - `npm run test:draft-workspace` passed.
+  - `npm run test:draft-workspace-ui` passed.
 
 In progress:
-- Commit first code slice.
+- Commit prompt extraction slice.
 
 Next exact action:
-- Commit `alpha-pwa/frontend/src/domain/types.ts`, `alpha-pwa/frontend/src/main.tsx`, and this updated handoff.
-- Then start next extraction slice: case context/merge/redaction utilities or prompt modules.
+- Commit `src/prompts/*`, `main.tsx`, `scripts/check-draft-workspace-ui.mjs`, and this updated handoff.
+- Then start next extraction slice: case context/merge/redaction utilities (`src/domain/caseContext.ts`, `caseMerge.ts`, `redaction.ts`).
 
 ## Caution notes
 

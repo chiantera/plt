@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const main = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
+const domainTypes = readFileSync(new URL('../src/domain/types.ts', import.meta.url), 'utf8');
 
-assert.match(main, /type TabId = 'timeline' \| 'deadlines' \| 'facts' \| 'legal' \| 'drafts'/);
+assert.match(domainTypes, /export type TabId = 'timeline' \| 'deadlines' \| 'facts' \| 'legal' \| 'drafts'/);
 assert.match(main, /function DraftingWorkspace/);
 assert.match(main, /onOpenDraft=\{handleOpenDraftWorkspace\}/);
 assert.match(main, /onClick=\{\(\) => onOpenDraft\(key, label\)\}/);
