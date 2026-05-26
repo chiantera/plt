@@ -24,11 +24,12 @@ Current purple GiulIA buttons and the `Redazione atti con AI` cards call `onOpen
 1. Drafting buttons open a dedicated Drafting Workspace, not GiulIA chat.
 2. Generated documents are saved locally as structured `DraftArtifact` objects tied to the current fascicolo.
 3. The lawyer can generate using original or anonymized case context.
-4. The lawyer can export a draft as `.plt`, `.md`, `.txt`, `.html`, or `.docx`.
+4. The lawyer can export a draft as `.plt` or `.docx` only. Do not add `.md`, `.txt`, or `.html` draft export in v1.
 5. `.plt` export can be encrypted or plaintext using existing PLT Web Crypto logic.
-6. Plain/unprotected export must make anonymization explicit and warn before exposing original sensitive data.
-7. Drafting prompts must include a hard rule: never invent precedents or Cassazione citations.
-8. The UI must surface verification warnings before deposit/use.
+6. `.docx` export must be implemented as a real Word-readable document by reusing/adapting the existing Promemoria DOCX path (`/api/export-brief`) rather than shipping fake renamed HTML.
+7. Plain/unprotected export must make anonymization explicit and warn before exposing original sensitive data.
+8. Drafting prompts must include a hard rule: never invent precedents or Cassazione citations.
+9. The UI must surface verification warnings before deposit/use.
 
 ## Non-goals for v1
 
@@ -96,7 +97,7 @@ type DraftArtifact = {
   };
   export_options?: {
     last_exported_at?: string;
-    last_export_format?: 'plt' | 'md' | 'txt' | 'html' | 'docx';
+    last_export_format?: 'plt' | 'docx';
     last_export_was_encrypted?: boolean;
     last_export_was_anonymized?: boolean;
   };
@@ -184,11 +185,12 @@ Sections:
    - checklist before use/deposit
 
 5. **Export**
-   - format selector
+   - format selector limited to `.plt` and `.docx`
    - original vs anonymized copy
    - protected `.plt` vs plaintext `.plt`
    - password fields for protected `.plt`
-   - download button
+   - DOCX download using the existing Promemoria-style backend conversion path
+   - shortcut to whole-fascicolo protected `.plt` export when password protection is desired
 
 ### Copy requirements
 
@@ -285,11 +287,10 @@ Unsupported assertions are allowed only as visibly marked draft material. Before
 
 ### Formats
 
-- `.plt`: structured PLT draft artifact/container. Can be encrypted or plaintext.
-- `.md`: Markdown only.
-- `.txt`: plain text.
-- `.html`: self-contained readable HTML.
-- `.docx`: Word document.
+- `.plt`: structured PLT whole-fascicolo container, including `caseData.draft_artifacts`. Can be encrypted or plaintext. Keep this as the only PLT-native exchange/backup format.
+- `.docx`: Word-readable document for practical legal drafting use. Must be implemented in v1.
+
+Do **not** implement `.md`, `.txt`, or `.html` draft downloads in v1. They add UI surface without improving the legal workflow enough for this slice.
 
 Note: existing app convention is `.plt`, not `.ptl`. If `.ptl` is required later, add alias support deliberately; do not silently fork the format.
 
@@ -302,13 +303,13 @@ Use existing Web Crypto `.plt` encryption for protected exports:
 - fresh salt/IV per export
 - portable password-based container
 
-For `.md`, `.txt`, `.html`, and `.docx`, v1 exports are readable plaintext files. If the user asks for encryption with those formats, wrap the document in a protected `.plt` container instead of pretending those formats are encrypted.
+For `.docx`, v1 exports are readable plaintext files. If the user asks for encryption for a Word document, direct them to export the whole fascicolo as a protected `.plt` container instead of pretending DOCX is encrypted.
 
-Whenever the user exports a **non-encrypted** file (`.md`, `.txt`, `.html`, `.docx`, or plaintext `.plt`), show a clear warning:
+Whenever the user exports a **non-encrypted** file (`.docx` or plaintext `.plt`), show a clear warning:
 
 > Questo file non è cifrato. Chiunque lo riceva o lo apra potrà leggerne il contenuto. Se vuoi proteggere il materiale con password, esporta l’intero fascicolo come `.plt` protetto.
 
-For non-`.plt` formats, the UI should not offer a fake encryption toggle. Instead it should offer a nearby action:
+For `.docx`, the UI should not offer a fake encryption toggle. Instead it should offer a nearby action:
 
 > Esporta fascicolo `.plt` protetto
 
@@ -316,25 +317,20 @@ This takes the user to the existing whole-fascicolo encrypted export flow, becau
 
 ### Export payload
 
-For draft `.plt` export, use a draft-specific container payload such as:
+Use the existing whole-fascicolo `.plt` payload path. Draft artifacts are part of the case object:
 
 ```ts
-type DraftExportPayload = {
-  export_kind: 'draft_artifact';
-  case_id: string;
-  case_title: string;
-  draft: DraftArtifact;
+type CaseAnalysis = {
+  // existing fields...
+  draft_artifacts?: DraftArtifact[];
 };
 ```
 
-If current `parsePltFile` only accepts full case payloads, v1 can either:
+When exporting `.plt`, call the existing full-case export path with the current `CaseAnalysis` after `draft_artifacts` has been persisted. This keeps `.plt` import/export simple: one portable case file, protected or plaintext, containing the fascicolo plus its drafting workspaces.
 
-- export draft artifacts as standalone JSON containers not yet importable; or
-- extend parser support for `export_kind: 'draft_artifact'` in a focused test-backed slice.
+Existing `.plt` import already exists on the `I tuoi fascicoli` page: the `Importa` button reads `.plt`, calls `parsePltFile(...)`, asks for the password when `kind === 'encrypted'`, decrypts with `decryptPltContainer(...)`, and saves the result through `dbSave(...)`. Do not design a parallel import surface for drafts.
 
-Recommendation: support draft artifact containers in parser/import only if implementation time allows; otherwise label exported `.plt` as draft backup/export, not full import path.
-
-V1 decision: draft `.plt` export is **backup/export-only** unless import support is explicitly implemented in the same slice. UI and filenames must say `bozza-...-backup.plt` or equivalent. Do not imply that standalone draft `.plt` files can be imported as full fascicoli. Add draft-import support as a follow-up if not completed.
+V1 decision: keep `.plt` as a whole-fascicolo container. Avoid standalone draft-only `.plt` unless a dedicated import/merge UX is explicitly implemented later.
 
 ### Anonymized export
 
@@ -348,7 +344,6 @@ Redaction scope for draft export includes:
 - source quotes/excerpts;
 - source reference labels and filenames when they contain sensitive identifiers;
 - generation notes and warning strings;
-- HTML metadata/title;
 - DOCX core title/subject fields if generated by a library.
 
 - if rules exist and export is plaintext, default to `Copia anonimizzata`;
@@ -372,7 +367,15 @@ Protected `.plt` export requires:
 
 ### DOCX v1 strategy
 
-Preferred implementation: generate a real `.docx` using a maintained browser-compatible library. If adding the dependency is not acceptable in the implementation slice, ship `.docx` only when the generated file opens in LibreOffice/Word during QA; otherwise hide/disable the option and leave it as a follow-up. Do not download fake `.docx` files that are actually HTML with a renamed extension.
+DOCX is required in v1. Reuse/adapt the existing Promemoria export path instead of inventing a separate exporter:
+
+- frontend reference: `exportBriefDocx` in `frontend/src/main.tsx` posts Markdown to `${API}/api/export-brief` and downloads the returned `.docx`;
+- backend reference: `/api/export-brief` in `backend/app/main.py` uses `python-docx` (`Document`) to convert Markdown-ish text into a real Word document;
+- implement draft DOCX export by generalizing that endpoint/helper to accept a draft title/content, or by adding a narrow sibling endpoint that shares the same conversion function;
+- preserve title/metadata/anonymization handling;
+- verify the downloaded file opens in LibreOffice/Word during QA.
+
+Do not download fake `.docx` files that are actually HTML with a renamed extension.
 
 ## Draft Status Rules
 
@@ -406,21 +409,22 @@ Minimum checks:
 5. Anonymized generation uses `applyRedactionToCase` on the source context.
 6. Anonymized export applies rules to the draft artifact content.
 7. Plain original export shows a warning/confirmation.
-8. Encrypted `.plt` draft export does not contain known sensitive strings in plaintext.
-9. `.md`, `.txt`, `.html` downloads contain the expected draft content.
-10. `.docx` download opens as a Word-readable document.
-11. Non-encrypted `.md`, `.txt`, `.html`, `.docx`, and plaintext `.plt` exports show the warning to use whole-fascicolo protected `.plt` export if encryption is desired.
-12. Drafting generation reuses the existing purple-button prompt tail for the selected document type, with anti-invented-precedent amendments where needed.
-13. Drafting prompt contains `DIVIETO ASSOLUTO: non inventare precedenti giurisprudenziali` or equivalent.
-14. UI displays the precedent verification warning.
-15. Every substantive generated claim is either source-linked or marked `DA VERIFICARE` / `unsupported` in the review panel.
-16. Unsourced Cassazione-like citations are flagged `DA VERIFICARE` and not presented as verified.
-17. Anonymized export contains no sensitive identifiers covered by active rules in title/body/source excerpts/metadata.
-18. Draft status transitions persist and “approved” requires explicit user action.
-19. Multiple clicks on purple drafting buttons create multiple persisted workspace tabs; none are overwritten silently.
-20. Protected export validates password confirmation and preserves state on failure.
-21. Frontend production build passes.
-22. Browser QA verifies no console errors in the drafting flow.
+8. Encrypted whole-fascicolo `.plt` export includes `draft_artifacts` and does not contain known sensitive strings in plaintext.
+9. `.md`, `.txt`, and `.html` draft export options are absent in v1.
+10. `.docx` export reuses/adapts the existing Promemoria `exportBriefDocx` / `/api/export-brief` / `python-docx` path and opens as a Word-readable document.
+11. Non-encrypted `.docx` and plaintext `.plt` exports show the warning to use whole-fascicolo protected `.plt` export if encryption is desired.
+12. Existing `I tuoi fascicoli` `.plt` import still accepts protected/plain `.plt` files after draft artifacts are added to the case model.
+13. Drafting generation reuses the existing purple-button prompt tail for the selected document type, with anti-invented-precedent amendments where needed.
+14. Drafting prompt contains `DIVIETO ASSOLUTO: non inventare precedenti giurisprudenziali` or equivalent.
+15. UI displays the precedent verification warning.
+16. Every substantive generated claim is either source-linked or marked `DA VERIFICARE` / `unsupported` in the review panel.
+17. Unsourced Cassazione-like citations are flagged `DA VERIFICARE` and not presented as verified.
+18. Anonymized export contains no sensitive identifiers covered by active rules in title/body/source excerpts/metadata.
+19. Draft status transitions persist and “approved” requires explicit user action.
+20. Multiple clicks on purple drafting buttons create multiple persisted workspace tabs; none are overwritten silently.
+21. Protected export validates password confirmation and preserves state on failure.
+22. Frontend production build passes.
+23. Browser QA verifies no console errors in the drafting flow.
 
 ## Implementation Notes
 
@@ -430,7 +434,7 @@ Keep the first slice small:
 2. Add Drafting Workspace component.
 3. Rewire drafting buttons from chat to workspace.
 4. Add generation helper using existing `/api/chat`.
-5. Add export helpers for `.md`, `.txt`, `.html`, `.docx`, and protected/plain `.plt`.
+5. Add export helpers for `.docx` and protected/plain whole-fascicolo `.plt`; do not add `.md`, `.txt`, or `.html` draft exports in v1.
 6. Add focused tests/static checks where available.
 7. Browser-verify the flow on `127.0.0.1:5173`.
 
@@ -439,5 +443,4 @@ Avoid broad refactors of `main.tsx` unless required. If the workspace makes `mai
 ## Open Decisions
 
 - Whether to support `.ptl` as an alias for `.plt`. Current recommendation: keep `.plt`.
-- Whether `.docx` should be implemented with a dependency or a minimal Word-compatible HTML/document approach first.
-- Whether draft artifact `.plt` import is part of v1 or a follow-up.
+- Whether draft-specific standalone `.plt` import/merge is needed later. V1 relies on existing whole-fascicolo `.plt` import on `I tuoi fascicoli`.
