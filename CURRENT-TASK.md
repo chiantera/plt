@@ -4,7 +4,7 @@ _Last updated: 2026-05-27 Europe/Berlin_
 
 ## Current status
 
-Two slices complete and pushed to `main`.
+Three slices complete and pushed to `main`.
 
 Target verified:
 
@@ -15,14 +15,36 @@ Target verified:
 Latest commits:
 
 ```text
+ff3e95f9 feat: giurisprudenza di supporto — categoria separata per precedenti verificati + URL import
 24ce6d68 fix(fab): fix z-index, click reliability, add hide/restore
 4e0979c0 docs: note PLT Cassazione and FAB backlog
-bbd9022d chore: refresh PLT guardrails and docs
 ```
 
 ---
 
 ## Completed in this slice
+
+### Slice 3 — Giurisprudenza di supporto + drawer redesign + URL fetch
+
+**Backend:**
+
+- `requirements.txt`: aggiunti `trafilatura`, `beautifulsoup4`.
+- `models.py`: nuovo `FetchUrlRequest`; `AnalyzeMaterialInput` ha ora `category: Literal["fascicolo","giurisprudenza"] = "fascicolo"`.
+- `main.py`: nuova route `POST /api/fetch-url` — scarica URL con httpx (timeout 15s, User-Agent browser), estrae testo con trafilatura (fallback beautifulsoup4), ritorna stesso shape di `/api/upload`.
+- `ai_service.py`: `analyze_case()` separa materiali in sezioni distinte: `── DOCUMENTI FASCICOLO ──` e `── PRECEDENTI CARICATI DALL'AVVOCATO ──` (con nota: citabili con source_ref esplicita).
+
+**Frontend:**
+
+- `types.ts`: `category?: 'fascicolo' | 'giurisprudenza'` su `RawDocument`; `category: 'fascicolo' | 'giurisprudenza'` obbligatorio e `file: File | null` su `UploadQueueItem`.
+- `caseContext.ts`: `buildCaseContext()` include sezione `PRECEDENTI CARICATI DALL'AVVOCATO` in chat context se presenti materiali giurisprudenziali.
+- `main.tsx`: 
+  - `handleAddFiles`: accetta secondo parametro `category` (default `'fascicolo'`).
+  - `handleAddTextItem`: accetta terzo parametro `category`; `file` diventa `null` per testi incollati.
+  - nuovo `handleAddUrlItem`: crea item in coda → chiama `POST /api/fetch-url` → salva in IndexedDB come `category: 'giurisprudenza'`.
+  - `processItems`: gestisce `file: null` (item con testo già pronto, es. URL); porta `category` nel `RawDocument`.
+  - Payload `/api/analyze-text`: passa `category` per ogni materiale.
+  - `MultiFileUploadDrawer`: redesign completo con tab strip Documenti/Giurisprudenza, sezione URL import (con etichetta opzionale) nel tab Giurisprudenza, category badges (`[Fascicolo]` grigio / `[Precedente]` viola) sugli item in coda.
+- `styles.css`: nuovi stili per tab strip, URL section, drop-zone viola variante, category badges.
 
 ### Slice 1 — FAB usability fix
 
@@ -62,7 +84,7 @@ cd alpha-pwa/frontend && npm run build
 → build succeeded, zero errori TypeScript
 
 cd alpha-pwa/backend && python3 -m pytest tests/ -q
-→ [da eseguire prima del push di questo slice]
+→ 23 passed (Slice 3)
 
 git diff --check
 → clean
@@ -77,11 +99,11 @@ git diff --check
 1. **Bundle splitting** — chunk >500 KB, warning Vite noto. Risolvere con dynamic imports o Rollup `manualChunks`.
 2. **Estrazione `main.tsx`** — continuare la suddivisione in screen/feature prima di rinominare `alpha-pwa/`. Il file è ancora troppo grande.
 3. **E2E autenticato** — test manuale del flusso Pro sul live Netlify con caso demo/fittizio con contraddizioni.
-4. **Lawyer validation** — validare con avvocati penalisti il copy del Pro recommendation flow e le aspettative sul flusso paid.
-5. **Cassazione: percorso precedenti utente** — design del flusso: GiulIA chiede "ho bisogno del precedente X per questo argomento"; l'utente può caricarlo come categoria separata (non confondibile con i materiali del caso). Discussione aperta: vedi sezione sotto.
+4. **Lawyer validation** — validare con avvocati penalisti il copy del Pro recommendation flow e le aspettative sul flusso paid. Validare anche il flusso Giurisprudenza di supporto: il labeling `[Precedente]` è chiaro? I precedenti URL sono abbastanza affidabili? Serve disclaimer aggiuntivo?
+5. **URL fetch per siti JS-heavy** — `trafilatura`/BeautifulSoup non funzionano su SPA/banche dati con rendering client-side (es. DeJure, Pluris). Gap noto; percorso produttivo futuro: copia-incolla manuale o integrazione banca dati ufficiale.
 6. **Web search premium** — valutare se dare a GiulIA accesso a web search per i membri premium. Discussione aperta: vedi sezione sotto.
 
-### Cassazione: stato attuale e gap residuo
+### Cassazione: stato attuale e gap residuo — aggiornato dopo Slice 3
 
 Il pattern DIVIETO ASSOLUTO è ora applicato a tutti i prompt. Livelli di protezione attivi:
 
@@ -89,11 +111,12 @@ Il pattern DIVIETO ASSOLUTO è ora applicato a tutti i prompt. Livelli di protez
 - **Livello 2 (post-processing):** `flagUnverifiedCassationCitations()` in `draftArtifacts.ts` — regex detection + auto-marking DA VERIFICARE per gli artifact.
 - **Livello 3 (metadata):** `claim_refs` con `status: 'da_verificare'` e `confidence: 0.2`.
 
-Gap residuo produttivo: nessuna fonte giurisprudenziale verificata è collegata. Le citazioni generate dal modello restano fabricate finché non provengono da materiali caricati o da RAG verificato. Le direzioni prodotto possibili:
+Gap residuo produttivo: Le direzioni prodotto possibili:
 
 1. GiulIA descrive il tipo di precedente utile e cosa cercare, senza inventare numeri — **implementato con DIVIETO + percorso alternativo**.
-2. Upload sentenze come categoria fascicolo separata — **da progettare** (vedi Discussioni).
-3. RAG su 500k sentenze Cassazione Penale — progetto separato di indexing/cleaning, non un prompt fix.
+2. Upload sentenze come categoria fascicolo separata — **implementato in Slice 3**: tab Giurisprudenza nel drawer, category `giurisprudenza` propagata fino al prompt AI come sezione distinta `── PRECEDENTI CARICATI DALL'AVVOCATO ──`.
+3. URL import sentenze da web — **implementato in Slice 3**: `POST /api/fetch-url` con trafilatura/BS4. Limite noto: banche dati giuridiche commerciali usano SPA con rendering JS, non accessibili con semplice HTTP fetch.
+4. RAG su 500k sentenze Cassazione Penale — progetto separato di indexing/cleaning, non un prompt fix.
 
 ---
 
