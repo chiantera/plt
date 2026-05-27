@@ -1102,6 +1102,9 @@ blockquote {
   transition: border-color var(--dur-1), background var(--dur-1);
 }
 .home-shell .giulia-prompt-bar { margin: 8px 16px 0; }
+.home-shell .warming-banner,
+.home-shell .analyzing-banner,
+.home-shell .error-banner { margin-left: 20px; margin-right: 20px; }
 .giulia-prompt-bar:focus-within { border-color: var(--giulia-ink); background: var(--giulia-soft); }
 .giulia-prompt-icon { color: var(--giulia-ink); flex: none; }
 .giulia-prompt-input {

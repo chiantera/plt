@@ -26,8 +26,8 @@ export default function GiuliaPromptBar({ onOpenChat }: { onOpenChat: (msg?: str
         placeholder="Sono GiulIA e sono qui per rispondere alle tue domande. Chiedimi qualcosa..."
         value={val}
         onChange={handleInput}
-        rows={1}
-        style={{ overflowY: 'auto', minHeight: '24px' }}
+        rows={2}
+        style={{ overflowY: 'auto', minHeight: '40px' }}
         onKeyDown={e => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
