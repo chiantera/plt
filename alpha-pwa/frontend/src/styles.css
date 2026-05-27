@@ -283,6 +283,8 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   resize: vertical; min-height: 120px;
 }
 .upload-textarea:focus { outline: none; border-color: #38bdf8; }
+.upload-textarea--has-content { border-color: rgba(139,92,246,0.4); background: rgba(139,92,246,0.04); }
+.upload-textarea--has-content:focus { border-color: #a78bfa; }
 .drop-zone {
   border: 2px dashed rgba(56, 189, 248, 0.25); border-radius: 20px;
   padding: 32px 24px; text-align: center; cursor: pointer;

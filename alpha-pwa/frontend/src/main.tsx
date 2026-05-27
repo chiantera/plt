@@ -517,7 +517,6 @@ function MultiFileUploadDrawer({
   onRemoveItem,
   onRetryItem,
   onAddTextItem,
-  onAddUrlItem,
   processing,
   onAnalyze,
 }: {
@@ -527,7 +526,6 @@ function MultiFileUploadDrawer({
   onRemoveItem: (id: string) => void;
   onRetryItem: (id: string) => void;
   onAddTextItem: (text: string, name?: string, category?: 'fascicolo' | 'giurisprudenza') => void;
-  onAddUrlItem: (url: string, name: string) => void;
   processing: boolean;
   onAnalyze?: () => void;
 }) {
@@ -536,9 +534,11 @@ function MultiFileUploadDrawer({
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const [pendingItemName, setPendingItemName] = useState('');
   const [urlInput, setUrlInput] = useState('');
   const [urlName, setUrlName] = useState('');
   const [urlFetching, setUrlFetching] = useState(false);
+  const [urlError, setUrlError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -558,7 +558,10 @@ function MultiFileUploadDrawer({
           fd.append('file', blob, 'nota_vocale.webm');
           const res = await fetch(`${API}/api/transcribe`, { method: 'POST', body: fd });
           const data = await res.json();
-          if (data.text) onAddTextItem(data.text, 'Nota vocale', activeTab);
+          if (data.text) {
+            setPasteText(prev => prev ? prev + '\n\n' + data.text : data.text);
+            setPendingItemName('Nota vocale');
+          }
         } finally {
           setTranscribing(false);
         }
@@ -569,7 +572,7 @@ function MultiFileUploadDrawer({
     } catch {
       alert('Microfono non disponibile o accesso negato.');
     }
-  }, [onAddTextItem, activeTab]);
+  }, [activeTab]);
 
   const stopRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
@@ -592,14 +595,26 @@ function MultiFileUploadDrawer({
     const url = urlInput.trim();
     if (!url) return;
     setUrlFetching(true);
+    setUrlError('');
     try {
-      await onAddUrlItem(url, urlName.trim());
+      const res = await fetch(`${API}/api/fetch-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, name: urlName.trim() }),
+      });
+      if (!res.ok) throw new Error(`Errore ${res.status}`);
+      const data = await res.json();
+      const extracted: string = data.extracted_text ?? '';
+      setPasteText(prev => prev ? prev + '\n\n' + extracted : extracted);
+      setPendingItemName(urlName.trim() || url);
       setUrlInput('');
       setUrlName('');
+    } catch (e) {
+      setUrlError((e as Error).message);
     } finally {
       setUrlFetching(false);
     }
-  }, [urlInput, urlName, onAddUrlItem]);
+  }, [urlInput, urlName]);
 
   const doneCount = queue.filter(i => i.status === 'done' && i.text).length;
   const errorCount = queue.filter(i => i.status === 'error').length;
@@ -668,8 +683,13 @@ function MultiFileUploadDrawer({
                 {urlFetching ? 'Importo…' : 'Importa'}
               </button>
             </div>
+            {urlError && (
+              <p className="upload-url-hint" style={{ color: '#f87171', marginTop: 6 }}>
+                Errore: {urlError}
+              </p>
+            )}
             <p className="upload-url-hint">
-              Il testo viene estratto automaticamente dalla pagina. Solo testo — nessun file viene salvato.
+              Il testo estratto apparirà nel box qui sotto — controlla che ci sia tutto prima di cliccare Aggiungi. Se il sito usa JavaScript dinamico, incolla il testo manualmente.
             </p>
           </div>
         )}
@@ -754,8 +774,10 @@ function MultiFileUploadDrawer({
         {/* Paste + voice */}
         <div className="upload-field">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <label style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>
-              {isGiur ? 'Incolla il testo della sentenza' : 'Incolla testo o registra nota vocale'}
+            <label style={{ margin: 0, fontSize: '0.8rem', color: pasteText ? '#a78bfa' : '#94a3b8', transition: 'color 0.2s' }}>
+              {pasteText
+                ? (pendingItemName ? `Testo pronto — "${pendingItemName}"` : 'Controlla il testo e clicca Aggiungi')
+                : (isGiur ? 'Testo della sentenza' : 'Testo o nota vocale')}
             </label>
             {!isGiur && (
               <button
@@ -781,19 +803,20 @@ function MultiFileUploadDrawer({
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <textarea
-              className="upload-textarea"
-              placeholder={isGiur ? 'Incolla qui il testo della sentenza o del provvedimento…' : 'Incolla qui il testo del documento o registra una nota vocale…'}
+              className={`upload-textarea${pasteText ? ' upload-textarea--has-content' : ''}`}
+              placeholder="Il testo del tuo upload apparirà qui — controlla che ci sia tutto. Puoi anche incollare o scrivere direttamente."
               value={pasteText}
-              onChange={e => setPasteText(e.target.value)}
-              rows={3}
-              style={{ flex: 1, minHeight: 72 }}
+              onChange={e => { setPasteText(e.target.value); if (!e.target.value) setPendingItemName(''); }}
+              rows={4}
+              style={{ flex: 1, minHeight: 80 }}
             />
             <button
               className="primary-button"
               disabled={!pasteText.trim()}
               onClick={() => {
-                onAddTextItem(pasteText.trim(), undefined, activeTab);
+                onAddTextItem(pasteText.trim(), pendingItemName || undefined, activeTab);
                 setPasteText('');
+                setPendingItemName('');
               }}
               style={{ alignSelf: 'flex-end', whiteSpace: 'nowrap', padding: '8px 12px', fontSize: '0.78rem' }}
             >
@@ -4045,7 +4068,6 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           onRemoveItem={handleRemoveQueueItem}
           onRetryItem={handleRetryQueueItem}
           onAddTextItem={handleAddTextItem}
-          onAddUrlItem={handleAddUrlItem}
           processing={uploadProcessing}
           onAnalyze={() => handleAnalyze('flash')}
         />
