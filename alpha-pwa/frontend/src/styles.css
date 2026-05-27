@@ -1044,7 +1044,7 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
 
 /* ── Chat FAB ────────────────────────────────────────────────────────────── */
 .chat-fab {
-  position: fixed; bottom: 110px; right: 24px; z-index: 200;
+  position: fixed; bottom: 110px; right: 24px; z-index: 350;
   width: 44px; height: 44px; border-radius: 50%; padding: 0;
   background: linear-gradient(135deg, #0ea5e9, #6366f1);
   border: none; color: #fff; cursor: grab;
@@ -1072,6 +1072,57 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   width: 8px; height: 8px; border-radius: 50%;
   background: #4ade80; border: 2px solid #0f172a;
 }
+
+/* ── FAB dismiss zone (mobile drag-to-hide) ──────────────────────────────── */
+.fab-dismiss-zone {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  z-index: 360; pointer-events: none;
+  width: 72px; height: 72px; border-radius: 50%;
+  background: rgba(239,68,68,0.12);
+  border: 2px dashed rgba(239,68,68,0.5);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(239,68,68,0.6);
+  animation: fab-dismiss-appear 0.18s ease;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s, color 0.12s;
+}
+.fab-dismiss-zone--near {
+  background: rgba(239,68,68,0.28);
+  border-color: #ef4444;
+  color: #ef4444;
+  transform: translateX(-50%) scale(1.18);
+}
+@keyframes fab-dismiss-appear {
+  from { opacity: 0; transform: translateX(-50%) scale(0.75); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
+/* ── FAB restore button ──────────────────────────────────────────────────── */
+.fab-restore {
+  position: fixed; bottom: 28px; right: 20px; z-index: 350;
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 20px;
+  background: rgba(15,23,42,0.88); border: 1px solid rgba(99,102,241,0.4);
+  color: #818cf8; font-size: 0.75rem; font-weight: 600;
+  cursor: pointer; transition: background 0.15s, border-color 0.15s;
+  backdrop-filter: blur(6px);
+}
+.fab-restore:hover { background: rgba(99,102,241,0.18); border-color: rgba(99,102,241,0.7); }
+
+/* ── FAB context menu (desktop right-click) ──────────────────────────────── */
+.fab-ctx-menu {
+  position: fixed; z-index: 400;
+  background: #1e293b; border: 1px solid rgba(148,163,184,0.2);
+  border-radius: 10px; padding: 4px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  min-width: 130px;
+}
+.fab-ctx-item {
+  display: block; width: 100%;
+  padding: 8px 12px; border: none; background: transparent;
+  color: #e2e8f0; font-size: 0.85rem; text-align: left;
+  border-radius: 6px; cursor: pointer;
+}
+.fab-ctx-item:hover { background: rgba(99,102,241,0.15); color: #c7d2fe; }
 
 /* ── Chat overlay + drawer ───────────────────────────────────────────────── */
 .chat-overlay {

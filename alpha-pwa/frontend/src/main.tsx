@@ -1031,15 +1031,44 @@ function ChatDrawer({
   );
 }
 
-function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasContext: boolean }) {
+function FloatingChatButton({
+  onClick,
+  hasContext,
+  onHide,
+}: {
+  onClick: () => void;
+  hasContext: boolean;
+  onHide: () => void;
+}) {
   const [pos, setPos] = React.useState<{ x: number; y: number } | null>(null);
+  const [showDismissZone, setShowDismissZone] = React.useState(false);
+  const [nearDismiss, setNearDismiss] = React.useState(false);
+  const [ctxMenu, setCtxMenu] = React.useState<{ x: number; y: number } | null>(null);
   const dragging = React.useRef(false);
   const moved = React.useRef(false);
   const origin = React.useRef({ px: 0, py: 0, bx: 0, by: 0 });
   const fabRef = React.useRef<HTMLButtonElement>(null);
 
+  React.useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [ctxMenu]);
+
+  const checkNearDismiss = (x: number, y: number): boolean => {
+    const fw = fabRef.current?.offsetWidth ?? 44;
+    const fh = fabRef.current?.offsetHeight ?? 44;
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight - 68;
+    const dx = (x + fw / 2) - cx;
+    const dy = (y + fh / 2) - cy;
+    return Math.sqrt(dx * dx + dy * dy) < 64;
+  };
+
   const onDown = (e: React.PointerEvent) => {
-    moved.current = false; dragging.current = true;
+    moved.current = false;
+    dragging.current = true;
     const el = fabRef.current!;
     const rect = el.getBoundingClientRect();
     const bx = pos ? pos.x : window.innerWidth - rect.width - 24;
@@ -1048,42 +1077,94 @@ function FloatingChatButton({ onClick, hasContext }: { onClick: () => void; hasC
     el.setPointerCapture(e.pointerId);
     e.preventDefault();
   };
+
   const onMove = (e: React.PointerEvent) => {
     if (!dragging.current) return;
     const dx = e.clientX - origin.current.px;
     const dy = e.clientY - origin.current.py;
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved.current = true;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) moved.current = true;
     if (!moved.current) return;
     const el = fabRef.current!;
     const nx = Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, origin.current.bx + dx));
     const ny = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, origin.current.by + dy));
     setPos({ x: nx, y: ny });
+    if (e.pointerType === 'touch') {
+      setShowDismissZone(true);
+      setNearDismiss(checkNearDismiss(nx, ny));
+    }
   };
+
   const onUp = (e: React.PointerEvent) => {
     if (fabRef.current) fabRef.current.releasePointerCapture(e.pointerId);
     dragging.current = false;
-    if (!moved.current) onClick();
+    setShowDismissZone(false);
+    setNearDismiss(false);
+    if (!moved.current) {
+      onClick();
+      return;
+    }
+    moved.current = false;
+    if (pos && checkNearDismiss(pos.x, pos.y)) onHide();
   };
+
   const onCancel = (e: React.PointerEvent) => {
     if (fabRef.current) fabRef.current.releasePointerCapture(e.pointerId);
     dragging.current = false;
     moved.current = false;
+    setShowDismissZone(false);
+    setNearDismiss(false);
   };
 
   const style: React.CSSProperties = pos
-    ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto', cursor: moved.current ? 'grabbing' : 'grab' }
-    : { cursor: 'grab' };
+    ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto' }
+    : {};
 
   return (
-    <button title="Esegui azione"
-      ref={fabRef}
-      className={`chat-fab${hasContext ? ' chat-fab--context' : ''}`}
-      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onCancel}
-      aria-label="Apri GiulIA" style={style}
-    >
-      <MessageSquare size={26} />
-      <span className="chat-fab-label">GiulIA</span>
-      {hasContext && <span className="chat-fab-dot" />}
+    <>
+      {showDismissZone && (
+        <div className={`fab-dismiss-zone${nearDismiss ? ' fab-dismiss-zone--near' : ''}`}>
+          <X size={22} />
+        </div>
+      )}
+      <button
+        ref={fabRef}
+        className={`chat-fab${hasContext ? ' chat-fab--context' : ''}`}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onCancel}
+        onContextMenu={e => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY }); }}
+        aria-label="Apri GiulIA"
+        title="Apri GiulIA"
+        style={style}
+      >
+        <MessageSquare size={26} />
+        <span className="chat-fab-label">GiulIA</span>
+        {hasContext && <span className="chat-fab-dot" />}
+      </button>
+      {ctxMenu && (
+        <div
+          className="fab-ctx-menu"
+          style={{ left: ctxMenu.x, top: ctxMenu.y }}
+          onPointerDown={e => e.stopPropagation()}
+        >
+          <button
+            className="fab-ctx-item"
+            onClick={() => { setCtxMenu(null); onHide(); }}
+          >
+            Nascondi
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function FabRestoreButton({ onRestore }: { onRestore: () => void }) {
+  return (
+    <button className="fab-restore" onClick={onRestore} aria-label="Mostra GiulIA">
+      <MessageSquare size={14} />
+      <span>GiulIA</span>
     </button>
   );
 }
@@ -3857,6 +3938,19 @@ function App() {
   });
   const [chatStreaming, setChatStreaming] = useState(false);
   const [listRefreshKey, setListRefreshKey] = useState(0);
+  const [fabHidden, setFabHidden] = useState(() => {
+    try { return sessionStorage.getItem('plt_fab_hidden') === '1'; } catch { return false; }
+  });
+
+  const hideFab = useCallback(() => {
+    setFabHidden(true);
+    try { sessionStorage.setItem('plt_fab_hidden', '1'); } catch {}
+  }, []);
+
+  const restoreFab = useCallback(() => {
+    setFabHidden(false);
+    try { sessionStorage.removeItem('plt_fab_hidden'); } catch {}
+  }, []);
 
   useEffect(() => {
     try { localStorage.setItem('plt_chat_messages', JSON.stringify(chat.messages)); } catch {}
@@ -3990,7 +4084,10 @@ function App() {
         ? <CaseDetailView caseId={selectedCaseId} session={session} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
         : <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onOpenChat={openChat} />
       }
-      <FloatingChatButton onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))} hasContext={!!activeCaseData} />
+      {fabHidden
+        ? <FabRestoreButton onRestore={restoreFab} />
+        : <FloatingChatButton onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))} hasContext={!!activeCaseData} onHide={hideFab} />
+      }
       <ChatDrawer
         state={chat}
         onClose={() => setChat(prev => ({ ...prev, open: false }))}
