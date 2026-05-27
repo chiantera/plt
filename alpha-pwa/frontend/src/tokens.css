@@ -2,7 +2,7 @@
    Load BEFORE styles.css */
 
 @import url('https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,600,700,900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 :root {
   /* ── Surfaces ──────────────────────────────────────────────────────────── */
@@ -41,7 +41,7 @@
   --giulia-soft: #EAF0F6;
 
   /* ── Typography ────────────────────────────────────────────────────────── */
-  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
   --font-ui:      'Satoshi', 'Inter Tight', system-ui, -apple-system, sans-serif;
   --font-mono:    'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
