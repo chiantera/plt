@@ -15,9 +15,9 @@ Target verified:
 Latest commits:
 
 ```text
-fix: 13 dark-era color bugs — token-clean UI across all views
+b84b0fd3 fix: token-clean MultiFileUploadDrawer — last hardcoded colors removed
+89eff3c3 fix: 13 dark-era color bugs — token-clean UI across all views
 5f4c92a4 docs: update CURRENT-TASK after slice 5 (Carta & Inchiostro design)
-ae9fac21 design: Carta & Inchiostro — complete styles.css rewrite
 ```
 
 ---
@@ -45,6 +45,18 @@ Visual inspection of the full live UI on `localhost:5173` revealed 13 hardcoded 
 - Profile button: dark-era glass inline style → `.profile-btn` class.
 - Cases empty state: near-invisible dark glass → `.empty-state-placeholder.lg` with `var(--ink-1)` text.
 - Auth/Suspense loading spinners: `#020617` dark bg + `#7c3aed` purple → `var(--paper)` + `var(--giulia-ink)`.
+
+**`src/components/MultiFileUploadDrawer.tsx` (follow-up — b84b0fd3):**
+- Privacy notice box: `rgba(56,189,248,0.05)` sky-tinted → `.upload-privacy-notice` (green `--success` tone).
+- Drop zone giurisprudenza icon: `#a78bfa` lavender → `--giulia-ink` navy via `.drop-zone--giur .drop-zone-icon-container`.
+- Mic button: hardcoded rgba/hex inline style → `.mic-btn` / `.mic-btn--recording` CSS classes.
+- Recording dot: `#ef4444` → `var(--critical)` via `.mic-btn-dot`.
+- Queue done icon: `#4ade80` → `var(--success)`.
+- Text label: `#a78bfa`/`#94a3b8` → `.upload-text-label` / `.upload-text-label--ready`.
+- Status bar: `#38bdf8`/`#4ade80`/`#f87171` → `.upload-status-processing/done/error` classes.
+- URL error: `#f87171` → `var(--critical)`.
+- `MultiFileUploadDrawer` chunk: 9.89 KB → 9.22 KB (less inline style payload).
+- Zero hardcoded rgba/hex colors remain across all frontend TSX/TS files (verified with grep).
 
 **All tests pass:**
 - `npm run test:plt-export` ✓
