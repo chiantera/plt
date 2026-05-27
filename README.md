@@ -1,83 +1,41 @@
-# ⚖️ Pocket Legal Triage
-_Last updated: 2026-05-20 02:49_
+# Pocket Legal Triage
+_Last updated: 2026-05-27_
 
-> **Mobile-first criminal-defense case triage. Turn legal chaos into a clean case file.**
+> Mobile-first criminal-defense case triage for Italian lawyers.
 
-![Status](https://img.shields.io/badge/status-alpha-ff5a5f?style=for-the-badge)
-![Market](https://img.shields.io/badge/market-Italian%20criminal%20defense-7c3aed?style=for-the-badge)
-![Stack](https://img.shields.io/badge/stack-FastAPI%20%2B%20React-00d4ff?style=for-the-badge)
-![AI](https://img.shields.io/badge/AI-DeepSeek%20V4%20Flash-00c853?style=for-the-badge)
+Pocket Legal Triage (PLT) turns messy criminal-defense materials into a clean, source-linked case file: timeline, deadlines, contradictions, open questions, evidence map, and draft work products.
 
-Pocket Legal Triage (PLT) is a product for Italian criminal-defense lawyers who need to turn messy inputs — PDFs, scans, voice notes, court orders, police reports, client messages — into a **source-linked**, **deadline-aware**, **court-ready** case file.
+PLT is not an "AI lawyer." It is a case-control workspace. The lawyer stays in charge, verifies deadlines and citations, and treats generated output as draft material.
 
-It is **not** an “AI lawyer.”  
-It is a mobile case-control system for the lawyer who remains fully in charge.
+## Current State
 
----
+The working alpha lives in [`alpha-pwa/`](./alpha-pwa/).
 
-## ✨ Alpha preview
+| Layer | Stack | Current deployment |
+|---|---|---|
+| Frontend | React + Vite + Capacitor | Netlify |
+| Backend | FastAPI | Render |
+| Persistence | IndexedDB locally, Supabase auth for deployed app | Alpha |
+| AI routing | DeepSeek primary, Anthropic fallback | Env-driven |
 
-<p align="center">
-  <img src="./assets/screenshots/plt-demo_00.png" alt="PLT mobile fascicoli dashboard" width="220" />
-  <img src="./assets/screenshots/plt-demo_03.png" alt="PLT mobile legal assistant overlay" width="220" />
-</p>
+The app is live for limited colleague testing. See [`CURRENT-TASK.md`](./CURRENT-TASK.md) for the latest handoff, known risks, and verification notes.
 
-<p align="center">
-  <img src="./assets/screenshots/plt-demo_01.png" alt="PLT case detail screen with timeline and procedural deadline" width="720" />
-</p>
+## What PLT Does
 
-<p align="center">
-  <img src="./assets/screenshots/plt-demo_02.png" alt="PLT AI legal assistant with drafting shortcuts" width="420" />
-</p>
+- Creates and imports encrypted `.plt` case files.
+- Uploads PDFs, Office files, text, images, archives, and audio into a fascicolo.
+- Extracts case structure: timeline, people, evidence, contradictions, missing documents, open questions, and procedural deadlines.
+- Keeps every factual claim tied to source references, quotes, and confidence scores.
+- Marks deadlines as candidate/needs-review/confirmed instead of treating AI-calculated dates as authoritative.
+- Provides a case-aware GiulIA assistant for analysis, drafting, scadenze, and app guidance.
+- Generates draft work products: memoria, ricorso Cassazione, eccezione, controesame, strategy memo, client note.
+- Flags unverified Cassazione-like citations as `DA VERIFICARE`.
+- Supports privacy workflows through redaction, anonymization, local case storage, and export/import.
+- Includes an Android Capacitor wrapper for APK testing.
 
----
+## Quick Start
 
-## 🎯 Product thesis
-
-Criminal defense work is not clean. It is:
-
-- 📄 document dumps;
-- 🧾 contradictory police reports;
-- 🎙️ client voice notes;
-- ⏳ procedural deadlines;
-- 🧑‍⚖️ hearings that arrive too soon;
-- 🧠 legal strategy under pressure.
-
-PLT’s job is to convert that chaos into structured case state:
-
-- 🧭 factual timeline;
-- ⏰ procedural timeline and deadline candidates;
-- 🧑‍🤝‍🧑 people, entities, witnesses, and roles;
-- 🔎 evidence map with source quotes;
-- ⚠️ contradictions and missing information;
-- 📝 consultation briefs, hearing summaries, and draft acts;
-- 💬 case-aware AI assistant as a command layer — not the whole product.
-
----
-
-## 🚀 Current status
-
-**Working alpha PWA** in [`alpha-pwa/`](./alpha-pwa/).
-
-Production-readiness note: core product surfaces exist and the frontend production build currently passes, but this is still an alpha. Current known gates before calling it production-ready: repeatable lint/e2e scripts, backend test environment setup, browser-console exception investigation, and onboarding copy/flow hardening. See [`00-context/session-handoff-2026-05-19.md`](./00-context/session-handoff-2026-05-19.md).
-
-The alpha currently includes:
-
-- 🗂️ **Three fictional demo cases**
-  - furto aggravato in concorso;
-  - truffa online;
-  - omicidio stradale aggravato.
-- 📱 **Mobile-first dashboard** with risk, deadlines, contradictions, and case cards.
-- 📚 **Case detail workspace** with timeline, scadenze, facts, legal analysis, open questions, and memoria.
-- 🧑‍⚖️ **Aula Mode** for hearing-day review.
-- 🤖 **AI legal assistant** with case context injection.
-- ✍️ **Draft generation shortcuts** for memoria difensiva, ricorso Cassazione, eccezione procedurale, controesame schema, and strategic analysis.
-- ✅ **Task tracking** persisted in localStorage.
-- 📤 **Brief export** via clipboard / Web Share API.
-
----
-
-## 🧪 Run the alpha
+Backend:
 
 ```bash
 cd alpha-pwa/backend
@@ -85,113 +43,87 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# Optional but needed for AI calls
 export DEEPSEEK_API_KEY=sk-...
-# or
-export ANTHROPIC_API_KEY=sk-ant-...
+# or: export ANTHROPIC_API_KEY=sk-ant-...
 
 uvicorn app.main:app --reload --port 8000
 ```
 
-In another terminal:
+Frontend:
 
 ```bash
 cd alpha-pwa/frontend
 npm install
-npm run dev
-# If 5173 is already occupied, use: npm run dev -- --port 5178
-```
-
-Open the URL printed by Vite. Typical local endpoints:
-
-- Frontend: <http://localhost:5173> unless Vite reports another port
-- Backend API: <http://localhost:8000>
-
-Local dev auth shortcut:
-
-```bash
 VITE_BYPASS_AUTH=true npm run dev
 ```
 
-`VITE_BYPASS_AUTH=true` only works on `localhost` / `127.0.0.1`; deployed builds still use Supabase auth.
+Open the URL printed by Vite. The auth bypass is localhost-only; deployed builds use Supabase auth.
 
----
+## Verification
 
-## 🧪 Current hardening checklist
+Useful checks from this repo:
 
-Before claiming production readiness, verify these gates from a clean shell:
+```bash
+cd alpha-pwa/frontend
+npm run build
+npm run test:plt-export
+npm run test:local-case-scope
+npm run test:draft-workspace
+npm run test:draft-workspace-ui
+```
 
-- Backend venv created, dependencies installed, and `python -m pytest` passing.
-- Frontend `npm run build` passing.
-- Frontend lint/test/e2e scripts added and passing.
-- Browser QA on the real PLT port, not a stale Vite process.
-- No browser-console errors after login, onboarding, dashboard, case open, chat failure/success, and mobile viewport smoke tests.
-- Onboarding and assistant copy frames output as drafts/checklists under lawyer control.
+Backend checks:
 
----
+```bash
+cd alpha-pwa/backend
+source .venv/bin/activate
+python -m pytest tests/ -q
+```
 
-## 🧠 Model strategy
+If a backend pytest run hangs in the local harness after passing tests, use focused test files or `timeout` and record the behavior in `CURRENT-TASK.md`.
+
+## Model Policy
 
 | Workload | Default | Premium / fallback |
 |---|---|---|
-| Bulk extraction, chat, drafting | DeepSeek V4 Flash | Claude Haiku fallback |
-| Deep legal reasoning, contradiction analysis | DeepSeek V4 Pro | Claude Opus fallback |
-| OCR / document ingestion | Adapter layer | Provider-swappable |
+| Bulk extraction, ordinary chat, ordinary drafting | DeepSeek V4 Flash | Claude Haiku fallback |
+| Deep legal reasoning and high-stakes strategy | DeepSeek V4 Pro, only after explicit confirmation | Claude Opus fallback |
+| Native PDF extraction | pypdf | Provider-swappable adapter |
+| Scanned PDF / image OCR | OCR adapter | Provider-swappable adapter |
 
-DeepSeek is the cost-conscious default. Claude remains supported as a fallback through the same backend provider-routing layer.
+Heavy processing must remain transparent to the lawyer. Candidate Pro analysis is recommended and gated before use.
 
----
-
-## 🗺️ Workspace map
+## Workspace Map
 
 ```text
-alpha-pwa/          Working alpha PWA: FastAPI + React/Vite
-00-context/         Session handoff notes and open questions
-01-product/         Product spec, UX flows, feature map
-02-research/        Market, model, OCR, legal-tech research
-03-business/        Pricing, unit economics, GTM
-04-technical/       Architecture, data model, model routing
-05-validation/      Interview scripts and validation experiments
-06-brand/           Positioning and landing-page copy
-07-prompts/         System prompts, extraction prompts, evals
-AGENT.md            Instructions for AI agents working in this repo
-SOUL.md             Product ethos and non-negotiables
+alpha-pwa/     Working alpha PWA: FastAPI backend, React/Vite frontend, Android wrapper
+00-context/    Handoff notes and session context
+01-product/    Specs, UX, feature map
+02-research/   Market, model, OCR, legal-tech research
+03-business/   Pricing, unit economics, GTM
+04-technical/  Architecture, data model, provider routing
+05-validation/ Interviews and experiments
+06-brand/      Positioning and copy
+07-prompts/    Prompts, prompt map, eval notes
 ```
 
----
+## Non-Negotiables
 
-## 🛡️ Non-negotiables
+- Do not frame PLT as an "AI lawyer."
+- Keep the lawyer in control; outputs are drafts, not decisions.
+- Source-link factual claims to document quotes with confidence scores.
+- Keep candidate deadlines visibly unconfirmed until verified.
+- Do not invent facts, deadlines, statutes, or Cassazione citations.
+- Validate with real lawyers before building too much.
 
-- Do **not** frame PLT as an “AI lawyer.”
-- Keep the lawyer in control: outputs are drafts, not decisions.
-- Source-link every factual claim to a document quote, page/chunk, timestamp, and confidence score.
-- Keep deadline candidates visibly unconfirmed until a lawyer verifies them.
-- Build workflow first; chat is only the command layer.
-- Validate with real lawyers before adding too much machinery.
-
----
-
-## 💶 Pricing hypothesis
-
-- **Starter:** €29/mo — solo lawyer, light monthly usage.
-- **Pro:** €79–99/mo — active criminal-defense practice.
-- **Firm:** €199–299/mo — shared workspace, multiple users, higher usage.
-- **Case/discovery packs:** for large matters with heavy OCR/audio/document processing.
-
----
-
-## 🧭 Positioning
+## Product Positioning
 
 Use:
 
-> **Mobile-first criminal-defense case triage.**
-
-Or:
-
-> **From discovery dump to court-ready brief.**
+> Mobile-first criminal-defense case triage.
 
 Avoid:
 
-> “AI lawyer.”
+> AI lawyer.
 
-Wrong product. Wrong liability. Bad vibes.
+Wrong product, wrong liability.

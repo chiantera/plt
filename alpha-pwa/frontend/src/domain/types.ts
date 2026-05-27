@@ -66,6 +66,7 @@ export type ProceduralDeadline = {
   status: 'confirmed' | 'candidate' | 'needs_review';
   urgency: 'alta' | 'media' | 'bassa';
   description: string;
+  feriale_applied: boolean;
   start_work_date: string | null;
   internal_target_date: string | null;
   source_refs: SourceRef[];
@@ -112,6 +113,7 @@ export type ChargeAnalysis = {
 
 export type DefenseStrategy = {
   title: string;
+  target_charge_id: string | null;
   strategy_type: string;
   priority: 'primary' | 'secondary' | 'fallback';
   description: string;
@@ -159,7 +161,7 @@ export type LegalAnalysis = {
   strategies: DefenseStrategy[];
   constitutional_issues: ConstitutionalIssue[];
   witness_assessments: WitnessAssessment[];
-  evidence_balance: EvidenceBalance;
+  evidence_balance: EvidenceBalance | null;
   client_summary: string;
 };
 

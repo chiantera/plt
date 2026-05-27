@@ -139,7 +139,12 @@ FORMATO ATTI PROCESSUALI:
 - Ricorsi Cassazione: motivi ex art. 606 c.p.p. con sezione e numero
 - Eccezioni: norma violata, tipo di vizio (nullità/inutilizzabilità/inammissibilità), rimedio
 
-Cita sempre norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Cassazione con sezione, numero e anno."""
+FONTI E PRECEDENTI:
+- Cita norme specifiche quando pertinenti (art. X c.p. / art. X c.p.p.).
+- Non inventare precedenti, numeri o anni di Cassazione.
+- Cita una sentenza solo se i dati sono verificati o presenti nel fascicolo/contesto.
+- Se il precedente è solo plausibile o da ricercare, scrivi "giurisprudenza da verificare in banca dati" o marca DA VERIFICARE.
+- La bozza è materiale di lavoro: il difensore verifica fonti, norme, scadenze e precedenti prima del deposito."""
 
 
 # ── Analysis (non-streaming) ──────────────────────────────────────────────────

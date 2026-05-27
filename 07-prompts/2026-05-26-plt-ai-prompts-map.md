@@ -1,6 +1,6 @@
 # PLT AI Prompts Map
 
-Date: 2026-05-26; refreshed 2026-05-27 01:25 Europe/Berlin
+Date: 2026-05-26; refreshed 2026-05-27 02:10 Europe/Berlin
 Project inspected: `/home/deckard/plt/alpha-pwa`
 Primary app surfaces: FastAPI backend + React/Vite frontend
 
@@ -30,7 +30,7 @@ The app currently has four AI pathways:
    - Backend default system: `backend/app/ai_service.py` → `_DEFAULT_CHAT_SYSTEM`.
    - Frontend system override: `frontend/src/prompts/giulia.ts` → `SYSTEM_PROMPT_IT`.
    - Prompt modules: `frontend/src/prompts/documentDrafts.ts`, `frontend/src/prompts/redaction.ts`, `frontend/src/draftArtifacts.ts`.
-   - Risk: ordinary chat/drafting prompts still pressure the model to cite Cassazione precedents, while the strongest “do not invent precedents” guardrail is currently limited to the draft workspace wrapper.
+   - Current guardrail: backend/default chat, frontend/system chat, document draft prompts, and the draft workspace wrapper now all ban invented Cassazione citations and require verified citations or `DA VERIFICARE` / “giurisprudenza da verificare in banca dati”.
 
 4. **Document/audio extraction services without app-authored natural-language prompts**
    - OCR: Mistral OCR via `backend/app/ocr_adapter.py`.
@@ -304,22 +304,25 @@ Triggered by:
 - redaction detection/application via `fetchChatFull()`;
 - any direct `/api/chat` caller without `system_override`.
 
-Current issue:
+Current policy:
 
-- It frames GiulIA as “avvocata penalista con 25 anni...” and says:
+- It frames GiulIA as “avvocata penalista con 25 anni...”.
+- It now uses this source/citation guardrail:
 
 ```text
-Cita sempre norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Cassazione con sezione, numero e anno.
+FONTI E PRECEDENTI:
+- Cita norme specifiche quando pertinenti (art. X c.p. / art. X c.p.p.).
+- Non inventare precedenti, numeri o anni di Cassazione.
+- Cita una sentenza solo se i dati sono verificati o presenti nel fascicolo/contesto.
+- Se il precedente è solo plausibile o da ricercare, scrivi "giurisprudenza da verificare in banca dati" o marca DA VERIFICARE.
 ```
 
-Risk:
+Residual risk:
 
-- This pressures the model to invent plausible Cassazione citations.
-- Draft workspace P18 adds a strong guardrail, but privacy tasks and generic direct chat calls using P07 do not.
+- Privacy tasks and generic direct chat calls still inherit the legal persona when no task-specific `system_override` is provided.
 
 Optimization target:
 
-- Replace “Cita sempre ... precedenti” with safer wording: cite only verified/source-supported precedents; otherwise mark `DA VERIFICARE` or `giurisprudenza da ricercare in banca dati`.
 - Use smaller task-specific system prompts for privacy/anonymization.
 
 ## P08 — Frontend GiulIA chat system prompt with app-help instructions
@@ -336,10 +339,12 @@ Adds:
 - fallback support email text;
 - legal drafting format hints.
 
-Same Cassazione risk:
+Current Cassazione guardrail:
 
 ```text
-Cita sempre norme specifiche (art. X c.p. / art. X c.p.p.) e precedenti della Cassazione con sezione, numero e anno.
+Non inventare precedenti, numeri o anni di Cassazione.
+Cita una sentenza solo se i dati sono verificati o presenti nel fascicolo/contesto.
+Se il precedente è solo plausibile o da ricercare, scrivi "giurisprudenza da verificare in banca dati" o marca DA VERIFICARE.
 ```
 
 What gets sent with it:
@@ -351,7 +356,6 @@ What gets sent with it:
 Optimization targets:
 
 - Split app-help into a separate optional module; do not send it for every legal drafting/chat request.
-- Add anti-invented-precedent guardrail to the general chat system prompt.
 - Stop duplicating case context when quick action user prompts already include it.
 
 ## P09 — Freeform user chat prompt
@@ -383,12 +387,11 @@ File: `alpha-pwa/frontend/src/prompts/documentDrafts.ts`
 Section: `DOC_PROMPTS.memoria`
 Triggered by: chat quick action “Memoria difensiva” and draft workspace “Memoria difensiva”.
 
-Prompt tail asks for a complete Italian defensive brief with `INTESTAZIONE`, `IN FATTO`, `IN DIRITTO`, `CONCLUSIONI`, including specific norms and Cassazione precedents.
+Prompt tail asks for a complete Italian defensive brief with `INTESTAZIONE`, `IN FATTO`, `IN DIRITTO`, `CONCLUSIONI`, including specific norms and verified-or-`DA VERIFICARE` Cassazione precedents.
 
-Risk:
+Current guardrail:
 
-- It requests precedents but does not itself include the anti-invention guardrail.
-- Guardrail is present only when routed through the draft workspace wrapper P18, not necessarily when used as a chat quick action.
+- Includes `PRECEDENT_GUARDRAIL`: do not invent precedents, numbers, or years; cite only verified/source-supported sentenze; otherwise mark `DA VERIFICARE` or “giurisprudenza da verificare in banca dati”.
 
 ## P11 — Document prompt: `cassazione`
 
@@ -396,14 +399,13 @@ File: `alpha-pwa/frontend/src/prompts/documentDrafts.ts`
 Section: `DOC_PROMPTS.cassazione`
 Triggered by: chat quick action “Ricorso Cassazione” and draft workspace “Ricorso Cassazione”.
 
-High-risk instruction:
+Current instruction:
 
 - Develop appeal grounds under art. 606 c.p.p.
-- Include “Precedenti della Cassazione favorevoli (cita sezione e numero)”.
+- Include favorable Cassazione precedents only if verified; otherwise indicate legal research to verify.
 
-Required improvement before production:
+Residual production gap:
 
-- Hard-ban invented case law in this prompt itself or ensure every path routes through P18.
 - Ideally connect to verified legal research/RAG before asking for specific precedents.
 
 ## P12 — Document prompt: `eccezione`
@@ -412,9 +414,10 @@ File: `alpha-pwa/frontend/src/prompts/documentDrafts.ts`
 Section: `DOC_PROMPTS.eccezione`
 Triggered by: chat quick action “Eccezione procedurale” and draft workspace “Eccezione procedurale”.
 
-Risk:
+Current guardrail:
 
-- Asks for “Giurisprudenza della Cassazione che supporta l'eccezione”. Needs the same no-invented-precedent guardrail on every route.
+- Asks for verified Cassazione support or jurisprudence to verify in a legal database.
+- Includes the same `PRECEDENT_GUARDRAIL` used by the other document prompts.
 
 ## P13 — Document prompt: `crossExam`
 
@@ -432,10 +435,10 @@ File: `alpha-pwa/frontend/src/prompts/documentDrafts.ts`
 Section: `DOC_PROMPTS.strategy`
 Triggered by: chat quick action “Strategia del caso”, legal drafting card “Analisi strategica”, next-deadline “Prepara con GiulIA”, fallback draft type.
 
-Risk:
+Current guardrail:
 
-- Asks for `Giurisprudenza favorevole (Cass. pen., sezione, numero)`.
-- This should be guarded or downgraded to `orientamenti da verificare` unless legal retrieval is connected.
+- Asks for verified favorable jurisprudence or `DA VERIFICARE` / legal research to perform.
+- Includes the same `PRECEDENT_GUARDRAIL` used by the other document prompts.
 
 ## P15 — Document prompt: `clienteNote`
 
@@ -710,9 +713,9 @@ Privacy note:
 3. **Legal persona applied to privacy tasks**
    - Redaction detection/application use `/api/chat` without `system_override`, so backend applies the GiulIA legal/drafting persona.
 
-4. **Cassation citation pressure**
-   - P07/P08/P10/P11/P12/P14 pressure the model to cite Cassazione precedents.
-   - P18 bans invented precedents, but only draft workspace paths receive it consistently.
+4. **Cassation citation pressure mostly mitigated**
+   - P07/P08/P10/P11/P12/P14 now include verified-or-`DA VERIFICARE` wording.
+   - Remaining production gap: no verified legal research/RAG source is connected, so specific precedent citations still require lawyer/database verification.
 
 5. **Analysis schema is very verbose**
    - P04 injects a large schema every time.
@@ -723,11 +726,7 @@ Privacy note:
 
 ## Suggested optimization order
 
-1. **Universal anti-invented-precedent guardrail**
-   - Add P18-style rules to backend default chat and frontend chat system prompts.
-   - Replace “Cita sempre ... precedenti” with “Cita solo se verificato; altrimenti DA VERIFICARE / da ricercare in banca dati”.
-
-2. **Task-specific prompt routing**
+1. **Task-specific prompt routing**
    - `chat_general`
    - `draft_legal_act`
    - `redaction_detect`
@@ -735,20 +734,20 @@ Privacy note:
    - `case_analysis_flash`
    - `case_analysis_pro`
 
-3. **Stop duplicating case context**
+2. **Stop duplicating case context**
    - For quick actions, send context either in the system prompt or in the user prompt, not both.
    - Create compact context variants per task.
 
-4. **Separate app-help from legal persona**
+3. **Separate app-help from legal persona**
    - Do not send app usage docs for every legal response.
 
-5. **Make privacy flows deterministic-first**
+4. **Make privacy flows deterministic-first**
    - AI can suggest candidates; user should review and export anonymized copies explicitly.
 
-6. **Structured output for analysis**
+5. **Structured output for analysis**
    - Replace or supplement prompt-injected schema with provider-native structured output where reliable.
 
-7. **Dedicated output budget for drafting**
+6. **Dedicated output budget for drafting**
    - Long memorie/ricorsi may need a non-chat endpoint or larger completion budget.
 
 ## Files inspected for this map

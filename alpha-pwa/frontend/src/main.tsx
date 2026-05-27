@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-// Build trigger: 2026-05-26T19:32Z — fresh deploy
 import {
   AlertTriangle, ArrowLeft, ArrowRight, BookOpen,
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
@@ -1629,6 +1628,14 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdat
 }) {
   const [expandedCharge, setExpandedCharge] = useState<number | null>(0);
   const [expandedStrategy, setExpandedStrategy] = useState<number | null>(0);
+  const evidenceBalance: EvidenceBalance = la.evidence_balance ?? {
+    prosecution_strength: 0.5,
+    defense_strength: 0.5,
+    key_prosecution_evidence: [],
+    key_defense_evidence: [],
+    critical_gaps: [],
+    overall_assessment: '',
+  };
 
   const updateCharge = (i: number, patch: Partial<ChargeAnalysis>) =>
     onUpdate(la => ({ ...la, charges: la.charges.map((c, idx) => idx === i ? { ...c, ...patch } : c) }));
@@ -1649,7 +1656,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdat
   const deleteStrategy = (i: number) =>
     onUpdate(la => ({ ...la, strategies: la.strategies.filter((_, idx) => idx !== i) }));
   const addStrategy = () =>
-    onUpdate(la => ({ ...la, strategies: [...la.strategies, { title: '', strategy_type: '', priority: 'secondary', description: '', strengths: [], risks: [], required_evidence: [], source_refs: [] }] }));
+    onUpdate(la => ({ ...la, strategies: [...la.strategies, { title: '', target_charge_id: null, strategy_type: '', priority: 'secondary', description: '', strengths: [], risks: [], required_evidence: [], source_refs: [] }] }));
 
   const updateIssue = (i: number, patch: Partial<ConstitutionalIssue>) =>
     onUpdate(la => ({ ...la, constitutional_issues: la.constitutional_issues.map((x, idx) => idx === i ? { ...x, ...patch } : x) }));
@@ -1666,7 +1673,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdat
     onUpdate(la => ({ ...la, witness_assessments: [...la.witness_assessments, { witness_name: '', role: 'neutral', credibility_score: 0.5, key_testimony: '', strengths: [], vulnerabilities: [], cross_examination_angles: [], source_refs: [] }] }));
 
   const updateBalance = (patch: Partial<EvidenceBalance>) =>
-    onUpdate(la => ({ ...la, evidence_balance: { ...la.evidence_balance, ...patch } }));
+    onUpdate(la => ({ ...la, evidence_balance: { ...(la.evidence_balance ?? evidenceBalance), ...patch } }));
 
   const RISK_OPTIONS: Array<{ value: 'low' | 'medium' | 'high' | 'critical'; label: string }> = [
     { value: 'low', label: 'Basso' }, { value: 'medium', label: 'Medio' },
@@ -2000,22 +2007,22 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdat
           <div className="balance-bars">
             <div>
               <span className="muted" style={{ fontSize: '0.78rem' }}>Forza accusa:{' '}
-                <EditablePercent value={la.evidence_balance.prosecution_strength} onChange={v => updateBalance({ prosecution_strength: v })} />
+                <EditablePercent value={evidenceBalance.prosecution_strength} onChange={v => updateBalance({ prosecution_strength: v })} />
               </span>
-              <StrengthBar value={la.evidence_balance.prosecution_strength} label="Forza accusa" color="#ef4444" />
+              <StrengthBar value={evidenceBalance.prosecution_strength} label="Forza accusa" color="#ef4444" />
             </div>
             <div>
               <span className="muted" style={{ fontSize: '0.78rem' }}>Forza difesa:{' '}
-                <EditablePercent value={la.evidence_balance.defense_strength} onChange={v => updateBalance({ defense_strength: v })} />
+                <EditablePercent value={evidenceBalance.defense_strength} onChange={v => updateBalance({ defense_strength: v })} />
               </span>
-              <StrengthBar value={la.evidence_balance.defense_strength} label="Forza difesa" color="#22c55e" />
+              <StrengthBar value={evidenceBalance.defense_strength} label="Forza difesa" color="#22c55e" />
             </div>
           </div>
           <div className="balance-cols">
             <div>
               <h4>Prove accusa</h4>
               <EditableStringList
-                items={la.evidence_balance.key_prosecution_evidence}
+                items={evidenceBalance.key_prosecution_evidence}
                 onChange={items => updateBalance({ key_prosecution_evidence: items })}
                 placeholder="Prova accusa…"
                 itemClass="risk-item"
@@ -2025,7 +2032,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdat
             <div>
               <h4>Prove difesa</h4>
               <EditableStringList
-                items={la.evidence_balance.key_defense_evidence}
+                items={evidenceBalance.key_defense_evidence}
                 onChange={items => updateBalance({ key_defense_evidence: items })}
                 placeholder="Prova difesa…"
                 itemClass="pro-item"
@@ -2036,7 +2043,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdat
           <div className="balance-gaps">
             <h4><Search size={13} /> Lacune critiche</h4>
             <EditableStringList
-              items={la.evidence_balance.critical_gaps}
+              items={evidenceBalance.critical_gaps}
               onChange={items => updateBalance({ critical_gaps: items })}
               placeholder="Lacuna…"
               addLabel="Aggiungi lacuna"
@@ -2044,7 +2051,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdat
           </div>
           <p className="balance-assessment">
             <Editable
-              value={la.evidence_balance.overall_assessment}
+              value={evidenceBalance.overall_assessment}
               onChange={v => updateBalance({ overall_assessment: v })}
               placeholder="Valutazione complessiva…"
               multiline
@@ -3367,6 +3374,14 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                   {' · '}
                   <Editable value={dl.due_time ?? ''} onChange={v => upd({ due_time: v || null })} placeholder="orario" />
                 </p>
+                <label className="muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', marginBottom: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(dl.feriale_applied)}
+                    onChange={e => upd({ feriale_applied: e.target.checked })}
+                  />
+                  sospensione feriale applicata
+                </label>
                 <p>
                   <Editable value={dl.description} onChange={v => upd({ description: v })} placeholder="Descrizione scadenza…" multiline />
                 </p>
@@ -3423,7 +3438,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             onClick={() => updateCase(c => ({
               ...c, procedural_deadlines: [...c.procedural_deadlines, {
                 title: '', deadline_type: 'other', due_date: '', due_time: null,
-                status: 'candidate', urgency: 'media', description: '',
+                status: 'candidate', urgency: 'media', description: '', feriale_applied: false,
                 start_work_date: null, internal_target_date: null, source_refs: [], tasks: [],
               }],
             }))}
