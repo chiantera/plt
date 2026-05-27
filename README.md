@@ -7,6 +7,13 @@ Pocket Legal Triage (PLT) turns messy criminal-defense materials into a clean, s
 
 PLT is not an "AI lawyer." It is a case-control workspace. The lawyer stays in charge, verifies deadlines and citations, and treats generated output as draft material.
 
+## Screenshots
+
+| Case overview | Legal analysis | Document upload |
+|:---:|:---:|:---:|
+| ![Case detail view — Carta & Inchiostro design](assets/screenshots/Screenshot%20From%202026-05-27%2013-19-07.png) | ![Legal analysis tab with strategies and constitutional issues](assets/screenshots/Screenshot%20From%202026-05-27%2013-20-23.png) | ![Multi-file upload drawer with Documenti / Giurisprudenza tabs](assets/screenshots/Screenshot%20From%202026-05-27%2013-31-13.png) |
+| Case header · GiulIA bar · stats | Strategies · constitutional risks | Upload drawer · URL import |
+
 ## Current State
 
 The working alpha lives in [`alpha-pwa/`](./alpha-pwa/).
@@ -32,6 +39,68 @@ The app is live for limited colleague testing. See [`CURRENT-TASK.md`](./CURRENT
 - Enforces a strict ban on invented Cassazione citations across all AI prompts; flags any slip-through as `DA VERIFICARE`.
 - Supports privacy workflows through redaction, anonymization, local case storage, and export/import.
 - Includes an Android Capacitor wrapper for APK testing.
+- Carta & Inchiostro design system: bordeaux + carta palette, Newsreader + Satoshi typefaces, full dark/night mode.
+
+## App Structure
+
+```text
+alpha-pwa/
+├── backend/
+│   ├── app/
+│   │   ├── main.py             FastAPI routes (upload, analyze, chat, transcribe, fetch-url)
+│   │   ├── ai_service.py       Provider routing · Flash/Pro policy · prompt assembly
+│   │   ├── models.py           Pydantic contracts (CaseAnalysis, ChatRequest, …)
+│   │   ├── ocr_adapter.py      Mistral OCR boundary
+│   │   └── demo_data.py        Demo case fixture
+│   ├── tests/
+│   │   ├── test_legal_schema.py
+│   │   ├── test_pro_recommendation.py
+│   │   ├── test_demo_case.py
+│   │   ├── test_export_brief.py
+│   │   ├── test_ocr_contract.py
+│   │   └── test_frontend_copy.py
+│   └── requirements.txt
+├── frontend/
+│   ├── public/
+│   │   ├── favicon.svg         Bordeaux "P" mark (SVG master)
+│   │   ├── favicon.ico         16 + 32 px ICO
+│   │   ├── icon-192.png        PWA icon
+│   │   ├── icon-512.png        PWA icon + maskable
+│   │   └── manifest.json
+│   ├── src/
+│   │   ├── tokens.css          Carta & Inchiostro design tokens (load first)
+│   │   ├── styles.css          Mobile-first component styles
+│   │   ├── main.tsx            App shell · CaseListView · routing
+│   │   ├── config.ts           Shared API base URL
+│   │   ├── db.ts               IndexedDB persistence
+│   │   ├── pltExport.ts        Encrypted .plt export/import
+│   │   ├── draftArtifacts.ts   Draft wrapper · Cassazione guardrail · export
+│   │   ├── dateUtils.ts        Scadenze formatting helpers
+│   │   ├── domain/
+│   │   │   ├── types.ts        Shared case/analysis TypeScript types
+│   │   │   ├── caseContext.ts  buildCaseContext() · buildUserContextMaterial()
+│   │   │   ├── caseMerge.ts    AI merge logic
+│   │   │   ├── redaction.ts    Redaction domain helpers
+│   │   │   └── helpers.tsx     riskColor · riskLabel · riskIcon
+│   │   ├── prompts/
+│   │   │   ├── giulia.ts       SYSTEM_PROMPT_IT (GiulIA persona)
+│   │   │   ├── documentDrafts.ts  DOC_PROMPTS · STRICT_PRECEDENT_BAN
+│   │   │   └── redaction.ts    REDACT_DETECT_PROMPT · REDACT_APPLY_PROMPT
+│   │   ├── screens/
+│   │   │   └── CaseDetailView.tsx  Full case workspace (lazy-loaded chunk)
+│   │   ├── components/
+│   │   │   ├── GiuliaPromptBar.tsx
+│   │   │   ├── ChatPanel.tsx       ChatDrawer · FloatingChatButton · FabRestoreButton
+│   │   │   └── MultiFileUploadDrawer.tsx  (lazy-loaded chunk)
+│   │   └── data/
+│   │       ├── demo.json       Demo case fixture for local dev
+│   │       └── mockApi.ts      Mock API for offline testing
+│   ├── android/                Capacitor Android wrapper
+│   ├── vite.config.ts          Build config with manualChunks (vendor-react, vendor-supabase)
+│   └── package.json
+└── docs/
+    └── implementation-notes.md
+```
 
 ## Quick Start
 

@@ -15,6 +15,7 @@ Target verified:
 Latest commits:
 
 ```text
+(in progress — README update)
 b84b0fd3 fix: token-clean MultiFileUploadDrawer — last hardcoded colors removed
 89eff3c3 fix: 13 dark-era color bugs — token-clean UI across all views
 5f4c92a4 docs: update CURRENT-TASK after slice 5 (Carta & Inchiostro design)
@@ -24,7 +25,7 @@ b84b0fd3 fix: token-clean MultiFileUploadDrawer — last hardcoded colors remove
 
 ## Completed in this slice
 
-### Slice 6 — Dark-era color bug sweep
+### Slice 6 — Design polish: fonts, favicon, layout, color sweep
 
 Visual inspection of the full live UI on `localhost:5173` revealed 13 hardcoded dark-era colors that were invisible or illegible on the new light `--paper` background. All fixed.
 
@@ -46,6 +47,27 @@ Visual inspection of the full live UI on `localhost:5173` revealed 13 hardcoded 
 - Cases empty state: near-invisible dark glass → `.empty-state-placeholder.lg` with `var(--ink-1)` text.
 - Auth/Suspense loading spinners: `#020617` dark bg + `#7c3aed` purple → `var(--paper)` + `var(--giulia-ink)`.
 
+**`src/tokens.css` — typography upgrade:**
+- `--font-display`: Newsreader (editorial serif, Google Fonts) — display titles and case headers.
+- `--font-ui`: Satoshi (geometric sans, Fontshare CDN) — all UI labels, buttons, navigation.
+- `--font-mono`: JetBrains Mono — code and metadata fields.
+- `index.html`: preconnect hints for both CDNs.
+
+**Favicon + PWA icons (NEW):**
+- `public/favicon.svg`: hand-crafted SVG "P" glyph — bordeaux rounded square + carta letterform.
+- `public/favicon.ico`: 16 + 32 px ICO generated via ImageMagick from SVG master.
+- `public/icon-192.png`, `icon-512.png`: regenerated from SVG (was generic placeholder).
+- `public/manifest.json`: `background_color` → `#FAF6EE` (carta), `theme_color` → `#7A1F2B` (sigillo).
+- `index.html`: SVG + ICO favicon links, `theme-color` → `#FAF6EE`, `status-bar-style` → `default`.
+
+**Layout and copy fixes:**
+- `.row-delete-btn`: removed circle/oval (border + padding that made it look like a badge); now flat trash icon identical to other delete buttons throughout the app.
+- Home banner (`.warming-banner`, `.analyzing-banner`, `.error-banner`) in `.home-shell`: `margin-left/right: 20px` — was stretching edge-to-edge.
+- `GiuliaPromptBar`: `rows={2}` + `minHeight: 40px` — was too short (1 row).
+- `h1`: `font-size: clamp(1.4rem, 4.5vw, 2rem)` — was wrapping onto 2 lines on small viewports.
+- `.home-headline`: `clamp(2rem, 7vw, 3rem)` + `white-space: nowrap` — title no longer breaks.
+- "I tuoi fascicoli" → **"I miei fascicoli"** in `main.tsx`.
+
 **`src/components/MultiFileUploadDrawer.tsx` (follow-up — b84b0fd3):**
 - Privacy notice box: `rgba(56,189,248,0.05)` sky-tinted → `.upload-privacy-notice` (green `--success` tone).
 - Drop zone giurisprudenza icon: `#a78bfa` lavender → `--giulia-ink` navy via `.drop-zone--giur .drop-zone-icon-container`.
@@ -57,6 +79,11 @@ Visual inspection of the full live UI on `localhost:5173` revealed 13 hardcoded 
 - URL error: `#f87171` → `var(--critical)`.
 - `MultiFileUploadDrawer` chunk: 9.89 KB → 9.22 KB (less inline style payload).
 - Zero hardcoded rgba/hex colors remain across all frontend TSX/TS files (verified with grep).
+
+**Documentation:**
+- `README.md` (root): screenshots from live Carta & Inchiostro UI, ASCII app file tree, updated feature list.
+- `alpha-pwa/README.md`: updated Key Files section to reflect extracted screens/components/domain structure and new public/ assets.
+- `CURRENT-TASK.md`: this update.
 
 **All tests pass:**
 - `npm run test:plt-export` ✓

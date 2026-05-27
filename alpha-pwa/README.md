@@ -30,6 +30,7 @@ Pushes to `main` trigger the Netlify frontend deploy. Backend deploys are handle
 - Redaction and anonymization workflows for sharing.
 - Encrypted `.plt` export/import for sharing fascicoli.
 - Pro analysis recommendation flow for heavier legal reasoning, gated by user confirmation.
+- Carta & Inchiostro design system: bordeaux + carta palette, Newsreader + Satoshi typefaces, full dark/night mode.
 
 ## Local Setup
 
@@ -128,23 +129,57 @@ If the full backend suite hangs in this local harness after printing successful 
 
 ```text
 backend/
-  app/main.py           FastAPI routes and upload/analyze/chat endpoints
-  app/models.py         Pydantic case, analysis, prompt, and chat contracts
-  app/ai_service.py     Provider routing, prompt policy, analysis/chat calls
-  app/ocr_adapter.py    OCR boundary
-  app/export_brief.py   Brief export helpers
-  tests/                Backend contract tests
+  app/main.py             FastAPI routes (upload, analyze, chat, transcribe, fetch-url)
+  app/ai_service.py       Provider routing · Flash/Pro policy · prompt assembly
+  app/models.py           Pydantic contracts (CaseAnalysis, ChatRequest, …)
+  app/ocr_adapter.py      Mistral OCR boundary
+  app/demo_data.py        Demo case fixture
+  tests/                  Backend contract tests (pytest)
 
 frontend/
-  src/main.tsx                 Main React app shell and screen composition
-  src/domain/types.ts          Shared frontend case/analysis types
-  src/domain/caseContext.ts    Case-context builder for chat and drafts
-  src/prompts/                 GiulIA and document draft prompts
-  src/draftArtifacts.ts        Draft artifact wrapper, warnings, export helpers
-  src/storage.ts               IndexedDB/local case persistence
-  src/pltExport.ts             Encrypted .plt import/export
-  src/supabaseClient.ts        Auth client
-  src/styles.css               Mobile-first dark UI
+  public/
+    favicon.svg           Bordeaux "P" mark (SVG master)
+    favicon.ico           16 + 32 px ICO
+    icon-192.png          PWA icon
+    icon-512.png          PWA icon + maskable
+    manifest.json
+
+  src/
+    tokens.css            Carta & Inchiostro design tokens (load before styles.css)
+    styles.css            Mobile-first component styles
+    main.tsx              App shell · CaseListView · routing
+    config.ts             Shared API base URL
+    db.ts                 IndexedDB persistence
+    pltExport.ts          Encrypted .plt export/import
+    draftArtifacts.ts     Draft wrapper · Cassazione guardrail · export
+    dateUtils.ts          Scadenze formatting helpers
+
+    domain/
+      types.ts            Shared case/analysis TypeScript types
+      caseContext.ts      buildCaseContext() · buildUserContextMaterial()
+      caseMerge.ts        AI merge logic
+      redaction.ts        Redaction domain helpers
+      helpers.tsx         riskColor · riskLabel · riskIcon
+
+    prompts/
+      giulia.ts           SYSTEM_PROMPT_IT (GiulIA persona)
+      documentDrafts.ts   DOC_PROMPTS · STRICT_PRECEDENT_BAN
+      redaction.ts        REDACT_DETECT_PROMPT · REDACT_APPLY_PROMPT
+
+    screens/
+      CaseDetailView.tsx  Full case workspace (lazy-loaded chunk)
+
+    components/
+      GiuliaPromptBar.tsx
+      ChatPanel.tsx       ChatDrawer · FloatingChatButton · FabRestoreButton
+      MultiFileUploadDrawer.tsx  (lazy-loaded chunk)
+
+    data/
+      demo.json           Demo case fixture for local dev
+      mockApi.ts          Mock API for offline testing
+
+  vite.config.ts          manualChunks for vendor-react + vendor-supabase
+  android/                Capacitor Android wrapper
 ```
 
 ## Product Rules
