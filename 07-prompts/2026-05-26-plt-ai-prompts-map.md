@@ -1,6 +1,6 @@
 # PLT AI Prompts Map
 
-Date: 2026-05-26; refreshed 2026-05-27 02:10 Europe/Berlin
+Date: 2026-05-26; refreshed 2026-05-27 Europe/Berlin
 Project inspected: `/home/deckard/plt/alpha-pwa`
 Primary app surfaces: FastAPI backend + React/Vite frontend
 
@@ -111,7 +111,7 @@ Endpoint: `POST /api/analyze-text`
 Prompt text:
 
 ```text
-Extract, structure, do not over-reason. Prefer concise fields. If uncertain, mark as candidate. Do not infer legal strategy.
+Extract, structure, do not over-reason. Prefer concise fields. If uncertain, mark as candidate. Do not infer legal strategy. Do not cite case law or Cassazione decisions not present in the source materials.
 ```
 
 Purpose:
@@ -132,18 +132,19 @@ Endpoint: `POST /api/analyze-text`
 Prompt text:
 
 ```text
-Reason deeply across the entire case state. Identify contradictions, procedural risks, defensive hypotheses, missing evidence, and next actions. Do not invent case law, deadlines, facts, or citations. Tie every factual claim to source references. Mark assumptions explicitly.
+Reason deeply across the entire case state. Identify contradictions, procedural risks, defensive hypotheses, missing evidence, and next actions. Tie every factual claim to source references. Mark assumptions explicitly.
+ABSOLUTE BAN: never cite Cassazione case numbers, sections, or years not present in the uploaded case file. If a precedent would strengthen the argument but is unverified: describe the legal principle and statutory hook without fabricating extremes; write "orientamento giurisprudenziale da ricercare in banca dati". Flag any Cassazione citation not sourced from the case file as DA VERIFICARE.
 ```
 
 Purpose:
 
 - Reserve deep reasoning for confirmed Pro mode.
-- Explicitly bans invented case law, deadlines, facts, and citations.
+- Strict ban on invented Cassazione citations with explicit productive alternative path.
 
 Good current behavior:
 
-- This is the strongest analysis-side anti-hallucination guardrail.
-- It belongs in the Pro path, but similar guardrail language should be reused in chat and quick actions too.
+- Strongest analysis-side anti-hallucination guardrail.
+- Same DIVIETO ASSOLUTO pattern now applied consistently across all chat/draft prompts.
 
 ## P03 — Full case analysis system prompt
 
@@ -168,6 +169,7 @@ REGOLE FONDAMENTALI:
 4. La struttura JSON deve essere completa e validabile.
 5. Usa la lingua specificata nel campo "language" della richiesta.
 6. Non trasformare l'analisi standard in consulenza strategica: la strategia profonda è Pro.
+7. DIVIETO ASSOLUTO: non citare estremi, sezioni, numeri o anni di sentenze Cassazione non presenti nei materiali. Se un precedente è rilevante ma non verificato: descrivi il principio senza inventare estremi.
 
 OUTPUT: Restituisci SOLO JSON valido, nessun testo aggiuntivo prima o dopo.
 ```
@@ -307,14 +309,14 @@ Triggered by:
 Current policy:
 
 - It frames GiulIA as “avvocata penalista con 25 anni...”.
-- It now uses this source/citation guardrail:
+- It now uses this strict citation guardrail (DIVIETO ASSOLUTO pattern):
 
 ```text
 FONTI E PRECEDENTI:
 - Cita norme specifiche quando pertinenti (art. X c.p. / art. X c.p.p.).
-- Non inventare precedenti, numeri o anni di Cassazione.
-- Cita una sentenza solo se i dati sono verificati o presenti nel fascicolo/contesto.
-- Se il precedente è solo plausibile o da ricercare, scrivi "giurisprudenza da verificare in banca dati" o marca DA VERIFICARE.
+- DIVIETO ASSOLUTO: non citare mai estremi, sezioni, numeri o anni di sentenze Cassazione che non siano presenti nel fascicolo o nei materiali caricati.
+- Se un precedente è utile ma non verificato: descrivi il principio giuridico e la norma di riferimento senza estremi; scrivi "orientamento giurisprudenziale da ricercare in banca dati".
+- Qualsiasi citazione con numero o anno non proveniente dal fascicolo: marca DA VERIFICARE.
 ```
 
 Residual risk:
@@ -339,12 +341,12 @@ Adds:
 - fallback support email text;
 - legal drafting format hints.
 
-Current Cassazione guardrail:
+Current Cassazione guardrail (DIVIETO ASSOLUTO pattern, synced with P07):
 
 ```text
-Non inventare precedenti, numeri o anni di Cassazione.
-Cita una sentenza solo se i dati sono verificati o presenti nel fascicolo/contesto.
-Se il precedente è solo plausibile o da ricercare, scrivi "giurisprudenza da verificare in banca dati" o marca DA VERIFICARE.
+DIVIETO ASSOLUTO: non citare mai estremi, sezioni, numeri o anni di sentenze Cassazione che non siano presenti nel fascicolo o nei materiali caricati.
+Se un precedente è utile ma non verificato: descrivi il principio giuridico e la norma di riferimento senza estremi; scrivi "orientamento giurisprudenziale da ricercare in banca dati".
+Qualsiasi citazione con numero o anno non proveniente dal fascicolo: marca DA VERIFICARE.
 ```
 
 What gets sent with it:
@@ -427,7 +429,8 @@ Triggered by: chat quick action “Controesame testimoni”, draft workspace car
 
 Lower precedent risk, higher factual-source risk:
 
-- Should preserve source-linked witness facts and mark unknowns.
+- Preserves source-linked witness facts and marks unknowns.
+- Now includes `STRICT_PRECEDENT_BAN` (was previously missing — fixed in this slice).
 
 ## P14 — Document prompt: `strategy`
 
@@ -450,10 +453,10 @@ Purpose:
 
 - Plain-language client explanation.
 
-Risk:
+Risk/guardrail:
 
-- Must avoid giving definitive legal promises or hiding uncertainty.
-- Should stay source-grounded and operational.
+- Must avoid definitive legal promises or hidden uncertainty.
+- Now explicitly instructs the model not to cite specific sentenze or use legal jargon; no invented jurisprudence even in plain-language context (note added in this slice).
 
 ## P16 — Fallback contextual chat prompt
 
@@ -713,9 +716,12 @@ Privacy note:
 3. **Legal persona applied to privacy tasks**
    - Redaction detection/application use `/api/chat` without `system_override`, so backend applies the GiulIA legal/drafting persona.
 
-4. **Cassation citation pressure mostly mitigated**
-   - P07/P08/P10/P11/P12/P14 now include verified-or-`DA VERIFICARE` wording.
-   - Remaining production gap: no verified legal research/RAG source is connected, so specific precedent citations still require lawyer/database verification.
+4. **Cassazione citation — DIVIETO ASSOLUTO now applied across all prompts**
+   - All prompts (P01–P15) now use the strict ban pattern: DIVIETO ASSOLUTO + productive alternative path (descrivi il principio, scrivi "orientamento da ricercare").
+   - `PRECEDENT_GUARDRAIL` renamed `STRICT_PRECEDENT_BAN` in `documentDrafts.ts`; crossExam and clienteNote now covered (were previously missing).
+   - `DA VERIFICARE` and `flagUnverifiedCassationCitations()` in `draftArtifacts.ts` remain as post-processing safety net.
+   - P18 (`DRAFT_PRECEDENT_GUARDRAIL`) remains the gold standard for draft artifacts.
+   - Remaining production gap: no verified legal research/RAG source is connected. Lawyer/database verification still required for specific precedents. Model-generated Cassazione citations must be treated as fabricated unless the source is in the fascicolo.
 
 5. **Analysis schema is very verbose**
    - P04 injects a large schema every time.

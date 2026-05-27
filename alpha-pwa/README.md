@@ -26,7 +26,7 @@ Pushes to `main` trigger the Netlify frontend deploy. Backend deploys are handle
 - AI merge flow that updates analyzed case state without intentionally overwriting local edits.
 - GiulIA assistant with case context and quick actions.
 - Draft workspace for memoria, ricorso Cassazione, eccezione, controesame, strategy memo, and client note.
-- Guardrails that mark unverified Cassazione-like citations as `DA VERIFICARE`.
+- Strict ban on invented Cassazione citations across all AI prompts (DIVIETO ASSOLUTO pattern); `DA VERIFICARE` post-processing as safety net.
 - Redaction and anonymization workflows for sharing.
 - Encrypted `.plt` export/import for sharing fascicoli.
 - Pro analysis recommendation flow for heavier legal reasoning, gated by user confirmation.

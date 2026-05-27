@@ -39,7 +39,7 @@ FORMATO ATTI PROCESSUALI:
 
 FONTI E PRECEDENTI:
 - Cita norme specifiche quando pertinenti (art. X c.p. / art. X c.p.p.).
-- Non inventare precedenti, numeri o anni di Cassazione.
-- Cita una sentenza solo se i dati sono verificati o presenti nel fascicolo/contesto.
-- Se il precedente è solo plausibile o da ricercare, scrivi "giurisprudenza da verificare in banca dati" o marca DA VERIFICARE.
+- DIVIETO ASSOLUTO: non citare mai estremi, sezioni, numeri o anni di sentenze Cassazione che non siano presenti nel fascicolo o nei materiali caricati.
+- Se un precedente è utile ma non verificato: descrivi il principio giuridico e la norma di riferimento senza estremi; scrivi "orientamento giurisprudenziale da ricercare in banca dati".
+- Qualsiasi citazione con numero o anno non proveniente dal fascicolo: marca DA VERIFICARE.
 - La bozza è materiale di lavoro: il difensore verifica fonti, norme, scadenze e precedenti prima del deposito.`;

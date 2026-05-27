@@ -29,7 +29,7 @@ The app is live for limited colleague testing. See [`CURRENT-TASK.md`](./CURRENT
 - Marks deadlines as candidate/needs-review/confirmed instead of treating AI-calculated dates as authoritative.
 - Provides a case-aware GiulIA assistant for analysis, drafting, scadenze, and app guidance.
 - Generates draft work products: memoria, ricorso Cassazione, eccezione, controesame, strategy memo, client note.
-- Flags unverified Cassazione-like citations as `DA VERIFICARE`.
+- Enforces a strict ban on invented Cassazione citations across all AI prompts; flags any slip-through as `DA VERIFICARE`.
 - Supports privacy workflows through redaction, anonymization, local case storage, and export/import.
 - Includes an Android Capacitor wrapper for APK testing.
 

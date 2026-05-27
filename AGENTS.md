@@ -39,7 +39,7 @@ Hermes-specific note: Hermes auto-loads repo-local `AGENTS.md` when running from
 ## Current priority themes
 
 - Keep improving the in-app AI prompts and prompt map.
-- Stop GiulIA from inventing Cassazione precedents. `DA VERIFICARE` is only an interim warning; until verified legal retrieval or user-provided judgments exist, model-generated Cassazione citations should be treated as fabricated. See `CURRENT-TASK.md` for the current solution notes.
+- **Politica anti-allucinazione Cassazione — DIVIETO ASSOLUTO:** tutti i prompt AI usano ora la formula "DIVIETO ASSOLUTO + percorso alternativo" (descrivi il principio e la norma senza inventare estremi; scrivi "orientamento giurisprudenziale da ricercare in banca dati"). `DA VERIFICARE` e `flagUnverifiedCassationCitations()` in `draftArtifacts.ts` restano come rete di sicurezza post-processing. Il gold standard è P18 (`DRAFT_PRECEDENT_GUARDRAIL`). Quando aggiungi o modifichi un prompt, applica lo stesso schema. In assenza di RAG verificato, qualsiasi citazione Cassazione generata dal modello va trattata come inventata.
 - Keep track of frontend usability fixes in `CURRENT-TASK.md`, including the FAB hide/dismiss interaction and broader FE polish backlog.
 - Preserve the new Flash/Pro split:
   - Flash/standard = extraction, structure, concise fields, no deep strategy by default.
@@ -120,7 +120,10 @@ Before saying work is complete:
 3. Run frontend build/type checks for touched frontend behavior.
 4. Use browser QA for user-visible flow changes when practical.
 5. Run `git diff --check` before commit.
-6. Update `CURRENT-TASK.md` and `07-prompts/` if the slice changes prompts, model routing, Pro/Flash behavior, legal copy, or next-step context.
+6. **Aggiorna `07-prompts/2026-05-26-plt-ai-prompts-map.md`** se cambi qualsiasi prompt, wording, policy Flash/Pro, o guardrail Cassazione. È il source-of-truth vivo dei prompt.
+7. **Aggiorna `CURRENT-TASK.md`** con lo stato del slice e il backlog aggiornato.
+8. **Aggiorna `README.md` e `alpha-pwa/README.md`** se cambia l'architettura, le feature principali, o le istruzioni di setup.
+9. Se aggiungi o modifichi un prompt AI: verifica che includa il pattern DIVIETO ASSOLUTO per le citazioni Cassazione.
 
 ## Writing style
 

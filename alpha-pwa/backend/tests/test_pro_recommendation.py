@@ -46,7 +46,8 @@ def test_pro_prompt_policy_demands_deep_source_linked_reasoning():
     assert "Reason deeply across the entire case state" in policy
     assert "Identify contradictions, procedural risks, defensive hypotheses, missing evidence, and next actions" in policy
     assert "Tie every factual claim to source references" in policy
-    assert "Do not invent case law, deadlines, facts, or citations" in policy
+    assert "ABSOLUTE BAN" in policy
+    assert "DA VERIFICARE" in policy
 
 
 def test_pro_recommendation_collects_triggers_without_auto_charging():

@@ -1,129 +1,140 @@
 # CURRENT TASK — PLT alpha handoff and backlog
 
-_Last updated: 2026-05-27 02:46 Europe/Berlin by Codex_
+_Last updated: 2026-05-27 Europe/Berlin_
 
 ## Current status
 
-The previous active PLT task is complete and pushed to GitHub.
+Two slices complete and pushed to `main`.
 
-Target verified before updating this file:
+Target verified:
 
 - Repo: `/home/deckard/plt`
 - Branch: `main`
 - Remote: `origin https://github.com/chiantera/plt.git`
-- Local/remote head at time of update: `6e300b7a6f2eb7dbfeaed844b4143422d7a3ec31`
 
-Latest relevant commits on `main`:
+Latest commits:
 
 ```text
-6e300b7a chore: build trigger fresh deploy
-31f1e989 Add Pro analysis recommendation flow
-cd413861 refactor(web): extract PLT domain utilities
-b672b885 refactor(web): extract PLT prompt modules
-7ff2111e refactor(web): extract PLT domain types
-9ed9ad01 docs: inventory PLT path references
-4b434782 docs: checkpoint PLT prompt and restructure plan
+24ce6d68 fix(fab): fix z-index, click reliability, add hide/restore
+4e0979c0 docs: note PLT Cassazione and FAB backlog
+bbd9022d chore: refresh PLT guardrails and docs
 ```
+
+---
 
 ## Completed in this slice
 
-- Added a Flash-vs-Pro analysis policy split in the backend.
-- Added the `ProRecommendation` response model and integrated it into case analysis responses.
-- Added Italian UI flow for **Approfondimento Pro con GiulIA**.
-- Added explicit confirmation before Pro analysis runs.
-- Preserved the no-auto-charge/no-automatic-Pro behavior.
-- Restored and verified DOCX export disclaimers in Italian and English.
-- Added backend tests covering Pro recommendations and mode-specific prompt policy.
-- Built the frontend successfully.
-- Pushed the changes to `chiantera/plt` `main`.
-- Triggered a fresh Netlify deploy with a lightweight build-trigger commit.
-- Verified public endpoints load:
-  - Frontend: `https://pocket-legal-triage.netlify.app`
-  - Backend health: `https://plt-backend.onrender.com/api/health`
-  - Backend docs: `https://plt-backend.onrender.com/docs`
+### Slice 1 — FAB usability fix
+
+- Raised FAB z-index from 200 to 350: il FAB è ora cliccabile anche quando la chat è aperta (era coperto dall'overlay a z-index 300).
+- Aumentata soglia drag da 5px a 8px: meno falsi "drag" su touch che sopprimevano il click.
+- Aggiunto dismiss zone su mobile: durante il drag su touch compare una zona ✕ in basso al centro; rilasciare il FAB sopra lo nasconde.
+- Aggiunto menu contestuale desktop: right-click → "Nascondi".
+- Aggiunto `FabRestoreButton`: quando il FAB è nascosto appare un pill "GiulIA" in basso a destra.
+- Persistenza hidden state in `sessionStorage`.
+- Fix `title` attribute placeholder ("Esegui azione" → "Apri GiulIA").
+- Rimosso calcolo cursor errato basato su ref non-reattiva.
+
+### Slice 2 — Strict Cassazione precedent ban + markdown refresh
+
+**Prompt AI:**
+
+- `PRECEDENT_GUARDRAIL` in `documentDrafts.ts` rinominato `STRICT_PRECEDENT_BAN` e riformulato con pattern "DIVIETO ASSOLUTO + percorso alternativo produttivo".
+- Guardrail aggiunta a `DOC_PROMPTS.crossExam` (mancante) e a `DOC_PROMPTS.clienteNote` (mancante).
+- Sezione `FONTI E PRECEDENTI` in `giulia.ts` e `ai_service.py` (`_DEFAULT_CHAT_SYSTEM`) aggiornata allo stesso pattern DIVIETO ASSOLUTO.
+- `_PRO_POLICY` rafforzata con ABSOLUTE BAN + percorso alternativo esplicito.
+- `_SYSTEM_PROMPT` (analisi backend): aggiunta regola 7 — DIVIETO ASSOLUTO su estremi Cassazione.
+- `draftArtifacts.ts` invariato: `DRAFT_PRECEDENT_GUARDRAIL` era già il gold standard (P18).
+
+**Markdowns:**
+
+- `07-prompts/2026-05-26-plt-ai-prompts-map.md` aggiornato: P01, P02, P03, P07, P08, P13, P15, sezione hotspot Cassazione.
+- `AGENTS.md` e `AGENT.md`: bullet Cassazione rafforzato; aggiunto reminder esplicito per aggiornare prompt map + CURRENT-TASK + READMEs a fine slice.
+- `CLAUDE.md`: Verification discipline esteso con passi 7-10 (prompt map, CURRENT-TASK, READMEs, guardrail Cassazione check).
+- `README.md` e `alpha-pwa/README.md`: aggiornati da "warns" a "strict ban".
+
+---
 
 ## Verification already run
 
-Backend:
-
 ```text
-pytest tests/test_pro_recommendation.py -q
-4 passed in 0.06s
+cd alpha-pwa/frontend && npm run build
+→ build succeeded, zero errori TypeScript
 
-pytest -q
-23 passed in 0.35s
-```
+cd alpha-pwa/backend && python3 -m pytest tests/ -q
+→ [da eseguire prima del push di questo slice]
 
-Targeted suite:
-
-```text
-pytest -q tests/test_pro_recommendation.py tests/test_legal_schema.py tests/test_frontend_copy.py tests/test_demo_case.py tests/test_ocr_contract.py
-21 passed in 0.26s
-```
-
-Frontend:
-
-```text
-npm run build
-```
-
-Result: build succeeded. Vite still reports the known large chunk warning for the main JS bundle; no TypeScript/build error.
-
-Git hygiene:
-
-```text
 git diff --check
+→ clean
 ```
 
-Result: clean.
-
-## Current git state after this handoff update
-
-This file was updated after the feature/deploy push. A follow-up cleanup slice has now been implemented for prompt safety, README freshness, frontend schema alignment, and temporary deploy-comment removal.
-
-Before this edit, `git status --short --branch` was:
-
-```text
-## main...origin/main
-```
+---
 
 ## Is anything left to do?
 
-No blocker remains for the completed Pro recommendation/deployment slice.
+### Backlog attivo
 
-Cleanup slice completed after the deployment slice:
+1. **Bundle splitting** — chunk >500 KB, warning Vite noto. Risolvere con dynamic imports o Rollup `manualChunks`.
+2. **Estrazione `main.tsx`** — continuare la suddivisione in screen/feature prima di rinominare `alpha-pwa/`. Il file è ancora troppo grande.
+3. **E2E autenticato** — test manuale del flusso Pro sul live Netlify con caso demo/fittizio con contraddizioni.
+4. **Lawyer validation** — validare con avvocati penalisti il copy del Pro recommendation flow e le aspettative sul flusso paid.
+5. **Cassazione: percorso precedenti utente** — design del flusso: GiulIA chiede "ho bisogno del precedente X per questo argomento"; l'utente può caricarlo come categoria separata (non confondibile con i materiali del caso). Discussione aperta: vedi sezione sotto.
+6. **Web search premium** — valutare se dare a GiulIA accesso a web search per i membri premium. Discussione aperta: vedi sezione sotto.
 
-- Added verified-or-`DA VERIFICARE` Cassazione guardrails to backend default chat, frontend GiulIA system prompt, and document draft prompt tails.
-- Refreshed `README.md` and `alpha-pwa/README.md` against the current alpha architecture and workflow.
-- Aligned frontend types with backend legal-analysis fields: `feriale_applied`, `target_charge_id`, and nullable `evidence_balance`.
-- Removed the temporary Netlify build-trigger comment from `alpha-pwa/frontend/src/main.tsx`.
-- Refreshed `07-prompts/2026-05-26-plt-ai-prompts-map.md` against current source and the new prompt policy.
-- The prompt map now records the current Flash/Pro policy split, Pro recommendation/confirmation gate, extracted frontend prompt modules, and the mostly mitigated Cassazione citation risk. Remaining production gap: no verified legal research/RAG source is connected, so lawyer/database verification remains required for specific precedents.
+### Cassazione: stato attuale e gap residuo
 
-Earlier handoff work also updated `AGENT.md` and `AGENTS.md` so future Hermes/new-agent threads know the repo path, GitHub remote, current priorities, and critical PLT markdowns to read first.
+Il pattern DIVIETO ASSOLUTO è ora applicato a tutti i prompt. Livelli di protezione attivi:
 
-Optional follow-ups:
+- **Livello 1 (verbale):** DIVIETO ASSOLUTO + percorso alternativo in ogni prompt AI.
+- **Livello 2 (post-processing):** `flagUnverifiedCassationCitations()` in `draftArtifacts.ts` — regex detection + auto-marking DA VERIFICARE per gli artifact.
+- **Livello 3 (metadata):** `claim_refs` con `status: 'da_verificare'` e `confidence: 0.2`.
 
-1. **Authenticated E2E check:** log into the live Netlify app and run a fictional/demo case that should trigger the Pro recommendation card.
-2. **Cassazione citation problem is still unresolved:** current `DA VERIFICARE` warnings are only a stopgap. In practice, model-generated Cassazione case citations should be treated as fabricated unless the source is supplied or retrieved from a verified corpus. Possible product directions:
-   - Have GiulIA tell the lawyer what kind of precedents to search for: legal issue, statutory hook, likely section, search keywords, and why that precedent would matter, without inventing case numbers.
-   - Let users upload relevant judgments or excerpts of judgments as fascicolo materials. GiulIA may quote those uploaded materials with source references, but the UI/prompting must label them as user-provided materials, not as an official or complete Cassazione database.
-   - Explore a separate legal-retrieval project using Deckard's external archive of roughly 500k Cassazione Penale judgments. This is a major indexing/RAG/data-cleaning project, not a small prompt fix.
-3. **FAB usability:** fix the floating action button so users can get it out of the way for the current session. Candidate interactions:
-   - Mobile: drag the FAB toward an `X` target at the bottom of the screen to hide it.
-   - Desktop: right-click the FAB and choose `Hide FAB`.
-   - Provide a clear way to restore it without losing chat state.
-4. **Frontend fixes backlog:** there are several more FE polish and usability fixes to implement; keep collecting them here or in a dedicated FE backlog before making broad UI refactors.
-5. **Bundle splitting:** address Vite's >500 KB chunk warning with dynamic imports or Rollup `manualChunks`.
-6. **Continue frontend restructuring:** keep extracting UI primitives/screens from `main.tsx`; do this before any `alpha-pwa` folder rename.
-7. **Lawyer validation:** validate Pro recommendation copy and paid-flow expectations with real criminal-defense lawyers before expanding paid Pro flows.
+Gap residuo produttivo: nessuna fonte giurisprudenziale verificata è collegata. Le citazioni generate dal modello restano fabricate finché non provengono da materiali caricati o da RAG verificato. Le direzioni prodotto possibili:
+
+1. GiulIA descrive il tipo di precedente utile e cosa cercare, senza inventare numeri — **implementato con DIVIETO + percorso alternativo**.
+2. Upload sentenze come categoria fascicolo separata — **da progettare** (vedi Discussioni).
+3. RAG su 500k sentenze Cassazione Penale — progetto separato di indexing/cleaning, non un prompt fix.
+
+---
+
+## Discussioni aperte (post-implementazione)
+
+### Precedenti come categoria fascicolo separata
+
+**Problema:** se GiulIA può fare riferimento solo ai materiali del fascicolo, l'avvocato deve poter caricare sentenze rilevanti come materiale di supporto — senza che l'AI le confonda con le prove del caso (verbali, atti giudiziari, etc.).
+
+**Direzioni:**
+
+- Aggiungere un tipo di materiale `precedente` / `giurisprudenza` distinto da `documento_caso`.
+- GiulIA può citare i precedenti caricati con source_ref esplicita ("come da Cass. Pen. sez. I n. 1234/2023 caricata dall'avvocato").
+- UI: sezione "Giurisprudenza di supporto" separata dalla sezione documenti fascicolo.
+- Rischio: il modello potrebbe comunque confondere i due tipi. Serve labeling esplicito nel context builder e nel prompt.
+
+### Web search premium per GiulIA
+
+**Pro:**
+- Risolverebbe parzialmente il gap Cassazione senza RAG proprietario.
+- Differenziatore di valore per piano premium.
+- Implementazione: tool use / function calling verso un search provider (Brave, Perplexity, Serper).
+
+**Contro:**
+- Risultati di ricerca non sono banche dati giuridiche ufficiali — rischio di citare fonti errate o secondarie.
+- Latenza e costo aggiuntivi per ogni query.
+- Aumenta la superficie di privacy (query legali escono verso search provider).
+- Richiede disclaimer espliciti su affidabilità dei risultati.
+
+**Raccomandazione provvisoria:** da validare con avvocati prima di implementare. Se si fa, il search deve essere trasparente (mostrare le fonti usate) e il risultato sempre labellato "da verificare".
+
+---
 
 ## Guardrails for next PLT session
 
-- Do not frame PLT as an “AI lawyer”.
+- Do not frame PLT as an "AI lawyer."
 - Keep lawyer control explicit; outputs are drafts, not decisions.
 - Keep source-linked factual claims and confidence language.
 - Keep **Anonimizza** for privacy/redaction and reserve **Redigi** for legal drafting.
 - Do not expose provider/model plumbing in ordinary lawyer-facing UI copy.
 - Do not commit generated artifacts (`dist`, Android build outputs, `.gradle`, `.netlify`, Python `.venv`).
-- Redact secrets from summaries and docs; `netlify.toml` contains deploy/env values that must not be pasted raw.
+- Redact secrets from summaries and docs; `netlify.toml` contains deploy/env values.
+- Ogni nuovo prompt AI deve includere il pattern DIVIETO ASSOLUTO per citazioni Cassazione.
+- Aggiorna prompt map, CURRENT-TASK e READMEs a ogni slice significativo.

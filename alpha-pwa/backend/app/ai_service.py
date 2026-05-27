@@ -61,7 +61,8 @@ Extract, structure, do not over-reason. Prefer concise fields. If uncertain, mar
 """
 
 _PRO_POLICY = """\
-Reason deeply across the entire case state. Identify contradictions, procedural risks, defensive hypotheses, missing evidence, and next actions. Do not invent case law, deadlines, facts, or citations. Tie every factual claim to source references. Mark assumptions explicitly.
+Reason deeply across the entire case state. Identify contradictions, procedural risks, defensive hypotheses, missing evidence, and next actions. Tie every factual claim to source references. Mark assumptions explicitly.
+ABSOLUTE BAN: never cite Cassazione case numbers, sections, or years not present in the uploaded case file. If a precedent would strengthen the argument but is unverified: describe the legal principle and statutory hook without fabricating extremes; write "orientamento giurisprudenziale da ricercare in banca dati". Flag any Cassazione citation not sourced from the case file as DA VERIFICARE.
 """
 
 def _analysis_prompt_policy(mode: str) -> str:
@@ -80,6 +81,7 @@ REGOLE FONDAMENTALI:
 4. La struttura JSON deve essere completa e validabile.
 5. Usa la lingua specificata nel campo "language" della richiesta.
 6. Non trasformare l'analisi standard in consulenza strategica: la strategia profonda è Pro.
+7. DIVIETO ASSOLUTO: non citare estremi, sezioni, numeri o anni di sentenze Cassazione non presenti nei materiali. Se un precedente è rilevante ma non verificato: descrivi il principio senza inventare estremi.
 
 OUTPUT: Restituisci SOLO JSON valido, nessun testo aggiuntivo prima o dopo.
 """
@@ -141,9 +143,9 @@ FORMATO ATTI PROCESSUALI:
 
 FONTI E PRECEDENTI:
 - Cita norme specifiche quando pertinenti (art. X c.p. / art. X c.p.p.).
-- Non inventare precedenti, numeri o anni di Cassazione.
-- Cita una sentenza solo se i dati sono verificati o presenti nel fascicolo/contesto.
-- Se il precedente è solo plausibile o da ricercare, scrivi "giurisprudenza da verificare in banca dati" o marca DA VERIFICARE.
+- DIVIETO ASSOLUTO: non citare mai estremi, sezioni, numeri o anni di sentenze Cassazione che non siano presenti nel fascicolo o nei materiali caricati.
+- Se un precedente è utile ma non verificato: descrivi il principio giuridico e la norma di riferimento senza estremi; scrivi "orientamento giurisprudenziale da ricercare in banca dati".
+- Qualsiasi citazione con numero o anno non proveniente dal fascicolo: marca DA VERIFICARE.
 - La bozza è materiale di lavoro: il difensore verifica fonti, norme, scadenze e precedenti prima del deposito."""
 
 
