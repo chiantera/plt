@@ -170,7 +170,7 @@ export default function MultiFileUploadDrawer({
               </button>
             </div>
             {urlError && (
-              <p className="upload-url-hint" style={{ color: '#f87171', marginTop: 6 }}>
+              <p className="upload-url-hint" style={{ color: 'var(--critical)', marginTop: 6 }}>
                 Errore: {urlError}
               </p>
             )}
@@ -188,7 +188,7 @@ export default function MultiFileUploadDrawer({
           onDrop={onDrop}
         >
           <div className="drop-zone-icon-container">
-            {isGiur ? <Scale size={28} style={{ color: '#a78bfa' }} /> : <Upload size={32} />}
+            {isGiur ? <Scale size={28} /> : <Upload size={32} />}
           </div>
           <p>{isGiur ? 'Trascina la sentenza o il provvedimento' : 'Trascina i file qui o tocca per selezionarli'}</p>
           <small>{isGiur ? "PDF, TXT — il precedente sarà etichettato come verificato dall'avvocato" : 'PDF, DOCX, TXT, immagini — più file alla volta'}</small>
@@ -196,13 +196,13 @@ export default function MultiFileUploadDrawer({
         </label>
 
         {queue.length === 0 && (
-          <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(56,189,248,0.05)', borderRadius: 10, border: '1px solid rgba(56,189,248,0.15)' }}>
-            <p className="muted" style={{ fontSize: '0.78rem', lineHeight: 1.5, margin: 0, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-              <ShieldCheck size={13} style={{ flexShrink: 0, color: '#22c55e', marginTop: 2 }} />
+          <div className="upload-privacy-notice">
+            <ShieldCheck size={13} />
+            <span>
               {isGiur
                 ? 'I precedenti caricati restano in locale. GiulIA li può citare con source_ref esplicita distinguendoli dai documenti del caso.'
                 : "I file originali restano sul dispositivo. Solo il testo estratto viene inviato all'AI al momento dell'analisi."}
-            </p>
+            </span>
           </div>
         )}
 
@@ -216,7 +216,7 @@ export default function MultiFileUploadDrawer({
                   ) : item.status === 'error' ? (
                     <AlertTriangle size={18} className="text-red" />
                   ) : item.status === 'done' ? (
-                    <CheckCircle2 size={18} style={{ color: '#4ade80' }} />
+                    <CheckCircle2 size={18} style={{ color: 'var(--success)' }} />
                   ) : (
                     <FileText size={18} />
                   )}
@@ -256,7 +256,7 @@ export default function MultiFileUploadDrawer({
 
         <div className="upload-field">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <label style={{ margin: 0, fontSize: '0.8rem', color: pasteText ? '#a78bfa' : '#94a3b8', transition: 'color 0.2s' }}>
+            <label className={`upload-text-label${pasteText ? ' upload-text-label--ready' : ''}`}>
               {pasteText
                 ? (pendingItemName ? `Testo pronto — "${pendingItemName}"` : 'Controlla il testo e clicca Aggiungi')
                 : (isGiur ? 'Testo della sentenza' : 'Testo o nota vocale')}
@@ -266,18 +266,12 @@ export default function MultiFileUploadDrawer({
                 type="button"
                 onClick={recording ? stopRecording : startRecording}
                 disabled={transcribing}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '5px 10px', borderRadius: 999, border: 'none', cursor: 'pointer',
-                  fontWeight: 600, fontSize: 11,
-                  background: recording ? 'rgba(239,68,68,0.15)' : 'rgba(148,163,184,0.12)',
-                  color: recording ? '#f87171' : '#94a3b8',
-                }}
+                className={`mic-btn${recording ? ' mic-btn--recording' : ''}`}
               >
                 {transcribing
                   ? <><Loader2 size={12} className="spin" /> Trascrivo…</>
                   : recording
-                    ? <><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', display: 'inline-block', animation: 'pulse 1s infinite' }} /> Stop</>
+                    ? <><span className="mic-btn-dot" /> Stop</>
                     : <><Mic size={12} /> Nota vocale</>
                 }
               </button>
@@ -310,17 +304,15 @@ export default function MultiFileUploadDrawer({
         <div className="upload-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
           <div>
             {isUploading && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#38bdf8', fontSize: '0.8rem', fontWeight: 500 }}>
+              <div className="upload-status-processing">
                 <Loader2 size={14} className="spin" />
                 <span>Elaborazione in corso…</span>
               </div>
             )}
             {!isUploading && doneCount > 0 && (
-              <div style={{ color: '#4ade80', fontSize: '0.8rem', fontWeight: 500 }}>
-                ✓ {doneCount} elemento/i pronto/i
-              </div>
+              <div className="upload-status-done">✓ {doneCount} elemento/i pronto/i</div>
             )}
-            {errorCount > 0 && <span style={{ fontSize: '0.75rem', color: '#f87171' }}>{errorCount} errore/i</span>}
+            {errorCount > 0 && <span className="upload-status-error">{errorCount} errore/i</span>}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button className="ghost-button" onClick={onClose}>Chiudi</button>

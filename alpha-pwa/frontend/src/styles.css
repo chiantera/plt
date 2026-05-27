@@ -357,6 +357,46 @@ blockquote {
   transition: all var(--dur-2) var(--ease) !important;
 }
 
+/* ── Upload drawer: privacy notice ───────────────────────────────────────── */
+.upload-privacy-notice {
+  margin-top: 12px; padding: 10px 14px;
+  background: var(--success-soft); border: 1px solid var(--success);
+  border-radius: var(--radius-2);
+  display: flex; gap: 6px; align-items: flex-start;
+  font-size: 0.78rem; line-height: 1.5; color: var(--ink-2);
+}
+.upload-privacy-notice svg { color: var(--success); flex-shrink: 0; margin-top: 2px; }
+
+/* ── Upload drawer: mic button ────────────────────────────────────────────── */
+.mic-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 999px; border: none; cursor: pointer;
+  font-weight: 600; font-size: 0.69rem; font: inherit; font-size: 0.69rem;
+  background: var(--paper-sunken); color: var(--ink-4);
+  transition: background var(--dur-1), color var(--dur-1);
+}
+.mic-btn:disabled { opacity: 0.5; cursor: default; }
+.mic-btn--recording { background: var(--critical-soft); color: var(--critical); }
+.mic-btn-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--critical); display: inline-block;
+  animation: pulse 1s infinite;
+}
+
+/* ── Upload drawer: status bar ────────────────────────────────────────────── */
+.upload-status-processing { display: flex; align-items: center; gap: 6px; color: var(--giulia-ink); font-size: 0.8rem; font-weight: 500; }
+.upload-status-done { color: var(--success); font-size: 0.8rem; font-weight: 500; }
+.upload-status-error { font-size: 0.75rem; color: var(--critical); }
+
+/* ── Upload drawer: text label ────────────────────────────────────────────── */
+.upload-text-label { margin: 0; font-size: 0.8rem; transition: color var(--dur-2); color: var(--ink-4); }
+.upload-text-label--ready { color: var(--giulia-ink); }
+
+/* ── Upload drawer: giurisprudenza drop zone icon ─────────────────────────── */
+.drop-zone--giur .drop-zone-icon-container {
+  background: var(--giulia-soft); border-color: var(--giulia-ink); color: var(--giulia-ink);
+}
+
 /* ── Upload drawer: tab strip ────────────────────────────────────────────── */
 .upload-tab-strip {
   display: flex; gap: 4px; margin: 12px 0 10px;
