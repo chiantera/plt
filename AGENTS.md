@@ -1,5 +1,5 @@
 # AGENTS.md — Pocket Legal Triage Workspace Instructions
-_Last updated: 2026-05-27 01:25 Europe/Berlin by Hermes/Turing_
+_Last updated: 2026-05-27 02:46 Europe/Berlin by Codex_
 
 Mirrors `AGENT.md` for tools that auto-load `AGENTS.md` instead.
 
@@ -28,7 +28,7 @@ A working alpha PWA exists at `alpha-pwa/`:
 
 ## Read first at the start of every PLT thread
 
-1. `CURRENT-TASK.md` — latest handoff, branch/head, verification, next steps.
+1. `CURRENT-TASK.md` — latest handoff, branch/head, verification, next steps, and active backlog notes. This is the first place to check for Deckard's current priorities.
 2. `07-prompts/2026-05-26-plt-ai-prompts-map.md` — living prompt inventory; update it whenever prompt behavior changes.
 3. `07-prompts/extraction-prompts.md` — historical rough prompt sketches only; do not treat as source of truth.
 4. `04-technical/` and `01-product/` for architecture/product decisions when relevant.
@@ -39,7 +39,8 @@ Hermes-specific note: Hermes auto-loads repo-local `AGENTS.md` when running from
 ## Current priority themes
 
 - Keep improving the in-app AI prompts and prompt map.
-- Stop GiulIA from inventing Cassazione precedents: citation requests must be paired with explicit `non inventare / DA VERIFICARE / banca dati` guardrails unless connected to verified legal retrieval.
+- Stop GiulIA from inventing Cassazione precedents. `DA VERIFICARE` is only an interim warning; until verified legal retrieval or user-provided judgments exist, model-generated Cassazione citations should be treated as fabricated. See `CURRENT-TASK.md` for the current solution notes.
+- Keep track of frontend usability fixes in `CURRENT-TASK.md`, including the FAB hide/dismiss interaction and broader FE polish backlog.
 - Preserve the new Flash/Pro split:
   - Flash/standard = extraction, structure, concise fields, no deep strategy by default.
   - Pro = deeper reasoning across contradictions, procedural risks, defensive hypotheses, missing evidence, and next actions.

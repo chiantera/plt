@@ -1,6 +1,6 @@
-# CURRENT TASK — PLT Pro analysis flow + web deployment
+# CURRENT TASK — PLT alpha handoff and backlog
 
-_Last updated: 2026-05-27 01:25 Europe/Berlin by Hermes/Turing_
+_Last updated: 2026-05-27 02:46 Europe/Berlin by Codex_
 
 ## Current status
 
@@ -105,10 +105,18 @@ Earlier handoff work also updated `AGENT.md` and `AGENTS.md` so future Hermes/ne
 Optional follow-ups:
 
 1. **Authenticated E2E check:** log into the live Netlify app and run a fictional/demo case that should trigger the Pro recommendation card.
-2. **Legal research/RAG:** connect verified legal research before ever treating specific Cassazione citations as reliable.
-3. **Bundle splitting:** address Vite's >500 KB chunk warning with dynamic imports or Rollup `manualChunks`.
-4. **Continue frontend restructuring:** keep extracting UI primitives/screens from `main.tsx`; do this before any `alpha-pwa` folder rename.
-5. **Lawyer validation:** validate Pro recommendation copy and paid-flow expectations with real criminal-defense lawyers before expanding paid Pro flows.
+2. **Cassazione citation problem is still unresolved:** current `DA VERIFICARE` warnings are only a stopgap. In practice, model-generated Cassazione case citations should be treated as fabricated unless the source is supplied or retrieved from a verified corpus. Possible product directions:
+   - Have GiulIA tell the lawyer what kind of precedents to search for: legal issue, statutory hook, likely section, search keywords, and why that precedent would matter, without inventing case numbers.
+   - Let users upload relevant judgments or excerpts of judgments as fascicolo materials. GiulIA may quote those uploaded materials with source references, but the UI/prompting must label them as user-provided materials, not as an official or complete Cassazione database.
+   - Explore a separate legal-retrieval project using Deckard's external archive of roughly 500k Cassazione Penale judgments. This is a major indexing/RAG/data-cleaning project, not a small prompt fix.
+3. **FAB usability:** fix the floating action button so users can get it out of the way for the current session. Candidate interactions:
+   - Mobile: drag the FAB toward an `X` target at the bottom of the screen to hide it.
+   - Desktop: right-click the FAB and choose `Hide FAB`.
+   - Provide a clear way to restore it without losing chat state.
+4. **Frontend fixes backlog:** there are several more FE polish and usability fixes to implement; keep collecting them here or in a dedicated FE backlog before making broad UI refactors.
+5. **Bundle splitting:** address Vite's >500 KB chunk warning with dynamic imports or Rollup `manualChunks`.
+6. **Continue frontend restructuring:** keep extracting UI primitives/screens from `main.tsx`; do this before any `alpha-pwa` folder rename.
+7. **Lawyer validation:** validate Pro recommendation copy and paid-flow expectations with real criminal-defense lawyers before expanding paid Pro flows.
 
 ## Guardrails for next PLT session
 
