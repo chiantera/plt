@@ -1,0 +1,93 @@
+/* PLT — Carta & Inchiostro design system tokens
+   Load BEFORE styles.css */
+
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,600,700,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  /* ── Surfaces ──────────────────────────────────────────────────────────── */
+  --paper:        #FAF6EE;
+  --paper-raised: #FFFDF7;
+  --paper-sunken: #F0EADD;
+
+  /* ── Ink ───────────────────────────────────────────────────────────────── */
+  --ink-1: #1A1814;
+  --ink-2: #3D3A33;
+  --ink-3: #6B6659;
+  --ink-4: #9B9588;
+  --ink-5: #C9C0A8;
+
+  /* ── Rules ─────────────────────────────────────────────────────────────── */
+  --rule:        #E5DFD0;
+  --rule-strong: #C9C0A8;
+
+  /* ── Sigillo — bordeaux, the one accent ────────────────────────────────── */
+  --sigillo:      #7A1F2B;
+  --sigillo-deep: #5C1620;
+  --sigillo-soft: #F3E4E5;
+
+  /* ── Semantic ──────────────────────────────────────────────────────────── */
+  --critical:      #B5301E;
+  --critical-soft: #FBEDEA;
+  --warning:       #B5841E;
+  --warning-soft:  #FBF4E6;
+  --success:       #2E6B3F;
+  --success-soft:  #E8F3EC;
+  --info:          #25527A;
+  --info-soft:     #EAF0F6;
+
+  /* ── GiulIA — navy, not purple ─────────────────────────────────────────── */
+  --giulia-ink:  #25527A;
+  --giulia-soft: #EAF0F6;
+
+  /* ── Typography ────────────────────────────────────────────────────────── */
+  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --font-ui:      'Satoshi', 'Inter Tight', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* ── Spacing (8-point scale) ───────────────────────────────────────────── */
+  --space-05: 4px;
+  --space-1:  8px;
+  --space-2:  12px;
+  --space-3:  16px;
+  --space-4:  24px;
+  --space-5:  32px;
+  --space-6:  48px;
+  --space-7:  64px;
+
+  /* ── Radii ─────────────────────────────────────────────────────────────── */
+  --radius-1: 4px;   /* badges, inline chips */
+  --radius-2: 8px;   /* inputs, buttons, small cards */
+  --radius-3: 12px;  /* cards, panels */
+  --radius-4: 16px;  /* drawers, modals */
+
+  /* ── Shadows ───────────────────────────────────────────────────────────── */
+  --shadow-1: 0 1px 0 rgba(26,24,20,0.04);
+  --shadow-2: 0 6px 20px -8px rgba(26,24,20,0.18), 0 1px 2px rgba(26,24,20,0.06);
+  --shadow-3: 0 18px 48px -16px rgba(26,24,20,0.28), 0 2px 4px rgba(26,24,20,0.08);
+
+  /* ── Motion ────────────────────────────────────────────────────────────── */
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --ease:  cubic-bezier(0.2, 0.6, 0.2, 1);
+}
+
+/* Night mode — in-court dark theme */
+[data-theme="night"] {
+  --paper:        #15130F;
+  --paper-raised: #1E1B15;
+  --paper-sunken: #0F0E0B;
+  --ink-1:        #F3EEE0;
+  --ink-2:        #D9D3C4;
+  --ink-3:        #A8A195;
+  --ink-4:        #6E6860;
+  --ink-5:        #4A4540;
+  --rule:         #2A2720;
+  --rule-strong:  #3A362C;
+  --sigillo:      #9B3040;
+  --sigillo-soft: #2A1518;
+  --critical-soft: #2A1210;
+  --warning-soft:  #2A2010;
+  --success-soft:  #102015;
+  --giulia-soft:   #0F1A24;
+}
