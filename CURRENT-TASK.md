@@ -1,10 +1,10 @@
 # CURRENT TASK — PLT alpha handoff and backlog
 
-_Last updated: 2026-05-26 Europe/Berlin_
+_Last updated: 2026-05-27 Europe/Berlin_
 
 ## Current status
 
-Four slices complete and pushed to `main`.
+Five slices complete and pushed to `main`.
 
 Target verified:
 
@@ -15,14 +15,32 @@ Target verified:
 Latest commits:
 
 ```text
+ae9fac21 design: Carta & Inchiostro — complete styles.css rewrite
+(merge) design: merge Carta & Inchiostro redesign branch
 13576821 perf: bundle splitting — main chunk 564 KB → 235 KB (58% reduction)
-9734e947 ux: textarea come preview universale per tutti i canali di upload
-ff3e95f9 feat: giurisprudenza di supporto — categoria separata per precedenti verificati + URL import
 ```
 
 ---
 
 ## Completed in this slice
+
+### Slice 5 — Design system "Carta & Inchiostro"
+
+**Frontend:**
+
+- `src/tokens.css` (NEW): design token completi — palette carta/inchiostro, tipografia Newsreader+Geist+JetBrains Mono, spacing 8pt, radii, shadow, motion. Google Fonts import. Dark mode `[data-theme="night"]`.
+- `src/main.tsx`: aggiunto `import './tokens.css'` prima di `import './styles.css'`.
+- `src/styles.css`: riscrittura completa (628 righe inserite, 1008 rimosse):
+  - Superfici: `var(--paper*)` al posto di tutti i blu navy/hex
+  - Tipografia: `var(--ink-*)` al posto di `#f8fafc`, `#cbd5e1`, `#94a3b8`
+  - Accento: `var(--sigillo)` bordeaux al posto di cyan `#38bdf8`
+  - GiulIA: `var(--giulia-ink)` navy `#25527A` al posto di purple `#8b5cf6`
+  - Rimossi tutti `backdrop-filter: blur()`, `transform: translateY()` su hover, `linear-gradient` sulle superfici
+  - Tab bar: underline-only con barra bordeaux 2px sull'active (no pill/capsule)
+  - Border-radius: `var(--radius-*)` su tutti i componenti; `999px` solo su pills/chips
+  - Aula mode overlay: mantiene tema scuro intenzionale (corte)
+
+**Build:** chunk invariati rispetto a Slice 4 — design-only, zero JS.
 
 ### Slice 4 — Bundle splitting + main.tsx extraction
 
