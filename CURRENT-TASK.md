@@ -1,10 +1,10 @@
 # CURRENT TASK — PLT alpha handoff and backlog
 
-_Last updated: 2026-05-27 Europe/Berlin_
+_Last updated: 2026-05-26 Europe/Berlin_
 
 ## Current status
 
-Three slices complete and pushed to `main`.
+Four slices complete and pushed to `main`.
 
 Target verified:
 
@@ -15,14 +15,45 @@ Target verified:
 Latest commits:
 
 ```text
+13576821 perf: bundle splitting — main chunk 564 KB → 235 KB (58% reduction)
+9734e947 ux: textarea come preview universale per tutti i canali di upload
 ff3e95f9 feat: giurisprudenza di supporto — categoria separata per precedenti verificati + URL import
-24ce6d68 fix(fab): fix z-index, click reliability, add hide/restore
-4e0979c0 docs: note PLT Cassazione and FAB backlog
 ```
 
 ---
 
 ## Completed in this slice
+
+### Slice 4 — Bundle splitting + main.tsx extraction
+
+**Frontend:**
+
+- `src/config.ts` (NEW): costante `API` condivisa estratta da `main.tsx`.
+- `src/domain/helpers.tsx` (NEW): `riskColor`, `riskLabel`, `riskIcon` — helper condivisi tra `CaseListView` (in `main.tsx`) e `CaseDetailView`.
+- `src/components/MultiFileUploadDrawer.tsx` (NEW): drawer upload estratto e lazy-loaded.
+- `src/components/ChatPanel.tsx` (NEW): `ChatDrawer`, `FloatingChatButton`, `FabRestoreButton` estratti (importati staticamente — il FAB deve essere sempre visibile).
+- `src/components/GiuliaPromptBar.tsx` (NEW): barra GiulIA estratta (usata sia in `CaseListView` che in `CaseDetailView`).
+- `src/screens/CaseDetailView.tsx` (NEW): tutto il sottoalbero di `CaseDetailView` estratto (~2870 righe): include `LegalAnalysisTab`, `RedactionDrawer`, `DraftingWorkspace`, `ExportCaseDrawer`, `AulaModeOverlay`, tutti gli helper UI (`Editable`, `StrengthBar`, ecc.).
+- `vite.config.ts`: `manualChunks` per `vendor-react` e `vendor-supabase`.
+- `scripts/check-draft-workspace-ui.mjs`: aggiornato per cercare i pattern in `CaseDetailView.tsx` invece di `main.tsx`.
+
+**Risultati build:**
+
+| Chunk | Prima | Dopo |
+|---|---|---|
+| `index.js` (main) | 564 KB / 161 KB gzip | 235 KB / 75 KB gzip |
+| `CaseDetailView.js` | — | 97.9 KB / 27.9 KB gzip |
+| `vendor-supabase.js` | — | 210.5 KB / 54.6 KB gzip |
+| `MultiFileUploadDrawer.js` | — | 9.9 KB / 3.9 KB gzip |
+
+Prima visita senza aprire un fascicolo: ~147 KB gzip (era 161 KB solo per il JS principale).
+Il chunk CaseDetailView (97.9 KB) si carica solo al primo click su un fascicolo.
+
+**Tutti i test passano:**
+- `npm run test:plt-export` ✓
+- `npm run test:local-case-scope` ✓
+- `npm run test:draft-workspace` ✓
+- `npm run test:draft-workspace-ui` ✓
 
 ### Slice 3 — Giurisprudenza di supporto + drawer redesign + URL fetch
 
@@ -96,9 +127,7 @@ git diff --check
 
 ### Backlog attivo
 
-1. **Bundle splitting** — chunk >500 KB, warning Vite noto. Risolvere con dynamic imports o Rollup `manualChunks`.
-2. **Estrazione `main.tsx`** — continuare la suddivisione in screen/feature prima di rinominare `alpha-pwa/`. Il file è ancora troppo grande.
-3. **E2E autenticato** — test manuale del flusso Pro sul live Netlify con caso demo/fittizio con contraddizioni.
+1. **E2E autenticato** — test manuale del flusso Pro sul live Netlify con caso demo/fittizio con contraddizioni.
 4. **Lawyer validation** — validare con avvocati penalisti il copy del Pro recommendation flow e le aspettative sul flusso paid. Validare anche il flusso Giurisprudenza di supporto: il labeling `[Precedente]` è chiaro? I precedenti URL sono abbastanza affidabili? Serve disclaimer aggiuntivo?
 5. **URL fetch per siti JS-heavy** — `trafilatura`/BeautifulSoup non funzionano su SPA/banche dati con rendering client-side (es. DeJure, Pluris). Gap noto; percorso produttivo futuro: copia-incolla manuale o integrazione banca dati ufficiale.
 6. **Web search premium** — valutare se dare a GiulIA accesso a web search per i membri premium. Discussione aperta: vedi sezione sotto.
