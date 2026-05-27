@@ -12,6 +12,7 @@ const MultiFileUploadDrawer = React.lazy(() => import('./components/MultiFileUpl
 const CaseDetailView = React.lazy(() => import('./screens/CaseDetailView'));
 import { ChatDrawer, FloatingChatButton, FabRestoreButton } from './components/ChatPanel';
 import GiuliaPromptBar from './components/GiuliaPromptBar';
+import './tokens.css';
 import './styles.css';
 import { API } from './config';
 import { riskColor, riskIcon, riskLabel } from './domain/helpers';
@@ -133,17 +134,17 @@ function HomepageStats({ cases }: { cases: CaseSummary[] }) {
       </div>
       <div className="home-stat-divider" />
       <div className="home-stat">
-        <span className="home-stat-value" style={{ color: critical > 0 ? '#f87171' : '#4ade80' }}>{critical}</span>
+        <span className="home-stat-value" style={{ color: critical > 0 ? 'var(--critical)' : 'var(--success)' }}>{critical}</span>
         <span className="home-stat-label">alto rischio</span>
       </div>
       <div className="home-stat-divider" />
       <div className="home-stat">
-        <span className="home-stat-value" style={{ color: upcoming > 0 ? '#fbbf24' : '#64748b' }}>{upcoming}</span>
+        <span className="home-stat-value" style={{ color: upcoming > 0 ? 'var(--warning)' : 'var(--ink-4)' }}>{upcoming}</span>
         <span className="home-stat-label">scadenze attive</span>
       </div>
       <div className="home-stat-divider" />
       <div className="home-stat">
-        <span className="home-stat-value" style={{ color: totalContradictions > 0 ? '#fb923c' : '#64748b' }}>{totalContradictions}</span>
+        <span className="home-stat-value" style={{ color: totalContradictions > 0 ? 'var(--warning)' : 'var(--ink-4)' }}>{totalContradictions}</span>
         <span className="home-stat-label">contraddizioni</span>
       </div>
     </div>
@@ -428,7 +429,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
               <div className="home-brand-tagline">{profileTagline ?? 'Il tuo studio'}</div>
             </div>
           </div>
-          <button onClick={() => setShowProfile(true)} style={{ background: 'rgba(148,163,184,0.1)', border: '1px solid rgba(148,163,184,0.18)', borderRadius: 10, padding: '9px 11px', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center' }} title="Profilo">
+          <button onClick={() => setShowProfile(true)} className="profile-btn" title="Profilo">
             <User size={16} />
           </button>
         </div>
@@ -532,9 +533,9 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
           </p>
         )}
         {cases && cases.length === 0 && (
-          <div className="empty-state" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '48px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 16, border: '1px dashed rgba(148,163,184,0.2)' }}>
-            <FolderOpen size={48} style={{ color: 'rgba(148,163,184,0.3)', marginBottom: 16 }} />
-            <h3 style={{ fontSize: '1.2rem', color: '#f1f5f9', marginBottom: 8 }}>Nessun fascicolo presente</h3>
+          <div className="empty-state empty-state-placeholder lg" style={{ gridColumn: '1/-1' }}>
+            <FolderOpen size={48} style={{ color: 'var(--ink-5)', marginBottom: 16 }} />
+            <h3 style={{ fontSize: '1.2rem', color: 'var(--ink-1)', marginBottom: 8 }}>Nessun fascicolo presente</h3>
             <p className="muted" style={{ maxWidth: 400, margin: '0 auto 24px', lineHeight: 1.5 }}>
               Inizia creando un nuovo fascicolo vuoto per analizzare documenti, oppure importa un file <code>.plt</code> protetto.
             </p>
@@ -736,8 +737,8 @@ function App() {
   }, [activeCaseData]);
 
   if (session === undefined) return (
-    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617' }}>
-      <Loader2 size={28} className="spin" style={{ color: '#7c3aed' }} />
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)' }}>
+      <Loader2 size={28} className="spin" style={{ color: 'var(--giulia-ink)' }} />
     </div>
   );
 
@@ -747,7 +748,7 @@ function App() {
     <>
       {view === 'case' && selectedCaseId
         ? (
-          <Suspense fallback={<div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617' }}><Loader2 size={28} className="spin" style={{ color: '#7c3aed' }} /></div>}>
+          <Suspense fallback={<div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)' }}><Loader2 size={28} className="spin" style={{ color: 'var(--giulia-ink)' }} /></div>}>
             <CaseDetailView caseId={selectedCaseId} session={session} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
           </Suspense>
         )

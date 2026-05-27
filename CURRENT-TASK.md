@@ -4,7 +4,7 @@ _Last updated: 2026-05-27 Europe/Berlin_
 
 ## Current status
 
-Five slices complete and pushed to `main`.
+Six slices complete and pushed to `main`.
 
 Target verified:
 
@@ -15,14 +15,46 @@ Target verified:
 Latest commits:
 
 ```text
+fix: 13 dark-era color bugs — token-clean UI across all views
+5f4c92a4 docs: update CURRENT-TASK after slice 5 (Carta & Inchiostro design)
 ae9fac21 design: Carta & Inchiostro — complete styles.css rewrite
-(merge) design: merge Carta & Inchiostro redesign branch
-13576821 perf: bundle splitting — main chunk 564 KB → 235 KB (58% reduction)
 ```
 
 ---
 
 ## Completed in this slice
+
+### Slice 6 — Dark-era color bug sweep
+
+Visual inspection of the full live UI on `localhost:5173` revealed 13 hardcoded dark-era colors that were invisible or illegible on the new light `--paper` background. All fixed.
+
+**`src/styles.css`:**
+- `.row-delete-btn`: replaced `opacity: 0.55` (made circles near-invisible on light bg) with "danger on hover" pattern — neutral gray at rest (`--ink-4` / `--rule-strong`), red only on hover.
+- `.aula-trigger-btn`: `#c4b5fd` lavender text (invisible on paper) → `#5b21b6` dark violet; background/border opacities increased to be readable on light surface.
+- Added `.profile-btn` class (token-based) for the homepage profile button.
+- Added `.empty-state-placeholder` and `.empty-state-placeholder.lg` classes for empty-state containers.
+
+**`src/screens/CaseDetailView.tsx`:**
+- Material drawer delete button: `#ef4444` → `var(--critical)`.
+- Witness credibility score: `#ef4444`/`#f97316`/`#22c55e` → `var(--critical)`/`var(--warning)`/`var(--success)`.
+- Redaction arrow: `#64748b` → `var(--ink-3)`.
+- Timeline empty state (×2): `rgba(255,255,255,0.02)` + faint dashed border → `.empty-state-placeholder` with `--paper-sunken`.
+
+**`src/main.tsx`:**
+- Home stats (alto rischio, scadenze, contraddizioni): all hardcoded hex → `var(--critical)` / `var(--warning)` / `var(--success)` / `var(--ink-4)`.
+- Profile button: dark-era glass inline style → `.profile-btn` class.
+- Cases empty state: near-invisible dark glass → `.empty-state-placeholder.lg` with `var(--ink-1)` text.
+- Auth/Suspense loading spinners: `#020617` dark bg + `#7c3aed` purple → `var(--paper)` + `var(--giulia-ink)`.
+
+**All tests pass:**
+- `npm run test:plt-export` ✓
+- `npm run test:local-case-scope` ✓
+- `npm run test:draft-workspace` ✓
+- `npm run test:draft-workspace-ui` ✓
+
+---
+
+## Completed in previous slices
 
 ### Slice 5 — Design system "Carta & Inchiostro"
 

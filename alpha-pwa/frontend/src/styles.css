@@ -510,12 +510,12 @@ blockquote {
 .editable-row-head h3 { flex: 1 1 auto; min-width: 0; margin-bottom: 0; }
 .editable-row-head strong { flex: 1 1 auto; min-width: 0; }
 .row-delete-btn {
-  flex: none; background: none; border: 1px solid var(--critical);
-  color: var(--critical); border-radius: 999px;
+  flex: none; background: none; border: 1px solid var(--rule-strong);
+  color: var(--ink-4); border-radius: 999px;
   width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
-  cursor: pointer; opacity: 0.55; transition: opacity var(--dur-1), background var(--dur-1);
+  cursor: pointer; transition: color var(--dur-1), border-color var(--dur-1), background var(--dur-1);
 }
-.row-delete-btn:hover { opacity: 1; background: var(--critical-soft); }
+.row-delete-btn:hover { color: var(--critical); border-color: var(--critical); background: var(--critical-soft); }
 .add-row-btn {
   display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
   background: var(--paper-sunken); border: 1px dashed var(--rule-strong);
@@ -610,6 +610,24 @@ blockquote {
 }
 .home-search { flex: 1; position: relative; margin: 0; }
 .home-new-btn { white-space: nowrap; flex: none; }
+
+/* ── Profile button ──────────────────────────────────────────────────────── */
+.profile-btn {
+  background: var(--paper-sunken); border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-2); padding: 9px 11px;
+  cursor: pointer; color: var(--ink-3);
+  display: flex; align-items: center;
+  transition: background var(--dur-1), color var(--dur-1), border-color var(--dur-1);
+}
+.profile-btn:hover { background: var(--sigillo-soft); border-color: var(--sigillo); color: var(--sigillo); }
+
+/* ── Empty states ────────────────────────────────────────────────────────── */
+.empty-state-placeholder {
+  text-align: center; padding: 32px 16px;
+  background: var(--paper-sunken); border-radius: var(--radius-3);
+  border: 1px dashed var(--rule-strong);
+}
+.empty-state-placeholder.lg { padding: 48px 16px; }
 
 /* ── Cases list ──────────────────────────────────────────────────────────── */
 .cases-header { margin-bottom: 20px; }
@@ -807,13 +825,13 @@ blockquote {
 
 /* ── Aula trigger button ──────────────────────────────────────────────────── */
 .aula-trigger-btn {
-  background: rgba(139, 92, 246, 0.15);
-  border: 1px solid rgba(139, 92, 246, 0.35);
-  color: #c4b5fd; border-radius: 999px; padding: 11px 16px;
+  background: rgba(109, 40, 217, 0.07);
+  border: 1px solid rgba(109, 40, 217, 0.35);
+  color: #5b21b6; border-radius: 999px; padding: 11px 16px;
   cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
   font: inherit; font-weight: 700; letter-spacing: 0.02em;
 }
-.aula-trigger-btn:hover { background: rgba(139, 92, 246, 0.28); border-color: rgba(167, 139, 250, 0.55); }
+.aula-trigger-btn:hover { background: rgba(109, 40, 217, 0.14); border-color: rgba(109, 40, 217, 0.55); }
 
 /* ── AULA MODE — intentionally dark, keep as-is ──────────────────────────── */
 .aula-overlay {

@@ -428,7 +428,7 @@ function RawDocDrawer({ doc, onClose, onDelete }: { doc: RawDocument | null; onC
         <div className="drawer-header">
           <div><p className="eyebrow">{doc.name}</p><h2>{doc.description || doc.name}</h2></div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button title="Esegui azione" onClick={() => { onDelete(doc.doc_id); onClose(); }} className="ghost-button" style={{ color: '#ef4444' }}><Trash2 size={16} /></button>
+            <button title="Esegui azione" onClick={() => { onDelete(doc.doc_id); onClose(); }} className="ghost-button" style={{ color: 'var(--critical)' }}><Trash2 size={16} /></button>
             <button onClick={onClose} className="ghost-button" title="Chiudi la finestra corrente">Chiudi</button>
           </div>
         </div>
@@ -926,7 +926,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdat
                   className={`witness-role-badge role-${w.role}`}
                 />
               </div>
-              <div className="credibility-score" style={{ color: w.credibility_score >= 0.7 ? '#ef4444' : w.credibility_score >= 0.5 ? '#f97316' : '#22c55e' }}>
+              <div className="credibility-score" style={{ color: w.credibility_score >= 0.7 ? 'var(--critical)' : w.credibility_score >= 0.5 ? 'var(--warning)' : 'var(--success)' }}>
                 <EditablePercent value={w.credibility_score} onChange={v => updateWitness(wi, { credibility_score: v })} /> cred.
               </div>
               <RowDelete onClick={() => deleteWitness(wi)} label={w.witness_name} />
@@ -1169,7 +1169,7 @@ function RedactionDrawer({
           <p className="eyebrow">Aggiungi regola</p>
           <div className="redact-add-row">
             <input className="upload-input" placeholder="Parola originale (es. Mario Rossi)" value={origInput} onChange={e => setOrigInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRule('global')} />
-            <span style={{ color: '#64748b', flexShrink: 0 }}>→</span>
+            <span style={{ color: 'var(--ink-3)', flexShrink: 0 }}>→</span>
             <input className="upload-input" placeholder="[OMISSIS]" value={replInput} onChange={e => setReplInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRule('global')} />
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
@@ -2297,7 +2297,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {activeTab === 'timeline' && (
         <section ref={timelineRef} className="panel timeline-panel">
           {d.timeline.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '32px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px dashed rgba(148,163,184,0.2)' }}>
+            <div className="empty-state-placeholder">
               <p className="muted" style={{ marginBottom: 12 }}>Nessun evento ancora nella timeline.</p>
               <p className="muted" style={{ fontSize: '0.85rem' }}>Carica dei documenti e clicca su <strong>Analizza con AI</strong> in alto per estrarre automaticamente la cronologia dei fatti, oppure aggiungi un evento manualmente.</p>
             </div>
@@ -2566,7 +2566,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             />
           : (
             <section className="panel">
-              <div style={{ textAlign: 'center', padding: '32px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px dashed rgba(148,163,184,0.2)' }}>
+              <div className="empty-state-placeholder">
                 <p className="muted" style={{ marginBottom: 12 }}>Nessuna analisi legale presente.</p>
                 <p className="muted" style={{ fontSize: '0.85rem' }}>Carica dei documenti e clicca su <strong>Analizza con AI</strong> per estrarre in automatico capi di imputazione e strategia, oppure clicca qui sotto per creare l'analisi manualmente.</p>
               </div>
