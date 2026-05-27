@@ -18,7 +18,7 @@ from .ai_service import analyze_case, stream_chat
 
 logger = logging.getLogger(__name__)
 from .demo_data import build_demo_case, get_all_cases, get_case_summaries
-from .models import AnalyzeRequest, CaseAnalysis, CaseSummary, ChatRequest
+from .models import AnalyzeRequest, CaseAnalysis, CaseSummary, ChatRequest, FetchUrlRequest
 from .ocr_adapter import MistralOcrAdapter, PptxAdapter, PypdfAdapter, XlsxAdapter
 from .ocr_models import OcrInput
 
@@ -294,6 +294,90 @@ async def upload_file(file: UploadFile = File(...)) -> dict[str, Any]:
             temp_path.unlink(missing_ok=True)
         except OSError:
             logger.warning("Could not delete temporary upload file: %s", temp_path)
+
+
+# ── URL fetch ─────────────────────────────────────────────────────────────────
+
+@app.post("/api/fetch-url")
+async def fetch_url_content(request: FetchUrlRequest) -> dict[str, Any]:
+    """Fetch a URL and extract its text content for use as a case material."""
+    import re as _re
+    url = request.url.strip()
+    if not _re.match(r"^https?://", url):
+        raise HTTPException(status_code=422, detail="URL non valido: sono supportati solo http:// e https://")
+
+    label = request.name.strip() or url
+
+    try:
+        resp = await run_in_threadpool(
+            _fetch_url_text, url, label
+        )
+        return resp
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("fetch-url failed for %s: %s", url, exc, exc_info=True)
+        raise HTTPException(status_code=502, detail=f"Impossibile recuperare il contenuto dall'URL: {exc}") from exc
+
+
+def _fetch_url_text(url: str, label: str) -> dict[str, Any]:
+    import httpx
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+        )
+    }
+    with httpx.Client(follow_redirects=True, timeout=15) as client:
+        r = client.get(url, headers=headers)
+        r.raise_for_status()
+    html = r.text
+
+    extracted_text: str | None = None
+    engine = "trafilatura"
+    try:
+        import trafilatura  # type: ignore
+        extracted_text = trafilatura.extract(html, include_comments=False, include_tables=True)
+    except Exception:
+        pass
+
+    if not extracted_text:
+        engine = "beautifulsoup"
+        try:
+            from bs4 import BeautifulSoup  # type: ignore
+            soup = BeautifulSoup(html, "html.parser")
+            for tag in soup(["script", "style", "nav", "footer", "header"]):
+                tag.decompose()
+            extracted_text = soup.get_text(separator="\n", strip=True)
+        except Exception:
+            pass
+
+    if not extracted_text:
+        extracted_text = ""
+
+    status = "ready" if extracted_text.strip() else "empty"
+    warnings: list[str] = []
+    if status == "empty":
+        warnings.append("Nessun testo estratto dall'URL. Il contenuto potrebbe essere dinamico (JavaScript) o non accessibile.")
+
+    import re as _re
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    filename = label or (parsed.netloc + parsed.path).rstrip("/").replace("/", "_") or "documento-web"
+    filename = _re.sub(r"[^\w\-.]", "_", filename)[:80]
+
+    return {
+        "upload_id": str(uuid.uuid4()),
+        "filename": filename,
+        "mime_type": "text/plain",
+        "size_bytes": len(extracted_text.encode("utf-8")),
+        "extracted_text": extracted_text,
+        "engine": engine,
+        "warnings": warnings,
+        "status": status,
+        "source_url": url,
+    }
 
 
 # ── Voice transcription ───────────────────────────────────────────────────────

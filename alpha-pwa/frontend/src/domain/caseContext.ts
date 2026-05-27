@@ -4,6 +4,13 @@ export function buildCaseContext(c: CaseAnalysis): string {
   const la = c.legal_analysis;
   let ctx = `FASCICOLO: ${c.case_title}\n\nSINTESI: ${c.case_summary}\n\n`;
 
+  const giurisprudenza = (c.raw_documents ?? []).filter(d => d.category === 'giurisprudenza');
+  if (giurisprudenza.length) {
+    ctx += `PRECEDENTI CARICATI DALL'AVVOCATO (citabili con source_ref):\n`;
+    ctx += giurisprudenza.map(d => `• [${d.name}]: ${d.text.slice(0, 400).replace(/\n+/g, ' ')}…`).join('\n');
+    ctx += '\n\n';
+  }
+
   if (c.people.length) {
     ctx += `PARTI:\n${c.people.map(p => `• ${p.name} (${p.role})${p.notes ? ': ' + p.notes : ''}`).join('\n')}\n\n`;
   }

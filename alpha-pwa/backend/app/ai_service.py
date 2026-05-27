@@ -284,10 +284,18 @@ def analyze_case(request: AnalyzeRequest) -> CaseAnalysis:
             sum(len(m.text) for m in truncated),
         )
 
-    materials_text = "\n\n".join(
-        f"=== {m.name} ({m.kind}) ===\n{m.text}"
-        for m in truncated
-    )
+    fascicolo = [m for m in truncated if getattr(m, "category", "fascicolo") != "giurisprudenza"]
+    giurisprudenza = [m for m in truncated if getattr(m, "category", "fascicolo") == "giurisprudenza"]
+
+    parts: list[str] = []
+    if fascicolo:
+        parts.append("── DOCUMENTI FASCICOLO ──")
+        parts.extend(f"=== {m.name} ({m.kind}) ===\n{m.text}" for m in fascicolo)
+    if giurisprudenza:
+        parts.append("── PRECEDENTI CARICATI DALL'AVVOCATO ──")
+        parts.append("(Questi precedenti sono stati caricati e verificati dall'avvocato. Puoi citarli con source_ref esplicita — includi nome documento e pagina.)")
+        parts.extend(f"=== {m.name} ({m.kind}) ===\n{m.text}" for m in giurisprudenza)
+    materials_text = "\n\n".join(parts)
     prompt_policy = _analysis_prompt_policy(request.mode)
     user_message = f"""\
 Titolo del caso: {request.case_title}

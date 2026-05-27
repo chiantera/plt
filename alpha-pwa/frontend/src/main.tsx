@@ -4,7 +4,7 @@ import {
   AlertTriangle, ArrowLeft, ArrowRight, BookOpen,
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
   Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, LogOut, MessageSquare, Mic, Plus, RefreshCw,
-  Scale, Search, Send, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles,
+  Globe, Scale, Search, Send, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles,
   Square, Trash2, Upload, User, Users, X, Zap, FolderOpen,
 } from 'lucide-react';
 import './styles.css';
@@ -517,22 +517,28 @@ function MultiFileUploadDrawer({
   onRemoveItem,
   onRetryItem,
   onAddTextItem,
+  onAddUrlItem,
   processing,
   onAnalyze,
 }: {
   queue: UploadQueueItem[];
   onClose: () => void;
-  onAddFiles: (files: File[]) => void;
+  onAddFiles: (files: File[], category: 'fascicolo' | 'giurisprudenza') => void;
   onRemoveItem: (id: string) => void;
   onRetryItem: (id: string) => void;
-  onAddTextItem: (text: string, name?: string) => void;
+  onAddTextItem: (text: string, name?: string, category?: 'fascicolo' | 'giurisprudenza') => void;
+  onAddUrlItem: (url: string, name: string) => void;
   processing: boolean;
   onAnalyze?: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState<'fascicolo' | 'giurisprudenza'>('fascicolo');
   const [dragging, setDragging] = useState(false);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const [urlInput, setUrlInput] = useState('');
+  const [urlName, setUrlName] = useState('');
+  const [urlFetching, setUrlFetching] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -552,7 +558,7 @@ function MultiFileUploadDrawer({
           fd.append('file', blob, 'nota_vocale.webm');
           const res = await fetch(`${API}/api/transcribe`, { method: 'POST', body: fd });
           const data = await res.json();
-          if (data.text) onAddTextItem(data.text, 'Nota vocale');
+          if (data.text) onAddTextItem(data.text, 'Nota vocale', activeTab);
         } finally {
           setTranscribing(false);
         }
@@ -563,7 +569,7 @@ function MultiFileUploadDrawer({
     } catch {
       alert('Microfono non disponibile o accesso negato.');
     }
-  }, [onAddTextItem]);
+  }, [onAddTextItem, activeTab]);
 
   const stopRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
@@ -573,54 +579,125 @@ function MultiFileUploadDrawer({
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragging(false);
     const files = Array.from(e.dataTransfer.files);
-    if (files.length) onAddFiles(files);
-  }, [onAddFiles]);
+    if (files.length) onAddFiles(files, activeTab);
+  }, [onAddFiles, activeTab]);
 
   const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    if (files.length) onAddFiles(files);
+    if (files.length) onAddFiles(files, activeTab);
     e.target.value = '';
-  }, [onAddFiles]);
+  }, [onAddFiles, activeTab]);
+
+  const handleUrlImport = useCallback(async () => {
+    const url = urlInput.trim();
+    if (!url) return;
+    setUrlFetching(true);
+    try {
+      await onAddUrlItem(url, urlName.trim());
+      setUrlInput('');
+      setUrlName('');
+    } finally {
+      setUrlFetching(false);
+    }
+  }, [urlInput, urlName, onAddUrlItem]);
 
   const doneCount = queue.filter(i => i.status === 'done' && i.text).length;
   const errorCount = queue.filter(i => i.status === 'error').length;
   const isUploading = queue.some(i => i.status === 'uploading' || i.status === 'pending');
 
+  const isGiur = activeTab === 'giurisprudenza';
+
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <aside className="source-drawer upload-drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
+
+        {/* Header */}
         <div className="drawer-header">
           <div>
             <p className="eyebrow">Elaborazione locale</p>
-            <h2>Aggiungi documenti</h2>
+            <h2>Aggiungi al fascicolo</h2>
           </div>
-          <button title="Chiudi o annulla" onClick={onClose} className="ghost-button"><X size={18} /></button>
+          <button title="Chiudi" onClick={onClose} className="ghost-button"><X size={18} /></button>
         </div>
 
-        {/* Drop zone (multi-file) */}
+        {/* Tab strip */}
+        <div className="upload-tab-strip">
+          <button
+            className={`upload-tab${!isGiur ? ' active' : ''}`}
+            onClick={() => setActiveTab('fascicolo')}
+          >
+            <FileText size={14} /> Documenti
+          </button>
+          <button
+            className={`upload-tab${isGiur ? ' active giur' : ''}`}
+            onClick={() => setActiveTab('giurisprudenza')}
+          >
+            <Scale size={14} /> Giurisprudenza
+          </button>
+        </div>
+
+        {/* Giurisprudenza: URL input */}
+        {isGiur && (
+          <div className="upload-url-section">
+            <label className="upload-url-label">Importa da URL (sentenza, banca dati, testo web)</label>
+            <div className="upload-url-row">
+              <input
+                className="upload-url-input"
+                type="url"
+                placeholder="https://www.example.com/sentenza…"
+                value={urlInput}
+                onChange={e => setUrlInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && urlInput.trim()) handleUrlImport(); }}
+              />
+            </div>
+            <div className="upload-url-row" style={{ marginTop: 6 }}>
+              <input
+                className="upload-url-input"
+                type="text"
+                placeholder="Etichetta (es. Cass. Pen. sez. I n. 1234/2023)"
+                value={urlName}
+                onChange={e => setUrlName(e.target.value)}
+              />
+              <button
+                className="primary-button upload-url-btn"
+                disabled={!urlInput.trim() || urlFetching}
+                onClick={handleUrlImport}
+              >
+                {urlFetching ? <Loader2 size={13} className="spin" /> : <Globe size={13} />}
+                {urlFetching ? 'Importo…' : 'Importa'}
+              </button>
+            </div>
+            <p className="upload-url-hint">
+              Il testo viene estratto automaticamente dalla pagina. Solo testo — nessun file viene salvato.
+            </p>
+          </div>
+        )}
+
+        {/* Drop zone */}
         <label
-          className={`drop-zone${dragging ? ' dragging' : ''}`}
+          className={`drop-zone${dragging ? ' dragging' : ''}${isGiur ? ' drop-zone--giur' : ''}`}
           style={{ cursor: 'pointer' }}
           onDragOver={e => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
         >
           <div className="drop-zone-icon-container">
-            <Upload size={32} />
+            {isGiur ? <Scale size={28} style={{ color: '#a78bfa' }} /> : <Upload size={32} />}
           </div>
-          <p>Trascina i file qui o tocca per selezionarli</p>
-          <small>PDF, DOCX, TXT, immagini — più file alla volta</small>
+          <p>{isGiur ? 'Trascina la sentenza o il provvedimento' : 'Trascina i file qui o tocca per selezionarli'}</p>
+          <small>{isGiur ? 'PDF, TXT — il precedente sarà etichettato come verificato dall\'avvocato' : 'PDF, DOCX, TXT, immagini — più file alla volta'}</small>
           <input ref={fileRef} type="file" style={{ display: 'none' }} multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.csv,.rtf,image/*,audio/*" onChange={onFileChange} />
         </label>
 
+        {/* Privacy hint (empty queue only) */}
         {queue.length === 0 && (
-          <div style={{ marginTop: 16, padding: 16, background: 'rgba(56,189,248,0.05)', borderRadius: 12, border: '1px solid rgba(56,189,248,0.15)' }}>
-            <h4 style={{ color: '#7dd3fc', fontSize: '0.85rem', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <ShieldCheck size={14} /> Elaborazione Sicura
-            </h4>
-            <p className="muted" style={{ fontSize: '0.8rem', lineHeight: 1.5, margin: 0 }}>
-              I documenti caricati verranno processati localmente. Il testo estratto sarà aggiunto al fascicolo e inviato all'AI solo quando deciderai di avviare l'analisi. Puoi anche usare dispositivi mobili per fotografare atti cartacei.
+          <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(56,189,248,0.05)', borderRadius: 10, border: '1px solid rgba(56,189,248,0.15)' }}>
+            <p className="muted" style={{ fontSize: '0.78rem', lineHeight: 1.5, margin: 0, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+              <ShieldCheck size={13} style={{ flexShrink: 0, color: '#22c55e', marginTop: 2 }} />
+              {isGiur
+                ? 'I precedenti caricati restano in locale. GiulIA li può citare con source_ref esplicita distinguendoli dai documenti del caso.'
+                : 'I file originali restano sul dispositivo. Solo il testo estratto viene inviato all\'AI al momento dell\'analisi.'}
             </p>
           </div>
         )}
@@ -642,16 +719,22 @@ function MultiFileUploadDrawer({
                   )}
                 </div>
                 <div className="upload-queue-info">
-                  <div className="upload-queue-name">{item.description || item.name}</div>
+                  <div className="upload-queue-name">
+                    {item.description || item.name}
+                    {item.category === 'giurisprudenza'
+                      ? <span className="upload-cat-badge upload-cat-badge--giur">Precedente</span>
+                      : <span className="upload-cat-badge upload-cat-badge--doc">Fascicolo</span>
+                    }
+                  </div>
                   <div className="upload-queue-size">
-                    {item.name}
+                    {item.name !== (item.description || item.name) && item.name}
                     {item.size > 0 && ` · ${(item.size / 1024).toFixed(0)} KB`}
                   </div>
                 </div>
                 <div className="upload-queue-status">
                   {item.status === 'pending' && <span className="status-badge pending">In coda…</span>}
-                  {item.status === 'uploading' && <span className="status-badge uploading">Estraggo testo…</span>}
-                  {item.status === 'done' && <span className="status-badge done">Aggiunto! ✅</span>}
+                  {item.status === 'uploading' && <span className="status-badge uploading">Elaboro…</span>}
+                  {item.status === 'done' && <span className="status-badge done">Aggiunto ✓</span>}
                   {item.status === 'error' && (
                     <span className="status-badge error" onClick={() => onRetryItem(item.id)} title={item.error} style={{ cursor: 'pointer' }}>
                       Riprova ↻
@@ -668,81 +751,81 @@ function MultiFileUploadDrawer({
           </div>
         )}
 
-        {/* Voice + Paste section */}
+        {/* Paste + voice */}
         <div className="upload-field">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <label style={{ margin: 0 }}>Incolla testo o registra nota vocale</label>
-            <button title="Esegui azione"
-              type="button"
-              onClick={recording ? stopRecording : startRecording}
-              disabled={transcribing}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '6px 12px', borderRadius: 999, border: 'none', cursor: 'pointer',
-                fontWeight: 600, fontSize: 12,
-                background: recording ? 'rgba(239,68,68,0.15)' : 'rgba(148,163,184,0.12)',
-                color: recording ? '#f87171' : '#94a3b8',
-                transition: 'all .15s',
-              }}
-            >
-              {transcribing
-                ? <><Loader2 size={13} className="spin" /> Trascrivo…</>
-                : recording
-                  ? <><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block', animation: 'pulse 1s infinite' }} /> Stop</>
-                  : <><Mic size={13} /> Nota vocale</>
-              }
-            </button>
+            <label style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>
+              {isGiur ? 'Incolla il testo della sentenza' : 'Incolla testo o registra nota vocale'}
+            </label>
+            {!isGiur && (
+              <button
+                type="button"
+                onClick={recording ? stopRecording : startRecording}
+                disabled={transcribing}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '5px 10px', borderRadius: 999, border: 'none', cursor: 'pointer',
+                  fontWeight: 600, fontSize: 11,
+                  background: recording ? 'rgba(239,68,68,0.15)' : 'rgba(148,163,184,0.12)',
+                  color: recording ? '#f87171' : '#94a3b8',
+                }}
+              >
+                {transcribing
+                  ? <><Loader2 size={12} className="spin" /> Trascrivo…</>
+                  : recording
+                    ? <><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', display: 'inline-block', animation: 'pulse 1s infinite' }} /> Stop</>
+                    : <><Mic size={12} /> Nota vocale</>
+                }
+              </button>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <textarea
               className="upload-textarea"
-              placeholder="Incolla qui il testo del documento o registra una nota vocale…"
+              placeholder={isGiur ? 'Incolla qui il testo della sentenza o del provvedimento…' : 'Incolla qui il testo del documento o registra una nota vocale…'}
               value={pasteText}
               onChange={e => setPasteText(e.target.value)}
               rows={3}
-              style={{ flex: 1, minHeight: 80 }}
+              style={{ flex: 1, minHeight: 72 }}
             />
-            <button title="Conferma operazione principale"
+            <button
               className="primary-button"
               disabled={!pasteText.trim()}
-              onClick={() => { onAddTextItem(pasteText.trim()); setPasteText(''); }}
-              style={{ alignSelf: 'flex-end', whiteSpace: 'nowrap', padding: '10px 14px', fontSize: '0.78rem' }}
+              onClick={() => {
+                onAddTextItem(pasteText.trim(), undefined, activeTab);
+                setPasteText('');
+              }}
+              style={{ alignSelf: 'flex-end', whiteSpace: 'nowrap', padding: '8px 12px', fontSize: '0.78rem' }}
             >
               Aggiungi
             </button>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0 2px', color: '#64748b', fontSize: '0.74rem' }}>
-          <ShieldCheck size={12} style={{ flexShrink: 0, color: '#22c55e' }} />
-          I file originali restano sul tuo dispositivo. Solo il testo estratto viene inviato all'AI per l'analisi.
-        </div>
-
-        <div className="upload-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+        {/* Footer */}
+        <div className="upload-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
           <div>
             {isUploading && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#38bdf8', fontSize: '0.8rem', fontWeight: 500 }}>
                 <Loader2 size={14} className="spin" />
-                <span>Estrazione testi in corso...</span>
+                <span>Elaborazione in corso…</span>
               </div>
             )}
             {!isUploading && doneCount > 0 && (
               <div style={{ color: '#4ade80', fontSize: '0.8rem', fontWeight: 500 }}>
-                ✓ {doneCount} file pronto/i per l'analisi
+                ✓ {doneCount} elemento/i pronto/i
               </div>
             )}
+            {errorCount > 0 && <span style={{ fontSize: '0.75rem', color: '#f87171' }}>{errorCount} errore/i</span>}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {errorCount > 0 && <span style={{ fontSize: '0.75rem', color: '#f87171' }}>{errorCount} errore/i</span>}
-            <button className="ghost-button" onClick={onClose} title="Chiudi la finestra corrente">Chiudi</button>
+            <button className="ghost-button" onClick={onClose}>Chiudi</button>
             {doneCount > 0 && onAnalyze && (
-              <button title="Conferma operazione principale"
+              <button
                 className="primary-button upload-analyze-btn"
-                onClick={() => {
-                  onAnalyze();
-                }}
+                onClick={onAnalyze}
               >
-                <Sparkles size={15} /> Avvia Analisi AI ✨
+                <Sparkles size={15} /> Avvia Analisi AI
               </button>
             )}
           </div>
@@ -2696,24 +2779,25 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
 
     for (const item of itemsToProcess) {
       try {
-        let text = '';
-        if (item.file.type.startsWith('text/') || item.file.name.endsWith('.txt')) {
-          text = await item.file.text();
-        } else {
-          const fd = new FormData();
-          fd.append('file', item.file);
-          const res = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
-          if (!res.ok) throw new Error(`Upload fallito (${res.status})`);
-          const data = await res.json();
-          text = data.extracted_text ?? '';
+        let text = item.text ?? '';
+        if (!text) {
+          if (!item.file) throw new Error('Nessun file o testo disponibile');
+          if (item.file.type.startsWith('text/') || item.file.name.endsWith('.txt')) {
+            text = await item.file.text();
+          } else {
+            const fd = new FormData();
+            fd.append('file', item.file);
+            const res = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
+            if (!res.ok) throw new Error(`Upload fallito (${res.status})`);
+            const data = await res.json();
+            text = data.extracted_text ?? '';
+          }
         }
 
-        // Mark item as done in queue
         setUploadQueue(prev => prev.map(i =>
           i.id === item.id ? { ...i, status: 'done' as const, text } : i
         ));
 
-        // Auto-save to the case data in IndexedDB
         setCaseData(prevCase => {
           if (!prevCase) return prevCase;
           const newDoc: RawDocument = {
@@ -2722,16 +2806,18 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             description: item.description || item.name,
             text,
             added_at: new Date().toISOString(),
+            category: item.category,
           };
           const updated = {
             ...prevCase,
             raw_documents: [...(prevCase.raw_documents ?? []), newDoc],
           };
-          dbSave(localOwnerId, updated); // Save to IndexedDB
+          dbSave(localOwnerId, updated);
           return updated;
         });
 
-        showToast(`Documento "${item.description || item.name}" aggiunto al fascicolo!`);
+        const label = item.category === 'giurisprudenza' ? 'Precedente' : 'Documento';
+        showToast(`${label} "${item.description || item.name}" aggiunto!`);
       } catch (e) {
         setUploadQueue(prev => prev.map(i =>
           i.id === item.id ? { ...i, status: 'error' as const, error: (e as Error).message } : i
@@ -2742,7 +2828,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     setUploadProcessing(false);
   }, [showToast]);
 
-  const handleAddFiles = useCallback((files: File[]) => {
+  const handleAddFiles = useCallback((files: File[], category: 'fascicolo' | 'giurisprudenza' = 'fascicolo') => {
     const MAX_BYTES = 50 * 1024 * 1024;
     const oversized = files.filter(f => f.size > MAX_BYTES);
     if (oversized.length) showToast(`${oversized.map(f => f.name).join(', ')}: file troppo grande (max 50 MB)`, 'error');
@@ -2755,20 +2841,23 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       size: f.size,
       status: 'pending' as const,
       description: f.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
+      category,
     }));
     setUploadQueue(prev => [...prev, ...newItems]);
     processItems(newItems);
   }, [showToast, processItems]);
 
-  const handleAddTextItem = useCallback((text: string, name?: string) => {
+  const handleAddTextItem = useCallback((text: string, name?: string, category: 'fascicolo' | 'giurisprudenza' = 'fascicolo') => {
+    const label = name || (category === 'giurisprudenza' ? 'Precedente incollato' : 'Testo incollato');
     const item: UploadQueueItem = {
       id: crypto.randomUUID(),
-      file: new File([text], name || 'testo', { type: 'text/plain' }),
-      name: name || 'Testo incollato',
+      file: null,
+      name: label,
       size: text.length,
       status: 'done',
       text,
-      description: name || 'Testo incollato',
+      description: label,
+      category,
     };
     setUploadQueue(prev => [...prev, item]);
 
@@ -2776,19 +2865,64 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       if (!prevCase) return prevCase;
       const newDoc: RawDocument = {
         doc_id: item.id,
-        name: item.description || item.name,
-        description: item.description || item.name,
+        name: label,
+        description: label,
         text,
         added_at: new Date().toISOString(),
+        category,
       };
       const updated = {
         ...prevCase,
         raw_documents: [...(prevCase.raw_documents ?? []), newDoc],
       };
-      dbSave(localOwnerId, updated); // Save to IndexedDB
+      dbSave(localOwnerId, updated);
       return updated;
     });
-    showToast(`Testo "${item.description}" aggiunto al fascicolo!`);
+    showToast(`"${label}" aggiunto!`);
+  }, [showToast]);
+
+  const handleAddUrlItem = useCallback(async (url: string, name: string) => {
+    const id = crypto.randomUUID();
+    const label = name.trim() || url;
+    const item: UploadQueueItem = {
+      id,
+      file: null,
+      name: label,
+      size: 0,
+      status: 'uploading',
+      category: 'giurisprudenza',
+      description: label,
+    };
+    setUploadQueue(prev => [...prev, item]);
+    try {
+      const res = await fetch(`${API}/api/fetch-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, name: label }),
+      });
+      if (!res.ok) throw new Error(`Fetch URL fallito (${res.status})`);
+      const data = await res.json();
+      const text: string = data.extracted_text ?? '';
+      setUploadQueue(prev => prev.map(i => i.id === id ? { ...i, status: 'done', text, size: text.length } : i));
+      setCaseData(prevCase => {
+        if (!prevCase) return prevCase;
+        const newDoc: RawDocument = {
+          doc_id: id,
+          name: label,
+          description: label,
+          text,
+          added_at: new Date().toISOString(),
+          category: 'giurisprudenza',
+        };
+        const updated = { ...prevCase, raw_documents: [...(prevCase.raw_documents ?? []), newDoc] };
+        dbSave(localOwnerId, updated);
+        return updated;
+      });
+      showToast(`Precedente "${label}" importato dall'URL!`);
+    } catch (e) {
+      setUploadQueue(prev => prev.map(i => i.id === id ? { ...i, status: 'error', error: (e as Error).message } : i));
+      showToast(`Errore importazione URL: ${(e as Error).message}`, 'error');
+    }
   }, [showToast]);
 
   const handleRemoveQueueItem = useCallback((id: string) => {
@@ -3050,7 +3184,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     setAnalyzing(true);
     try {
       const sourceDocs = isIncremental ? newDocs : docs;
-      const docMaterials = sourceDocs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text }));
+      const docMaterials = sourceDocs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text, category: d.category ?? 'fascicolo' }));
       const ctxMaterial = buildUserContextMaterial(caseData);
       const materials = ctxMaterial ? [ctxMaterial, ...docMaterials] : docMaterials;
       const res = await fetch(`${API}/api/analyze-text`, {
@@ -3911,6 +4045,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           onRemoveItem={handleRemoveQueueItem}
           onRetryItem={handleRetryQueueItem}
           onAddTextItem={handleAddTextItem}
+          onAddUrlItem={handleAddUrlItem}
           processing={uploadProcessing}
           onAnalyze={() => handleAnalyze('flash')}
         />

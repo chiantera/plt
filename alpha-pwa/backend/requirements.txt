@@ -1,5 +1,6 @@
 anthropic
 aiofiles
+beautifulsoup4
 fastapi
 groq
 httpx
@@ -10,4 +11,5 @@ python-docx
 pydantic
 pytest
 python-multipart
+trafilatura
 uvicorn

@@ -302,10 +302,16 @@ class CaseAnalysis(BaseModel):
 
 # ── Request / response for AI analysis ──────────────────────────────────────
 
+class FetchUrlRequest(BaseModel):
+    url: str
+    name: str = ""
+
+
 class AnalyzeMaterialInput(BaseModel):
     name: str
     kind: Literal["text", "pdf", "image", "audio"]
     text: str
+    category: Literal["fascicolo", "giurisprudenza"] = "fascicolo"
 
 
 class AnalyzeRequest(BaseModel):

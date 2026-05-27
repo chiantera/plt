@@ -378,6 +378,76 @@ blockquote { margin: 12px 0; padding: 16px; background: rgba(30,41,59,0.8); bord
   transform: translateY(-1px);
 }
 
+/* ── Upload drawer: tab strip ────────────────────────────────────────────── */
+.upload-tab-strip {
+  display: flex; gap: 4px; margin: 12px 0 10px;
+  background: rgba(15,23,42,0.5); border-radius: 12px; padding: 4px;
+}
+.upload-tab {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 12px; border-radius: 9px; border: none; cursor: pointer;
+  font-size: 0.82rem; font-weight: 600; color: #64748b;
+  background: transparent; transition: all 0.18s;
+}
+.upload-tab:hover { color: #94a3b8; background: rgba(148,163,184,0.08); }
+.upload-tab.active {
+  background: rgba(56,189,248,0.12); color: #38bdf8;
+  box-shadow: 0 0 0 1px rgba(56,189,248,0.2);
+}
+.upload-tab.active.giur {
+  background: rgba(139,92,246,0.14); color: #a78bfa;
+  box-shadow: 0 0 0 1px rgba(139,92,246,0.25);
+}
+
+/* ── Upload drawer: URL import section ───────────────────────────────────── */
+.upload-url-section {
+  background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.2);
+  border-radius: 14px; padding: 12px 14px; margin-bottom: 12px;
+}
+.upload-url-label {
+  font-size: 0.78rem; color: #a78bfa; font-weight: 600;
+  letter-spacing: 0.04em; display: block; margin-bottom: 8px;
+}
+.upload-url-row { display: flex; gap: 6px; }
+.upload-url-input {
+  flex: 1; background: rgba(15,23,42,0.6); border: 1px solid rgba(139,92,246,0.25);
+  color: #f1f5f9; border-radius: 10px; padding: 9px 12px;
+  font: inherit; font-size: 0.85rem;
+}
+.upload-url-input:focus { outline: none; border-color: #a78bfa; }
+.upload-url-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 9px 14px !important; white-space: nowrap;
+  background: rgba(139,92,246,0.25) !important; border-color: rgba(139,92,246,0.4) !important;
+  color: #c4b5fd !important; font-size: 0.82rem !important;
+}
+.upload-url-btn:hover:not(:disabled) {
+  background: rgba(139,92,246,0.35) !important;
+}
+.upload-url-hint {
+  font-size: 0.74rem; color: #64748b; margin: 8px 0 0; line-height: 1.4;
+}
+
+/* ── Upload drawer: giurisprudenza drop zone variant ─────────────────────── */
+.drop-zone--giur {
+  border-color: rgba(139,92,246,0.25);
+  background: rgba(139,92,246,0.03);
+}
+.drop-zone--giur:hover, .drop-zone--giur.dragging {
+  border-color: #a78bfa;
+  background: rgba(139,92,246,0.06);
+  box-shadow: 0 0 20px rgba(139,92,246,0.08);
+}
+
+/* ── Upload category badges ──────────────────────────────────────────────── */
+.upload-cat-badge {
+  display: inline-flex; align-items: center;
+  font-size: 0.64rem; font-weight: 700; letter-spacing: 0.04em;
+  padding: 1px 6px; border-radius: 999px; margin-left: 6px; vertical-align: middle;
+}
+.upload-cat-badge--doc { background: rgba(148,163,184,0.12); color: #94a3b8; }
+.upload-cat-badge--giur { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+
 /* ── Upload badge (background indicator) ─────────────────────────────────── */
 .upload-badge {
   display: inline-flex; align-items: center; gap: 4px;

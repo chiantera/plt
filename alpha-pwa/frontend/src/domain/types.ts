@@ -171,17 +171,19 @@ export type RawDocument = {
   description: string;
   text: string;
   added_at: string;
+  category?: 'fascicolo' | 'giurisprudenza';
 };
 
 export type UploadQueueItem = {
   id: string;
-  file: File;
+  file: File | null;
   name: string;
   size: number;
   status: 'pending' | 'uploading' | 'done' | 'error';
   text?: string;
   error?: string;
   description?: string;
+  category: 'fascicolo' | 'giurisprudenza';
 };
 
 export type RedactionRule = {
