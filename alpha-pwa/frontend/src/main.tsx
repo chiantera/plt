@@ -434,7 +434,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
           </button>
         </div>
         <h1 className="home-headline">
-          I tuoi<br /><span className="home-headline-accent">fascicoli</span>
+          I miei <span className="home-headline-accent">fascicoli</span>
         </h1>
         {cases && <HomepageStats cases={cases} />}
       </header>
