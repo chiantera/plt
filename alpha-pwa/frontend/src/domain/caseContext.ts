@@ -2,7 +2,8 @@ import type { CaseAnalysis, CaseSummary } from './types';
 
 export function buildCaseContext(c: CaseAnalysis): string {
   const la = c.legal_analysis;
-  let ctx = `FASCICOLO: ${c.case_title}\n\nSINTESI: ${c.case_summary}\n\n`;
+  const today = new Date().toISOString().slice(0, 10);
+  let ctx = `DATA ODIERNA: ${today}\nFASCICOLO: ${c.case_title}\n\nSINTESI: ${c.case_summary}\n\n`;
 
   const giurisprudenza = (c.raw_documents ?? []).filter(d => d.category === 'giurisprudenza');
   if (giurisprudenza.length) {

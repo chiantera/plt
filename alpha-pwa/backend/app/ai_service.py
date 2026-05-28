@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import sys
+from datetime import date
 from collections.abc import Generator
 
 from .models import (
@@ -297,7 +298,9 @@ def analyze_case(request: AnalyzeRequest) -> CaseAnalysis:
         parts.extend(f"=== {m.name} ({m.kind}) ===\n{m.text}" for m in giurisprudenza)
     materials_text = "\n\n".join(parts)
     prompt_policy = _analysis_prompt_policy(request.mode)
+    today = date.today().isoformat()
     user_message = f"""\
+Data odierna: {today}
 Titolo del caso: {request.case_title}
 Lingua output: {request.language}
 Modalità: {request.mode}
