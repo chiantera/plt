@@ -33,12 +33,31 @@ function mergeArrays<T extends Record<string, unknown>>(existing: T[], ai: T[], 
   return [...existing, ...novel];
 }
 
-export function mergeWithAi(existing: CaseAnalysis, ai: CaseAnalysis): CaseAnalysis {
+export function mergeWithAi(
+  existing: CaseAnalysis,
+  ai: CaseAnalysis,
+  options: { replaceAiFields?: boolean } = {},
+): CaseAnalysis {
+  if (options.replaceAiFields) {
+    return {
+      ...ai,
+      case_id: existing.case_id,
+      case_title: existing.case_title?.trim() || ai.case_title,
+      raw_documents: existing.raw_documents,
+      analyzed_doc_ids: existing.analyzed_doc_ids,
+      redaction_rules: existing.redaction_rules,
+      draft_artifacts: existing.draft_artifacts,
+      is_pending: false,
+    };
+  }
+
   const merged: CaseAnalysis = {
     ...ai,
     case_id: existing.case_id,
     raw_documents: existing.raw_documents,
     analyzed_doc_ids: existing.analyzed_doc_ids,
+    redaction_rules: existing.redaction_rules,
+    draft_artifacts: existing.draft_artifacts,
     is_pending: false,
     case_title: existing.case_title?.trim() || ai.case_title,
     case_summary: existing.case_summary?.trim() || ai.case_summary,

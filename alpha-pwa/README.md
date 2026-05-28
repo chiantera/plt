@@ -111,6 +111,7 @@ npm run test:date-formatters
 npm run test:question-layout
 npm run test:plt-export
 npm run test:local-case-scope
+npm run test:case-merge
 npm run test:draft-workspace
 npm run test:draft-workspace-ui
 ```

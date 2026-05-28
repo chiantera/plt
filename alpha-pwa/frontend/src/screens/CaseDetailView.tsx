@@ -1990,19 +1990,29 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
 
   const handleAnalyze = useCallback(async (mode: 'flash' | 'pro' = 'flash') => {
     if (!caseData) return;
+    let analysisBase = caseData;
     if (mode === 'pro') {
       const ok = confirm(`Confermi Analisi Pro con GiulIA?\n\nPiu profonda di Flash: ragiona su contraddizioni, strategie difensive e rischi procedurali.\nNessun addebito automatico -- parte solo con questa conferma.`);
       if (!ok) return;
+      if (caseData.pro_recommendation?.recommended) {
+        analysisBase = {
+          ...caseData,
+          pro_recommendation: { ...caseData.pro_recommendation, recommended: false },
+        };
+        setCaseData(analysisBase);
+        onCaseLoaded(analysisBase);
+        await dbSave(localOwnerId, analysisBase);
+      }
     }
-    const docs = caseData.raw_documents ?? [];
+    const docs = analysisBase.raw_documents ?? [];
     if (docs.length === 0) {
       showToast('Aggiungi almeno un documento prima di analizzare', 'error');
       return;
     }
 
-    const analyzedIds = new Set(caseData.analyzed_doc_ids ?? []);
+    const analyzedIds = new Set(analysisBase.analyzed_doc_ids ?? []);
     const newDocs = docs.filter(d => !analyzedIds.has(d.doc_id));
-    const isIncremental = caseData.legal_analysis != null && newDocs.length > 0;
+    const isIncremental = mode !== 'pro' && analysisBase.legal_analysis != null && newDocs.length > 0;
 
     setShowUpload(false);
     setUploadQueue(prev => prev.filter(i => i.status !== 'done')); // Clear completed items from drawer
@@ -2010,15 +2020,15 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     try {
       const sourceDocs = isIncremental ? newDocs : docs;
       const docMaterials = sourceDocs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text, category: d.category ?? 'fascicolo' }));
-      const ctxMaterial = buildUserContextMaterial(caseData);
+      const ctxMaterial = buildUserContextMaterial(analysisBase);
       const materials = ctxMaterial ? [ctxMaterial, ...docMaterials] : docMaterials;
       const res = await fetch(`${API}/api/analyze-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ case_title: caseData.case_title, materials, mode, language: 'it' }),
+        body: JSON.stringify({ case_title: analysisBase.case_title, materials, mode, language: 'it' }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
-      const merged = mergeWithAi(caseData, await res.json() as CaseAnalysis);
+      const merged = mergeWithAi(analysisBase, await res.json() as CaseAnalysis, { replaceAiFields: mode === 'pro' });
       // Segna i doc come analizzati ma NON li elimina — restano visibili sotto "Documenti del fascicolo"
       const analyzedDocIds = docs.map(d => d.doc_id);
       const updated = { ...merged, raw_documents: docs, analyzed_doc_ids: analyzedDocIds };
@@ -2034,7 +2044,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     } finally {
       setAnalyzing(false);
     }
-  }, [caseData, showToast, onCaseLoaded, onCaseAnalyzed]);
+  }, [caseData, localOwnerId, showToast, onCaseLoaded, onCaseAnalyzed]);
 
   const setCaseRedactionRules = useCallback((rules: RedactionRule[]) => {
     updateCase(c => ({ ...c, redaction_rules: rules }));
