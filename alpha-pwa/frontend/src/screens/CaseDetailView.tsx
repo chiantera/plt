@@ -1846,10 +1846,12 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     setCaseData(updated);
   }, [caseData]);
 
-  const fetchChatFull = useCallback(async (userMessage: string): Promise<string> => {
+  const fetchChatFull = useCallback(async (userMessage: string, opts?: { maxTokens?: number }): Promise<string> => {
+    const body: Record<string, unknown> = { messages: [{ role: 'user', content: userMessage }], mode: 'flash' };
+    if (opts?.maxTokens) body.max_tokens_override = opts.maxTokens;
     const res = await fetch(`${API}/api/chat`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [{ role: 'user', content: userMessage }], mode: 'flash' }),
+      body: JSON.stringify(body),
     });
     if (!res.ok || !res.body) throw new Error(`${res.status}`);
     const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = ''; let full = '';
@@ -1908,7 +1910,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     showToast('Nuova workspace bozza creata');
 
     try {
-      const generated = await fetchChatFull(prompt);
+      const generated = await fetchChatFull(prompt, type === 'cassazione' ? { maxTokens: 65536 } : undefined);
       const finalized = flagUnverifiedCassationCitations({
         ...placeholder,
         content_markdown: generated || 'Nessun contenuto generato. Riprova dalla chat o modifica manualmente questa bozza.',

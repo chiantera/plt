@@ -330,3 +330,4 @@ class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     system_override: str | None = None
     mode: Literal["flash", "pro"] = "flash"
+    max_tokens_override: int | None = None
