@@ -73,6 +73,35 @@ p { color: var(--ink-3); line-height: 1.55; margin-bottom: 8px; }
 .pro-recommendation-card p { margin: 0 0 6px; }
 .pro-recommendation-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; min-width: min(100%, 260px); }
 
+/* ── Mode toggle (Flash / Pro) ──────────────────────────────────────────── */
+.mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-2);
+  overflow: hidden;
+  background: var(--paper-sunken);
+  flex-shrink: 0;
+}
+.mode-toggle-btn {
+  padding: 6px 13px;
+  font-size: 0.78rem; font-weight: 700;
+  border: none; border-radius: 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: background 0.15s, color 0.15s;
+}
+.mode-toggle-btn:active { transform: none; }
+.mode-toggle-btn.active {
+  background: var(--ink-2);
+  color: var(--paper);
+}
+.mode-toggle-btn--pro.active {
+  background: var(--giulia-ink);
+  color: var(--paper);
+}
+
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 button {
   border-radius: var(--radius-2); padding: 10px 18px;

@@ -1290,7 +1290,7 @@ function ExportCaseDrawer({
         </div>
 
         <p className="export-privacy-copy">
-          I fascicoli restano su questo dispositivo. L’esportazione crea un file .plt che puoi trasferire manualmente su un altro dispositivo o inviare a un collega.
+          I fascicoli restano su questo dispositivo. L'esportazione crea un file .plt che puoi trasferire manualmente su un altro dispositivo o inviare a un collega.
         </p>
 
         <div className="export-mode-grid">
@@ -1316,10 +1316,10 @@ function ExportCaseDrawer({
         ) : (
           <div className="export-warning-box">
             <strong>File non protetto</strong>
-            <p>Il file .plt non protetto contiene i dati del fascicolo in chiaro. Prima di inviare un .plt non protetto, usa “Anonimizza” per sostituire nomi, indirizzi, numeri di procedimento e altri dati identificativi.</p>
+            <p>Il file .plt non protetto contiene i dati del fascicolo in chiaro. Prima di inviare un .plt non protetto, usa "Anonimizza" per sostituire nomi, indirizzi, numeri di procedimento e altri dati identificativi.</p>
             <label className="export-check-row">
               <input type="checkbox" checked={anonymized} disabled={!hasAnonymizationRules} onChange={e => setAnonymized(e.target.checked)} />
-              Esporta copia anonimizzata {hasAnonymizationRules ? '' : '(aggiungi prima regole da “Anonimizza”)'}
+              Esporta copia anonimizzata {hasAnonymizationRules ? '' : '(aggiungi prima regole da "Anonimizza")'}
             </label>
           </div>
         )}
@@ -1370,7 +1370,7 @@ function DraftingWorkspace({
         <div className="draft-empty-state">
           <Sparkles size={24} />
           <h2>Workspace redazione atti</h2>
-          <p className="muted">Clicca una card viola in “Analisi legale” per aprire una nuova bozza persistente. La chat resta solo per rifiniture e domande.</p>
+          <p className="muted">Clicca una card viola in "Analisi legale" per aprire una nuova bozza persistente. La chat resta solo per rifiniture e domande.</p>
         </div>
       </section>
     );
@@ -1501,6 +1501,14 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
   const [uploadProcessing, setUploadProcessing] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeMode, setAnalyzeMode] = useState<'flash' | 'pro'>(() => {
+    try { return (localStorage.getItem('plt_analyze_mode') as 'flash' | 'pro') || 'flash'; }
+    catch { return 'flash'; }
+  });
+  const setAndSaveMode = useCallback((m: 'flash' | 'pro') => {
+    setAnalyzeMode(m);
+    try { localStorage.setItem('plt_analyze_mode', m); } catch {}
+  }, []);
   const [aulaModeActive, setAulaModeActive] = useState(false);
   const [redactionOverride, setRedactionOverride] = useState<boolean | null>(null);
   const [showRedactionDrawer, setShowRedactionDrawer] = useState(false);
@@ -1983,7 +1991,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const handleAnalyze = useCallback(async (mode: 'flash' | 'pro' = 'flash') => {
     if (!caseData) return;
     if (mode === 'pro') {
-      const ok = confirm('Avviare un Approfondimento Pro con GiulIA? Verrà eseguita un’analisi più profonda solo dopo questa conferma.');
+      const ok = confirm(`Confermi Analisi Pro con GiulIA?\n\nPiu profonda di Flash: ragiona su contraddizioni, strategie difensive e rischi procedurali.\nNessun addebito automatico -- parte solo con questa conferma.`);
       if (!ok) return;
     }
     const docs = caseData.raw_documents ?? [];
@@ -2187,18 +2195,30 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               </span>
             )}
           </button>
-          {(!hasExistingAnalysis || unanalyzedCount > 0) && (
-            <button title="Esegui azione"
-              className="secondary-button"
-              onClick={() => handleAnalyze('flash')}
+          {(!hasExistingAnalysis || unanalyzedCount > 0) && (<>
+            <div className="mode-toggle" role="group" aria-label="Modalità analisi AI">
+              <button
+                className={`mode-toggle-btn${analyzeMode === 'flash' ? ' active' : ''}`}
+                onClick={() => setAndSaveMode('flash')}
+                title="Analisi Flash — veloce, estrae struttura e fatti"
+              >Flash</button>
+              <button
+                className={`mode-toggle-btn mode-toggle-btn--pro${analyzeMode === 'pro' ? ' active' : ''}`}
+                onClick={() => setAndSaveMode('pro')}
+                title="Analisi Pro — ragionamento profondo su contraddizioni, strategie e rischi procedurali"
+              >✦ Pro</button>
+            </div>
+            <button title="Esegui analisi AI"
+              className={analyzeMode === 'pro' ? 'primary-button' : 'secondary-button'}
+              onClick={() => handleAnalyze(analyzeMode)}
               disabled={analyzing || rawDocs.length === 0}
             >
               <Sparkles size={14} />
               {hasExistingAnalysis
-                ? `Incorpora ${unanalyzedCount} documento${unanalyzedCount === 1 ? '' : 'i'}`
-                : 'Analizza con AI'}
+                ? `Incorpora ${unanalyzedCount} doc${unanalyzedCount === 1 ? '' : 'umenti'}${analyzeMode === 'pro' ? ' (Pro)' : ''}`
+                : analyzeMode === 'pro' ? 'Analizza con AI (Pro)' : 'Analizza con AI'}
             </button>
-          )}
+          </>)}
           {hasExistingAnalysis && (
             <button
               className="ghost-button"
@@ -2220,7 +2240,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             <div>
               <p className="eyebrow">Approfondimento Pro con GiulIA</p>
               <p>{d.pro_recommendation.message}</p>
-              <p className="muted">L’analisi standard resta inclusa. Pro parte solo con conferma: nessun addebito automatico.</p>
+              <p className="muted">L'analisi standard resta inclusa. Pro parte solo con conferma: nessun addebito automatico.</p>
             </div>
             <div className="pro-recommendation-actions">
               <button className="primary-button" onClick={() => handleAnalyze('pro')} disabled={analyzing || rawDocs.length === 0}>
@@ -2571,8 +2591,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 <p className="muted" style={{ fontSize: '0.85rem' }}>Carica dei documenti e clicca su <strong>Analizza con AI</strong> per estrarre in automatico capi di imputazione e strategia, oppure clicca qui sotto per creare l'analisi manualmente.</p>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-                <button title="Conferma operazione principale" className="primary-button" onClick={() => handleAnalyze('flash')} disabled={analyzing || rawDocs.length === 0}>
-                  <Sparkles size={14} /> Analizza con AI
+                <button title="Esegui analisi AI" className="primary-button" onClick={() => handleAnalyze(analyzeMode)} disabled={analyzing || rawDocs.length === 0}>
+                  <Sparkles size={14} /> {analyzeMode === 'pro' ? 'Analizza con AI (Pro)' : 'Analizza con AI'}
                 </button>
                 <button title="Esegui azione"
                   className="secondary-button"
@@ -2863,7 +2883,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             onRetryItem={handleRetryQueueItem}
             onAddTextItem={handleAddTextItem}
             processing={uploadProcessing}
-            onAnalyze={() => handleAnalyze('flash')}
+            onAnalyze={() => handleAnalyze(analyzeMode)}
           />
         </Suspense>
       )}
