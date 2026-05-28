@@ -8,6 +8,13 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+# Load .env before any AI-service imports so provider keys are available.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent.parent / ".env")
+except ImportError:
+    pass
+
 import aiofiles
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool

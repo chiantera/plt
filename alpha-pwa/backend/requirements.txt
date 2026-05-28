@@ -8,6 +8,7 @@ mistralai
 openai
 pypdf
 python-docx
+python-dotenv
 pydantic
 pytest
 python-multipart

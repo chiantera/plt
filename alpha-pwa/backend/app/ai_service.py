@@ -424,11 +424,14 @@ def stream_chat(request: ChatRequest) -> Generator[str, None, None]:
         yield from _anthropic_stream(model, system, messages)
 
 
+_CHAT_MAX_TOKENS = int(os.environ.get("PLT_CHAT_MAX_TOKENS", "32768"))
+
+
 def _deepseek_stream(model: str, system: str, messages: list) -> Generator[str, None, None]:
     client = _get_openai_client()
     stream = client.chat.completions.create(
         model=model,
-        max_tokens=4096,
+        max_tokens=_CHAT_MAX_TOKENS,
         messages=[{"role": "system", "content": system}, *messages],
         stream=True,
     )
@@ -443,7 +446,7 @@ def _anthropic_stream(model: str, system: str, messages: list) -> Generator[str,
     import anthropic
     client = _get_anthropic_client()
     with client.messages.stream(
-        model=model, max_tokens=4096, system=system, messages=messages,
+        model=model, max_tokens=_CHAT_MAX_TOKENS, system=system, messages=messages,
     ) as stream:
         for text in stream.text_stream:
             yield f"data: {json.dumps({'text': text})}\n\n"
