@@ -542,6 +542,89 @@ blockquote {
 .drawer-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
 .form-error { color: var(--critical); background: var(--critical-soft); border: 1px solid var(--critical); padding: 8px 10px; border-radius: var(--radius-2); font-size: 0.82rem; }
 
+/* ── Analysis overlay ────────────────────────────────────────────────────── */
+@keyframes progress-slide {
+  0%   { transform: translateX(-110%) scaleX(0.4); }
+  50%  { transform: translateX(30%)   scaleX(0.7); }
+  100% { transform: translateX(110%)  scaleX(0.4); }
+}
+@keyframes overlay-spin {
+  to { transform: rotate(360deg); }
+}
+.analysis-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(15, 13, 10, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.analysis-overlay-card {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-3);
+  padding: 52px 64px;
+  display: flex; flex-direction: column; align-items: center; gap: 28px;
+  max-width: 520px; width: 92%;
+  box-shadow: var(--shadow-3);
+  text-align: center;
+}
+.analysis-overlay-spinner {
+  width: 60px; height: 60px;
+  border: 5px solid var(--info-soft);
+  border-top-color: var(--giulia-ink);
+  border-radius: 50%;
+  animation: overlay-spin 0.85s linear infinite;
+  flex-shrink: 0;
+}
+.analysis-overlay-title {
+  font-size: 1.35rem; font-weight: 800;
+  letter-spacing: 0.06em; color: var(--ink-1);
+  margin: 0;
+}
+.analysis-overlay-bar {
+  width: 100%; height: 7px;
+  background: var(--info-soft);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.analysis-overlay-bar-fill {
+  height: 100%;
+  background: var(--giulia-ink);
+  border-radius: 999px;
+  animation: progress-slide 1.9s ease-in-out infinite;
+  transform-origin: left center;
+}
+.analysis-overlay-sub {
+  font-size: 0.83rem; color: var(--ink-4); margin: -12px 0 0;
+}
+.analysis-abort-btn {
+  background: none; border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-2); padding: 7px 18px;
+  font-size: 0.8rem; color: var(--ink-3); cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.analysis-abort-btn:hover { border-color: var(--critical); color: var(--critical); }
+.analysis-abort-confirm { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.analysis-abort-confirm p { margin: 0; font-size: 0.97rem; color: var(--ink-1); line-height: 1.5; }
+.analysis-abort-confirm-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+/* ── Draft generating state ──────────────────────────────────────────────── */
+.draft-generating-overlay {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 48px 24px;
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--radius-2);
+  background: var(--paper-sunken);
+  min-height: 220px; text-align: center;
+  color: var(--ink-3);
+}
+.draft-generating-text {
+  font-size: 1rem; font-weight: 600; color: var(--ink-2);
+}
+.draft-generating-sub {
+  font-size: 0.8rem; color: var(--ink-4);
+}
+
 /* ── Banners ─────────────────────────────────────────────────────────────── */
 .analyzing-banner {
   display: flex; align-items: center; gap: 10px;

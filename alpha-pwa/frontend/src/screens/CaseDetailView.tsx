@@ -1356,10 +1356,25 @@ function ExportCaseDrawer({
   );
 }
 
+function AnimatedDots() {
+  const [dots, setDots] = useState(0);
+  useEffect(() => {
+    const delay = dots === 3 ? 600 : 280;
+    const t = setTimeout(() => setDots(d => (d + 1) % 4), delay);
+    return () => clearTimeout(t);
+  }, [dots]);
+  return (
+    <span aria-hidden="true">
+      {'.'.repeat(dots)}<span style={{ visibility: 'hidden' }}>{'.'.repeat(3 - dots)}</span>
+    </span>
+  );
+}
+
 function DraftingWorkspace({
   caseTitle,
   drafts,
   activeDraftId,
+  generatingDraftId,
   onSelectDraft,
   onUpdateDraft,
   onDeleteDraft,
@@ -1369,6 +1384,7 @@ function DraftingWorkspace({
   caseTitle: string;
   drafts: DraftArtifact[];
   activeDraftId: string | null;
+  generatingDraftId: string | null;
   onSelectDraft: (id: string) => void;
   onUpdateDraft: (draft: DraftArtifact) => void;
   onDeleteDraft: (id: string) => void;
@@ -1444,13 +1460,23 @@ function DraftingWorkspace({
             </label>
             <button className="ghost-button" onClick={() => onDeleteDraft(activeDraft.id)} title="Archivia/elimina questa workspace"><Trash2 size={13} /> Elimina</button>
           </div>
-          <textarea
-            className="editable-input editable-input-multi draft-editor"
-            value={activeDraft.content_markdown}
-            onChange={e => onUpdateDraft({ ...activeDraft, content_markdown: e.target.value })}
-            rows={24}
-            placeholder="La bozza generata comparirà qui. Puoi modificarla liberamente: resta salvata nel fascicolo locale."
-          />
+          {generatingDraftId === activeDraft.id ? (
+            <div className="draft-generating-overlay">
+              <div className="analysis-overlay-spinner" style={{ width: 36, height: 36, borderWidth: 4 }} />
+              <p className="draft-generating-text">
+                Generazione bozza in corso<AnimatedDots />
+              </p>
+              <p className="draft-generating-sub">La workspace è già salvata nel fascicolo locale.</p>
+            </div>
+          ) : (
+            <textarea
+              className="editable-input editable-input-multi draft-editor"
+              value={activeDraft.content_markdown}
+              onChange={e => onUpdateDraft({ ...activeDraft, content_markdown: e.target.value })}
+              rows={24}
+              placeholder="La bozza generata comparirà qui. Puoi modificarla liberamente: resta salvata nel fascicolo locale."
+            />
+          )}
         </div>
 
         <aside className="draft-side-panel">
@@ -1514,6 +1540,9 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
   const [uploadProcessing, setUploadProcessing] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [showAbortConfirm, setShowAbortConfirm] = useState(false);
+  const [generatingDraftId, setGeneratingDraftId] = useState<string | null>(null);
+  const analyzeAbortRef = useRef<AbortController | null>(null);
   const [analyzeMode, setAnalyzeMode] = useState<'flash' | 'pro'>(() => {
     try { return (localStorage.getItem('plt_analyze_mode') as 'flash' | 'pro') || 'flash'; }
     catch { return 'flash'; }
@@ -1907,10 +1936,11 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     onCaseLoaded(createdCase);
     setActiveDraftId(placeholder.id);
     setActiveTab('drafts');
+    setGeneratingDraftId(placeholder.id);
     showToast('Nuova workspace bozza creata');
 
     try {
-      const generated = await fetchChatFull(prompt, type === 'cassazione' ? { maxTokens: 65536 } : undefined);
+      const generated = await fetchChatFull(prompt, type === 'cassazione' ? { maxTokens: 131072 } : undefined);
       const finalized = flagUnverifiedCassationCitations({
         ...placeholder,
         content_markdown: generated || 'Nessun contenuto generato. Riprova dalla chat o modifica manualmente questa bozza.',
@@ -1936,6 +1966,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       setCaseData(failedCase);
       onCaseLoaded(failedCase);
       showToast(`Generazione bozza fallita: ${(e as Error).message}`, 'error');
+    } finally {
+      setGeneratingDraftId(null);
     }
   }, [caseData, redactionActive, hasActiveRules, mergedRules, localOwnerId, onCaseLoaded, fetchChatFull, showToast, updateCase]);
 
@@ -2030,7 +2062,10 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     const isIncremental = mode !== 'pro' && analysisBase.legal_analysis != null && newDocs.length > 0;
 
     setShowUpload(false);
-    setUploadQueue(prev => prev.filter(i => i.status !== 'done')); // Clear completed items from drawer
+    setUploadQueue(prev => prev.filter(i => i.status !== 'done'));
+    setShowAbortConfirm(false);
+    const controller = new AbortController();
+    analyzeAbortRef.current = controller;
     setAnalyzing(true);
     try {
       const sourceDocs = isIncremental ? newDocs : docs;
@@ -2041,10 +2076,10 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ case_title: analysisBase.case_title, materials, mode, language: 'it' }),
+        signal: controller.signal,
       });
       if (!res.ok) throw new Error(await readApiError(res));
       const merged = mergeWithAi(analysisBase, await res.json() as CaseAnalysis, { replaceAiFields: mode === 'pro' });
-      // Segna i doc come analizzati ma NON li elimina — restano visibili sotto "Documenti del fascicolo"
       const analyzedDocIds = docs.map(d => d.doc_id);
       const updated = { ...merged, raw_documents: docs, analyzed_doc_ids: analyzedDocIds };
       await dbSave(localOwnerId, updated);
@@ -2055,9 +2090,15 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         showToast('Analisi standard completata. GiulIA suggerisce un Approfondimento Pro: nessun addebito senza conferma.', 'info');
       }
     } catch (e) {
-      showToast(`Errore analisi: ${(e as Error).message}`, 'error');
+      if ((e as Error).name === 'AbortError') {
+        showToast('Analisi annullata.', 'info');
+      } else {
+        showToast(`Errore analisi: ${(e as Error).message}`, 'error');
+      }
     } finally {
       setAnalyzing(false);
+      setShowAbortConfirm(false);
+      analyzeAbortRef.current = null;
     }
   }, [caseData, localOwnerId, showToast, onCaseLoaded, onCaseAnalyzed]);
 
@@ -2157,7 +2198,36 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       <button className="back-button" title="Torna alla lista principale dei fascicoli" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
 
       {analyzing && (
-        <div className="analyzing-banner"><Loader2 className="spin" size={18} /> Analisi AI in corso…</div>
+        <div className="analysis-overlay">
+          <div className="analysis-overlay-card">
+            {showAbortConfirm ? (
+              <div className="analysis-abort-confirm">
+                <p>Sei sicuro di voler abbandonare l'analisi AI?</p>
+                <div className="analysis-abort-confirm-actions">
+                  <button className="ghost-button" onClick={() => setShowAbortConfirm(false)}>
+                    Porta a termine
+                  </button>
+                  <button className="analysis-abort-btn" style={{ borderColor: 'var(--critical)', color: 'var(--critical)' }}
+                    onClick={() => { analyzeAbortRef.current?.abort(); setShowAbortConfirm(false); }}>
+                    Abbandona analisi
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="analysis-overlay-spinner" />
+                <h2 className="analysis-overlay-title">ANALISI AI IN CORSO</h2>
+                <div className="analysis-overlay-bar">
+                  <div className="analysis-overlay-bar-fill" />
+                </div>
+                <p className="analysis-overlay-sub">GiulIA sta esaminando i materiali del fascicolo…</p>
+                <button className="analysis-abort-btn" onClick={() => setShowAbortConfirm(true)}>
+                  Rinuncia all'analisi
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Hero */}
@@ -2649,6 +2719,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           caseTitle={caseData.case_title}
           drafts={caseData.draft_artifacts ?? []}
           activeDraftId={activeDraftId}
+          generatingDraftId={generatingDraftId}
           onSelectDraft={setActiveDraftId}
           onUpdateDraft={handleUpdateDraft}
           onDeleteDraft={handleDeleteDraft}
