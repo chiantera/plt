@@ -1356,19 +1356,6 @@ function ExportCaseDrawer({
   );
 }
 
-function AnimatedDots() {
-  const [dots, setDots] = useState(0);
-  useEffect(() => {
-    const delay = dots === 3 ? 600 : 280;
-    const t = setTimeout(() => setDots(d => (d + 1) % 4), delay);
-    return () => clearTimeout(t);
-  }, [dots]);
-  return (
-    <span aria-hidden="true">
-      {'.'.repeat(dots)}<span style={{ visibility: 'hidden' }}>{'.'.repeat(3 - dots)}</span>
-    </span>
-  );
-}
 
 function DraftingWorkspace({
   caseTitle,
@@ -1462,10 +1449,10 @@ function DraftingWorkspace({
           </div>
           {generatingDraftId === activeDraft.id ? (
             <div className="draft-generating-overlay">
-              <div className="analysis-overlay-spinner" style={{ width: 36, height: 36, borderWidth: 4 }} />
-              <p className="draft-generating-text">
-                Generazione bozza in corso<AnimatedDots />
-              </p>
+              <p className="draft-generating-text">Generazione bozza in corso…</p>
+              <div className="analysis-overlay-bar draft-generating-bar">
+                <div className="analysis-overlay-bar-fill" />
+              </div>
               <p className="draft-generating-sub">La workspace è già salvata nel fascicolo locale.</p>
             </div>
           ) : (

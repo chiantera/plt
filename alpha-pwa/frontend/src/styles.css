@@ -624,6 +624,9 @@ blockquote {
 .draft-generating-sub {
   font-size: 0.8rem; color: var(--ink-4);
 }
+.draft-generating-bar {
+  width: 100%; max-width: 320px;
+}
 
 /* ── Banners ─────────────────────────────────────────────────────────────── */
 .analyzing-banner {

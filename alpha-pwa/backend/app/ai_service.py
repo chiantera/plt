@@ -437,7 +437,15 @@ def _deepseek_stream(model: str, system: str, messages: list, max_tokens: int = 
         stream=True,
     )
     for chunk in stream:
-        text = chunk.choices[0].delta.content or ""
+        delta = chunk.choices[0].delta
+        # Reasoning models emit reasoning_content tokens before content tokens.
+        # During that phase no content flows to the client, which can cause the
+        # Vite proxy (and any other HTTP proxy) to drop the connection due to
+        # inactivity. Send an SSE comment (": ping") to keep the socket alive.
+        # SSE comments are silently ignored by the frontend EventSource/reader.
+        if getattr(delta, "reasoning_content", None):
+            yield ": ping\n\n"
+        text = delta.content or ""
         if text:
             yield f"data: {json.dumps({'text': text})}\n\n"
     yield "data: [DONE]\n\n"
