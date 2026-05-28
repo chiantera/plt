@@ -21,7 +21,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 
-from .ai_service import analyze_case, stream_chat
+from .ai_service import analyze_case, stream_analyze_case, stream_chat
 
 logger = logging.getLogger(__name__)
 from .demo_data import build_demo_case, get_all_cases, get_case_summaries
@@ -92,25 +92,22 @@ def get_demo_case() -> CaseAnalysis:
 
 # ── AI analysis ──────────────────────────────────────────────────────────────
 
-@app.post("/api/analyze-text", response_model=CaseAnalysis)
-def analyze_text(request: AnalyzeRequest) -> CaseAnalysis:
-    """Run AI analysis on provided text materials."""
+@app.post("/api/analyze-text")
+def analyze_text(request: AnalyzeRequest) -> StreamingResponse:
+    """Run AI analysis and stream results as SSE.
+
+    Keepalive comment pings are sent during the DeepSeek reasoning phase so
+    Chrome's 300-second idle-read timeout on fetch() does not close the
+    connection before the model responds.  The final event carries either
+    {"status":"done","analysis":{...}} or {"status":"error","detail":"..."}.
+    """
     logger.info("analyze-text: title=%s, materials=%d, mode=%s, lang=%s",
                 request.case_title, len(request.materials), request.mode, request.language)
-    try:
-        return analyze_case(request)
-    except ValueError as exc:
-        # Model-level issues (truncation, invalid JSON) — surface the real message
-        msg = str(exc)
-        logger.error("analyze-text value error: %s", msg)
-        raise HTTPException(status_code=422, detail=msg) from exc
-    except Exception as exc:
-        logger.error("analyze-text failed: %s", exc, exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Analisi non disponibile. Riprova tra qualche secondo. "
-                   "Se il problema persiste, prova con meno documenti o in modalità Pro."
-        ) from exc
+    return StreamingResponse(
+        stream_analyze_case(request),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
+    )
 
 
 # ── Chat (SSE streaming) ─────────────────────────────────────────────────────

@@ -2084,14 +2084,40 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       const docMaterials = sourceDocs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text, category: d.category ?? 'fascicolo' }));
       const ctxMaterial = buildUserContextMaterial(analysisBase);
       const materials = ctxMaterial ? [ctxMaterial, ...docMaterials] : docMaterials;
+      // The backend streams SSE so keepalive pings flow during DeepSeek's
+      // reasoning phase, preventing Chrome's 300-second idle-read timeout.
       const res = await fetch(`${API}/api/analyze-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ case_title: analysisBase.case_title, materials, mode, language: 'it' }),
         signal: controller.signal,
       });
-      if (!res.ok) throw new Error(await readApiError(res));
-      const merged = mergeWithAi(analysisBase, await res.json() as CaseAnalysis, { replaceAiFields: mode === 'pro' });
+      if (!res.ok || !res.body) throw new Error(await readApiError(res));
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let sseBuffer = '';
+      let analysisResult: CaseAnalysis | null = null;
+      let analysisError: string | null = null;
+      outer: while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        sseBuffer += dec.decode(value, { stream: true });
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = line.slice(6).trim();
+          if (payload === '[DONE]') break outer;
+          try {
+            const evt = JSON.parse(payload) as { status: string; analysis?: CaseAnalysis; detail?: string };
+            if (evt.status === 'done' && evt.analysis) analysisResult = evt.analysis;
+            else if (evt.status === 'error') analysisError = evt.detail ?? 'Errore analisi';
+          } catch {}
+        }
+      }
+      if (analysisError) throw new Error(analysisError);
+      if (!analysisResult) throw new Error('Nessun risultato ricevuto dal server');
+      const merged = mergeWithAi(analysisBase, analysisResult, { replaceAiFields: mode === 'pro' });
       const analyzedDocIds = docs.map(d => d.doc_id);
       const updated = { ...merged, raw_documents: docs, analyzed_doc_ids: analyzedDocIds };
       await dbSave(localOwnerId, updated);

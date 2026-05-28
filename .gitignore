@@ -24,3 +24,4 @@ alpha-pwa/frontend/.netlify/
 
 .gemini/
 gha-creds-*.json
+prompt_log.jsonl

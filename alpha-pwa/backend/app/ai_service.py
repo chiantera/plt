@@ -5,8 +5,9 @@ import logging
 import os
 import re
 import sys
-from datetime import date
+from datetime import date, datetime
 from collections.abc import Generator
+from pathlib import Path
 
 from .models import (
     AnalyzeRequest,
@@ -17,6 +18,32 @@ from .models import (
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
+
+# ── Prompt logger (local dev only) ───────────────────────────────────────────
+# Writes one JSON record per API call to prompt_log.jsonl in the backend dir.
+# Set PLT_PROMPT_LOG=0 to disable. Never commit the log file.
+_PROMPT_LOG_ENABLED = os.environ.get("PLT_PROMPT_LOG", "1") != "0"
+_PROMPT_LOG_PATH = Path(__file__).parent.parent / "prompt_log.jsonl"
+
+
+def _log_prompt(*, endpoint: str, model: str, system: str, user: str, mode: str = "") -> None:
+    if not _PROMPT_LOG_ENABLED:
+        return
+    record = {
+        "ts": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "endpoint": endpoint,
+        "model": model,
+        "mode": mode,
+        "system_chars": len(system),
+        "user_chars": len(user),
+        "system": system,
+        "user": user,
+    }
+    try:
+        with _PROMPT_LOG_PATH.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except OSError as e:
+        logger.warning("_log_prompt: could not write to %s: %s", _PROMPT_LOG_PATH, e)
 
 # ── Provider selection ────────────────────────────────────────────────────────
 # Set DEEPSEEK_API_KEY to use DeepSeek (OpenAI-compatible, ~100x cheaper).
@@ -150,7 +177,7 @@ FONTI E PRECEDENTI:
 - La bozza è materiale di lavoro: il difensore verifica fonti, norme, scadenze e precedenti prima del deposito."""
 
 
-# ── Analysis (non-streaming) ──────────────────────────────────────────────────
+# ── Analysis ─────────────────────────────────────────────────────────────────
 
 # Token budgets: flash model analysis needs significant headroom because the
 # structured JSON schema is verbose.  Five-page documents routinely produce
@@ -279,17 +306,15 @@ def _truncate_materials(materials: list, max_chars: int) -> list:
     return result
 
 
-def analyze_case(request: AnalyzeRequest) -> CaseAnalysis:
-    """Produce a full CaseAnalysis JSON from raw text materials."""
+def _build_analysis_prompt(request: AnalyzeRequest) -> tuple[str, str, int]:
+    """Return (model, user_message, max_tok) for an analysis request."""
     model = _model(request.mode)
     max_tok = _max_tokens(request.mode)
-
-    # Truncate materials to fit within the mode-specific analysis budget.
     max_input_chars = _max_input_chars(request.mode)
     truncated = _truncate_materials(request.materials, max_input_chars)
     if any(len(m.text) < len(orig.text) for m, orig in zip(truncated, request.materials)):
         logger.warning(
-            "analyze_case: mode=%s input truncated from %d to %d chars (limit=%d)",
+            "analyze: mode=%s input truncated from %d to %d chars (limit=%d)",
             request.mode,
             sum(len(m.text) for m in request.materials),
             sum(len(m.text) for m in truncated),
@@ -305,7 +330,8 @@ def analyze_case(request: AnalyzeRequest) -> CaseAnalysis:
         parts.extend(f"=== {m.name} ({m.kind}) ===\n{m.text}" for m in fascicolo)
     if giurisprudenza:
         parts.append("── PRECEDENTI CARICATI DALL'AVVOCATO ──")
-        parts.append("(Questi precedenti sono stati caricati e verificati dall'avvocato. Puoi citarli con source_ref esplicita — includi nome documento e pagina.)")
+        parts.append("(Questi precedenti sono stati caricati e verificati dall'avvocato. "
+                     "Puoi citarli con source_ref esplicita — includi nome documento e pagina.)")
         parts.extend(f"=== {m.name} ({m.kind}) ===\n{m.text}" for m in giurisprudenza)
     materials_text = "\n\n".join(parts)
     prompt_policy = _analysis_prompt_policy(request.mode)
@@ -333,26 +359,22 @@ Istruzioni specifiche:
 - Se la modalità è flash: organizza il fascicolo, non inventare strategia difensiva e lascia vuoti/concisi i campi strategici se i materiali non li supportano.
 - Se la modalità è pro: approfondisci contraddizioni, rischi procedurali, ipotesi difensive, prove mancanti e prossime azioni, sempre con fonti e assunzioni esplicite.
 """
+    return model, user_message, max_tok
 
-    logger.info("analyze_case: title=%s, materials=%d, prompt_chars=%d, max_tokens=%d",
-                request.case_title, len(request.materials), len(user_message), max_tok)
 
-    if _use_deepseek():
-        raw, usage, finish_reason = _deepseek_complete(model, _SYSTEM_PROMPT, user_message, max_tok)
-    else:
-        raw, usage, finish_reason = _anthropic_complete(model, _SYSTEM_PROMPT, user_message, max_tok)
-
-    logger.info("analyze_case: AI response=%d chars, input_tokens=%d, output_tokens=%d, finish=%s",
-                len(raw), usage["input"], usage["output"], finish_reason)
-
+def _finalize_analysis(
+    raw: str,
+    finish_reason: str,
+    max_tok: int,
+    mode: str,
+    model: str,
+    usage: dict,
+    n_materials: int,
+) -> CaseAnalysis:
+    """Parse raw model output into a CaseAnalysis. Raises ValueError on failure."""
     if finish_reason == "length":
-        logger.warning("analyze_case: finish_reason=length (max_tokens=%d) — attempting JSON parse before failing", max_tok)
+        logger.warning("analyze: finish_reason=length (max_tokens=%d) — attempting JSON parse before failing", max_tok)
 
-    # Strip markdown fences and extract the outermost JSON object robustly.
-    # Do this BEFORE checking finish_reason so that a truncated-but-valid JSON
-    # still succeeds instead of always raising 422.  Reasoning models consume
-    # token budget internally; by the time the limit is hit the JSON output is
-    # often already structurally complete.
     if "```" in raw:
         raw = re.sub(r"```(?:json)?\s*", "", raw).replace("```", "").strip()
     match = re.search(r"\{[\s\S]*\}", raw)
@@ -361,7 +383,7 @@ Istruzioni specifiche:
         if finish_reason == "length":
             next_step = (
                 "Prova a caricare meno documenti alla volta o aumenta PLT_PRO_MAX_TOKENS."
-                if request.mode == "pro"
+                if mode == "pro"
                 else "Prova a caricare meno documenti alla volta o usa la modalità Pro."
             )
             raise ValueError(
@@ -374,14 +396,13 @@ Istruzioni specifiche:
     try:
         data = json.loads(raw)
         if finish_reason == "length":
-            logger.warning("analyze_case: JSON valid despite finish_reason=length — returning analysis as-is")
+            logger.warning("analyze: JSON valid despite finish_reason=length — returning analysis as-is")
     except json.JSONDecodeError as exc:
         if finish_reason == "length":
-            # Try to recover the largest valid JSON prefix before giving up.
             repaired = _repair_truncated_json(raw)
             if repaired is not None:
                 logger.warning(
-                    "analyze_case: JSON truncated but repaired — recovered %d chars of %d (lost ~%d chars)",
+                    "analyze: JSON truncated but repaired — recovered %d chars of %d (lost ~%d chars)",
                     len(json.dumps(repaired)), len(raw), len(raw) - len(json.dumps(repaired)),
                 )
                 data = repaired
@@ -389,7 +410,7 @@ Istruzioni specifiche:
                 logger.error("JSON decode failed and repair found nothing. Raw preview: %s", raw[:1000])
                 next_step = (
                     "Prova a caricare meno documenti alla volta o aumenta PLT_PRO_MAX_TOKENS."
-                    if request.mode == "pro"
+                    if mode == "pro"
                     else "Prova a caricare meno documenti alla volta o usa la modalità Pro."
                 )
                 raise ValueError(
@@ -400,17 +421,101 @@ Istruzioni specifiche:
             logger.error("JSON decode failed. Raw preview: %s", raw[:1000])
             logger.error("JSON error: %s", exc)
             raise
+
     data.setdefault("usage_estimate", {})
     data["usage_estimate"].update({
         "flash_input_tokens": usage["input"],
         "flash_output_tokens": usage["output"],
-        "pro_used": request.mode == "pro",
+        "pro_used": mode == "pro",
         "model_route": model,
     })
-    data["usage_estimate"].setdefault("pages", len(request.materials))
+    data["usage_estimate"].setdefault("pages", n_materials)
     data["usage_estimate"].setdefault("audio_minutes", 0)
     case = CaseAnalysis.model_validate(data)
-    return case.model_copy(update={"pro_recommendation": _build_pro_recommendation(case, request.mode)})
+    return case.model_copy(update={"pro_recommendation": _build_pro_recommendation(case, mode)})
+
+
+def analyze_case(request: AnalyzeRequest) -> CaseAnalysis:
+    """Produce a full CaseAnalysis JSON (blocking). Used by tests and Anthropic path."""
+    model, user_message, max_tok = _build_analysis_prompt(request)
+    logger.info("analyze_case: title=%s, materials=%d, prompt_chars=%d, max_tokens=%d",
+                request.case_title, len(request.materials), len(user_message), max_tok)
+    _log_prompt(endpoint="analyze_case", model=model, system=_SYSTEM_PROMPT, user=user_message, mode=request.mode)
+    if _use_deepseek():
+        raw, usage, finish_reason = _deepseek_complete(model, _SYSTEM_PROMPT, user_message, max_tok)
+    else:
+        raw, usage, finish_reason = _anthropic_complete(model, _SYSTEM_PROMPT, user_message, max_tok)
+    logger.info("analyze_case: AI response=%d chars, input_tokens=%d, output_tokens=%d, finish=%s",
+                len(raw), usage["input"], usage["output"], finish_reason)
+    return _finalize_analysis(raw, finish_reason, max_tok, request.mode, model, usage, len(request.materials))
+
+
+def stream_analyze_case(request: AnalyzeRequest) -> Generator[str, None, None]:
+    """Stream the analysis as SSE.
+
+    During DeepSeek's reasoning phase the model emits no content tokens —
+    the TCP connection is idle.  Chrome (and other browsers) apply a 300-second
+    idle-read timeout to fetch() calls and silently close the connection.
+    This generator fixes that by yielding SSE comment pings (": ping") for
+    every reasoning chunk received, then emitting the final JSON as a single
+    data event.  The Anthropic path has no reasoning silence so it runs
+    synchronously and emits the result directly.
+    """
+    try:
+        model, user_message, max_tok = _build_analysis_prompt(request)
+        logger.info(
+            "stream_analyze_case: title=%s, materials=%d, prompt_chars=%d, max_tokens=%d",
+            request.case_title, len(request.materials), len(user_message), max_tok,
+        )
+        _log_prompt(endpoint="stream_analyze_case", model=model, system=_SYSTEM_PROMPT, user=user_message, mode=request.mode)
+
+        if _use_deepseek():
+            client = _get_openai_client()
+            stream = client.chat.completions.create(
+                model=model,
+                max_tokens=max_tok,
+                messages=[
+                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "user", "content": user_message},
+                ],
+                stream=True,
+            )
+            chunks: list[str] = []
+            finish_reason = "stop"
+            usage: dict = {"input": 0, "output": 0}
+            for chunk in stream:
+                choice = chunk.choices[0] if chunk.choices else None
+                if choice:
+                    delta = choice.delta
+                    if getattr(delta, "reasoning_content", None):
+                        yield ": ping\n\n"
+                    if delta.content:
+                        chunks.append(delta.content)
+                    if choice.finish_reason:
+                        finish_reason = choice.finish_reason
+                if getattr(chunk, "usage", None):
+                    usage = {
+                        "input": chunk.usage.prompt_tokens,
+                        "output": chunk.usage.completion_tokens,
+                    }
+            raw = "".join(chunks)
+        else:
+            raw, usage, finish_reason = _anthropic_complete(model, _SYSTEM_PROMPT, user_message, max_tok)
+
+        logger.info(
+            "stream_analyze_case: AI response=%d chars, input_tokens=%d, output_tokens=%d, finish=%s",
+            len(raw), usage["input"], usage["output"], finish_reason,
+        )
+        case = _finalize_analysis(raw, finish_reason, max_tok, request.mode, model, usage, len(request.materials))
+        yield f"data: {json.dumps({'status': 'done', 'analysis': case.model_dump()})}\n\n"
+
+    except Exception as exc:
+        detail = str(exc)
+        logger.error("stream_analyze_case error: %s", exc, exc_info=True)
+        yield f"data: {json.dumps({'status': 'error', 'detail': detail})}\n\n"
+
+    finally:
+        yield "data: [DONE]\n\n"
 
 
 def _repair_truncated_json(raw: str) -> dict | None:
@@ -500,6 +605,9 @@ def stream_chat(request: ChatRequest) -> Generator[str, None, None]:
     system = request.system_override or _DEFAULT_CHAT_SYSTEM
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
     max_tok = request.max_tokens_override or _CHAT_MAX_TOKENS
+    # Log the last user message as the prompt (full history captured in system)
+    last_user = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
+    _log_prompt(endpoint="stream_chat", model=model, system=system, user=last_user, mode=request.mode)
 
     if _use_deepseek():
         yield from _deepseek_stream(model, system, messages, max_tok)

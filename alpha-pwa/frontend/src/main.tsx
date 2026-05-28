@@ -623,17 +623,19 @@ function App() {
   }, [chat.messages]);
 
   const handleSelectCase = useCallback((id: string) => {
-    setSelectedCaseId(id);
+    if (id !== selectedCaseId) {
+      // Different case: reset context and swap
+      setSelectedCaseId(id);
+      setActiveCaseData(null);
+      setChat(prev => ({ ...prev, caseContext: null }));
+    }
     setView('case');
-    setActiveCaseData(null);
-    setChat(prev => ({ ...prev, caseContext: null }));
-  }, []);
+  }, [selectedCaseId]);
 
   const handleBack = useCallback(() => {
+    // Only change view — keep CaseDetailView mounted so a background analysis
+    // can complete and save to IndexedDB without losing state on remount.
     setView('cases');
-    setSelectedCaseId(null);
-    setActiveCaseData(null);
-    setChat(prev => ({ ...prev, caseContext: null }));
   }, []);
 
   const handleCaseLoaded = useCallback((data: CaseAnalysis) => {
@@ -746,14 +748,17 @@ function App() {
 
   return (
     <>
-      {view === 'case' && selectedCaseId
-        ? (
+      {/* Keep both views mounted; hide the inactive one so background analysis survives navigation */}
+      <div style={view === 'case' ? { display: 'none' } : undefined}>
+        <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onOpenChat={openChat} />
+      </div>
+      {selectedCaseId && (
+        <div style={view !== 'case' ? { display: 'none' } : undefined}>
           <Suspense fallback={<div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)' }}><Loader2 size={28} className="spin" style={{ color: 'var(--giulia-ink)' }} /></div>}>
-            <CaseDetailView caseId={selectedCaseId} session={session} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
+            <CaseDetailView key={selectedCaseId} caseId={selectedCaseId} session={session} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
           </Suspense>
-        )
-        : <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onOpenChat={openChat} />
-      }
+        </div>
+      )}
       {fabHidden
         ? <FabRestoreButton onRestore={restoreFab} />
         : <FloatingChatButton onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))} hasContext={!!activeCaseData} onHide={hideFab} />
