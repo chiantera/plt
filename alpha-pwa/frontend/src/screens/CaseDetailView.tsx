@@ -2119,6 +2119,13 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const analyzedIdsSet = new Set(caseData.analyzed_doc_ids ?? []);
   const unanalyzedCount = rawDocs.filter(d => !analyzedIdsSet.has(d.doc_id)).length;
   const hasExistingAnalysis = caseData.legal_analysis != null;
+  const analyzeButtonLabel = !hasExistingAnalysis
+    ? (analyzeMode === 'pro' ? 'Analizza con AI (Pro)' : 'Analizza con AI')
+    : unanalyzedCount > 0
+      ? `Incorpora ${unanalyzedCount} doc${unanalyzedCount === 1 ? '' : 'umenti'}${analyzeMode === 'pro' ? ' (Pro)' : ''}`
+      : analyzeMode === 'pro'
+        ? 'Rianalizza con Pro'
+        : 'Rianalizza con Flash';
   const setRedactionActive = (val: boolean | ((prev: boolean) => boolean)) => {
     setRedactionOverride(prev => typeof val === 'function' ? val(prev !== null ? prev : hasActiveRules) : val);
   };
@@ -2205,30 +2212,26 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               </span>
             )}
           </button>
-          {(!hasExistingAnalysis || unanalyzedCount > 0) && (<>
-            <div className="mode-toggle" role="group" aria-label="Modalità analisi AI">
-              <button
-                className={`mode-toggle-btn${analyzeMode === 'flash' ? ' active' : ''}`}
-                onClick={() => setAndSaveMode('flash')}
-                title="Analisi Flash — veloce, estrae struttura e fatti"
-              >Flash</button>
-              <button
-                className={`mode-toggle-btn mode-toggle-btn--pro${analyzeMode === 'pro' ? ' active' : ''}`}
-                onClick={() => setAndSaveMode('pro')}
-                title="Analisi Pro — ragionamento profondo su contraddizioni, strategie e rischi procedurali"
-              >✦ Pro</button>
-            </div>
-            <button title="Esegui analisi AI"
-              className={analyzeMode === 'pro' ? 'primary-button' : 'secondary-button'}
-              onClick={() => handleAnalyze(analyzeMode)}
-              disabled={analyzing || rawDocs.length === 0}
-            >
-              <Sparkles size={14} />
-              {hasExistingAnalysis
-                ? `Incorpora ${unanalyzedCount} doc${unanalyzedCount === 1 ? '' : 'umenti'}${analyzeMode === 'pro' ? ' (Pro)' : ''}`
-                : analyzeMode === 'pro' ? 'Analizza con AI (Pro)' : 'Analizza con AI'}
-            </button>
-          </>)}
+          <div className="mode-toggle" role="group" aria-label="Modalità analisi AI">
+            <button
+              className={`mode-toggle-btn${analyzeMode === 'flash' ? ' active' : ''}`}
+              onClick={() => setAndSaveMode('flash')}
+              title="Analisi Flash — veloce, estrae struttura e fatti"
+            >Flash</button>
+            <button
+              className={`mode-toggle-btn mode-toggle-btn--pro${analyzeMode === 'pro' ? ' active' : ''}`}
+              onClick={() => setAndSaveMode('pro')}
+              title="Analisi Pro — ragionamento profondo su contraddizioni, strategie e rischi procedurali"
+            >✦ Pro</button>
+          </div>
+          <button title="Esegui analisi AI"
+            className={analyzeMode === 'pro' ? 'primary-button' : 'secondary-button'}
+            onClick={() => handleAnalyze(analyzeMode)}
+            disabled={analyzing || rawDocs.length === 0}
+          >
+            <Sparkles size={14} />
+            {analyzeButtonLabel}
+          </button>
           {hasExistingAnalysis && (
             <button
               className="ghost-button"
@@ -2236,9 +2239,9 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 const updated = { ...caseData, analyzed_doc_ids: [], case_summary: '', materials: [], timeline: [], people: [], evidence: [], open_questions: [], missing_documents: [], contradictions: [], procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, pro_recommendation: { recommended: false, reasons: [], message: '', cta_label: 'Avvia Analisi Pro', alternate_label: 'Continua con analisi standard', requires_confirmation: true, auto_charge: false }, legal_analysis: null };
                 dbSave(localOwnerId, updated).then(() => { setCaseData(updated); onCaseLoaded(updated); showToast('Analisi resettata. Ora puoi ri-analizzare da capo.'); });
               }}
-              title="Resetta l'analisi e ri-analizza tutti i documenti da capo"
+              title="Cancella l'analisi corrente e torna allo stato pre-analisi"
             >
-              <RefreshCw size={13} /> Ri-analizza
+              <RefreshCw size={13} /> Reset analisi
             </button>
           )}
           <button className="aula-trigger-btn" title="Avvia la modalità Aula per la consultazione rapida in udienza" onClick={() => setAulaModeActive(true)}>

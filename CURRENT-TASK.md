@@ -4,7 +4,7 @@ _Last updated: 2026-05-27 by Codex_
 
 ## Current status
 
-Six slices complete and pushed to `main`. Current slice fixes Pro analysis routing and Pro upgrade visibility: the hero/recommendation Pro path now reaches the actual DeepSeek V4 Pro model and replaces AI-derived Flash analysis fields instead of hiding the Pro result behind conservative merge rules.
+Six slices complete and pushed to `main`. Current slice fixes Pro analysis routing and Pro upgrade visibility: the hero/recommendation Pro path now reaches the actual DeepSeek V4 Pro model, remains available after a Flash analysis, and replaces AI-derived Flash analysis fields instead of hiding the Pro result behind conservative merge rules.
 
 Target verified:
 
@@ -216,7 +216,7 @@ git diff --check
 
 ### Backlog attivo
 
-0. **Pro routing/merge fix** — backend DeepSeek defaults previously routed both Flash and Pro to `deepseek-chat`, which means `mode: "pro"` could still hit the Flash-compatible model unless Render had `DEEPSEEK_PRO_MODEL` configured. This slice changes defaults to `deepseek-v4-flash` / `deepseek-v4-pro` and adds a regression test. It also changes the frontend Pro merge path so accepted Pro analysis replaces AI-derived Flash fields while preserving local-only data (`raw_documents`, redaction rules, drafts). The Pro recommendation card is hidden immediately after accept or refusal. If Render has an explicit `DEEPSEEK_PRO_MODEL=deepseek-chat`, update that environment variable to `deepseek-v4-pro`.
+0. **Pro routing/merge/hero fix** — backend DeepSeek defaults previously routed both Flash and Pro to `deepseek-chat`, which means `mode: "pro"` could still hit the Flash-compatible model unless Render had `DEEPSEEK_PRO_MODEL` configured. This slice changes defaults to `deepseek-v4-flash` / `deepseek-v4-pro` and adds a regression test. It also changes the frontend Pro merge path so accepted Pro analysis replaces AI-derived Flash fields while preserving local-only data (`raw_documents`, redaction rules, drafts). The Flash/Pro selector now stays visible after an existing analysis, so the user can run `Rianalizza con Pro` even when no new documents were added. The Pro recommendation card is hidden immediately after accept or refusal. If Render has an explicit `DEEPSEEK_PRO_MODEL=deepseek-chat`, update that environment variable to `deepseek-v4-pro`.
 1. **E2E autenticato** — test manuale del flusso Pro sul live Netlify con caso demo/fittizio con contraddizioni.
 4. **Lawyer validation** — validare con avvocati penalisti il copy del Pro recommendation flow e le aspettative sul flusso paid. Validare anche il flusso Giurisprudenza di supporto: il labeling `[Precedente]` è chiaro? I precedenti URL sono abbastanza affidabili? Serve disclaimer aggiuntivo?
 5. **URL fetch per siti JS-heavy** — `trafilatura`/BeautifulSoup non funzionano su SPA/banche dati con rendering client-side (es. DeJure, Pluris). Gap noto; percorso produttivo futuro: copia-incolla manuale o integrazione banca dati ufficiale.

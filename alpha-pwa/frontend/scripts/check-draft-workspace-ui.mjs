@@ -19,5 +19,9 @@ assert.match(cdv, /DRAFT_PLAINTEXT_EXPORT_WARNING/);
 assert.match(cdv, /Proteggi tutto come \.plt/);
 assert.match(cdv, /flagUnverifiedCassationCitations/);
 assert.match(cdv, /addDraftArtifact\(caseData, placeholder\)/);
+assert.match(cdv, /Rianalizza con Pro/);
+assert.match(cdv, /Reset analisi/);
+assert.match(cdv, /const analyzeButtonLabel = !hasExistingAnalysis/);
+assert.equal(cdv.includes('{(!hasExistingAnalysis || unanalyzedCount > 0) &&'), false, 'Flash/Pro selector must remain available after an existing analysis');
 
 console.log('draft workspace UI checks passed');
