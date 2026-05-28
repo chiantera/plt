@@ -346,32 +346,60 @@ Istruzioni specifiche:
                 len(raw), usage["input"], usage["output"], finish_reason)
 
     if finish_reason == "length":
-        logger.error("analyze_case: output truncated by token limit (max_tokens=%d)", max_tok)
-        next_step = (
-            "Prova a caricare meno documenti alla volta o aumenta PLT_PRO_MAX_TOKENS."
-            if request.mode == "pro"
-            else "Prova a caricare meno documenti alla volta o usa la modalità Pro per analisi più lunghe."
-        )
-        raise ValueError(
-            f"L'analisi è stata troncata dal limite di token ({max_tok}). "
-            f"{next_step}"
-        )
+        logger.warning("analyze_case: finish_reason=length (max_tokens=%d) — attempting JSON parse before failing", max_tok)
 
-    # Strip markdown fences and extract the outermost JSON object robustly
+    # Strip markdown fences and extract the outermost JSON object robustly.
+    # Do this BEFORE checking finish_reason so that a truncated-but-valid JSON
+    # still succeeds instead of always raising 422.  Reasoning models consume
+    # token budget internally; by the time the limit is hit the JSON output is
+    # often already structurally complete.
     if "```" in raw:
         raw = re.sub(r"```(?:json)?\s*", "", raw).replace("```", "").strip()
     match = re.search(r"\{[\s\S]*\}", raw)
     if not match:
         logger.error("No JSON object found. Raw response preview: %s", raw[:500])
+        if finish_reason == "length":
+            next_step = (
+                "Prova a caricare meno documenti alla volta o aumenta PLT_PRO_MAX_TOKENS."
+                if request.mode == "pro"
+                else "Prova a caricare meno documenti alla volta o usa la modalità Pro."
+            )
+            raise ValueError(
+                f"L'analisi è stata troncata prima di produrre JSON valido (limite: {max_tok} token). "
+                f"{next_step}"
+            )
         raise ValueError(f"No JSON object found in AI response. Raw start: {raw[:200]!r}")
     raw = match.group(0)
 
     try:
         data = json.loads(raw)
+        if finish_reason == "length":
+            logger.warning("analyze_case: JSON valid despite finish_reason=length — returning analysis as-is")
     except json.JSONDecodeError as exc:
-        logger.error("JSON decode failed. Raw preview: %s", raw[:1000])
-        logger.error("JSON error: %s", exc)
-        raise
+        if finish_reason == "length":
+            # Try to recover the largest valid JSON prefix before giving up.
+            repaired = _repair_truncated_json(raw)
+            if repaired is not None:
+                logger.warning(
+                    "analyze_case: JSON truncated but repaired — recovered %d chars of %d (lost ~%d chars)",
+                    len(json.dumps(repaired)), len(raw), len(raw) - len(json.dumps(repaired)),
+                )
+                data = repaired
+            else:
+                logger.error("JSON decode failed and repair found nothing. Raw preview: %s", raw[:1000])
+                next_step = (
+                    "Prova a caricare meno documenti alla volta o aumenta PLT_PRO_MAX_TOKENS."
+                    if request.mode == "pro"
+                    else "Prova a caricare meno documenti alla volta o usa la modalità Pro."
+                )
+                raise ValueError(
+                    f"L'analisi è stata troncata e il JSON non è recuperabile (limite: {max_tok} token). "
+                    f"{next_step}"
+                ) from exc
+        else:
+            logger.error("JSON decode failed. Raw preview: %s", raw[:1000])
+            logger.error("JSON error: %s", exc)
+            raise
     data.setdefault("usage_estimate", {})
     data["usage_estimate"].update({
         "flash_input_tokens": usage["input"],
@@ -383,6 +411,60 @@ Istruzioni specifiche:
     data["usage_estimate"].setdefault("audio_minutes", 0)
     case = CaseAnalysis.model_validate(data)
     return case.model_copy(update={"pro_recommendation": _build_pro_recommendation(case, request.mode)})
+
+
+def _repair_truncated_json(raw: str) -> dict | None:
+    """
+    Recover the largest parseable prefix of a truncated JSON object.
+
+    The model stops mid-output so the outermost { is never closed.  We walk
+    the string tracking brace/bracket depth and collect every position where
+    a top-level key's value just closed (depth_brace==1, depth_bracket==0).
+    Each such position is a safe truncation point: strip any trailing comma,
+    close the outer brace, and try to parse.  Return the first (largest) that
+    succeeds, or None if nothing is recoverable.
+    """
+    depth_brace = 0
+    depth_bracket = 0
+    in_string = False
+    escape_next = False
+    candidates: list[int] = []  # byte positions of safe truncation points
+
+    for i, ch in enumerate(raw):
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == "\\" and in_string:
+            escape_next = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            depth_brace += 1
+        elif ch == "}":
+            depth_brace -= 1
+            if depth_brace == 0:
+                candidates.append(i + 1)   # full valid JSON
+            elif depth_brace == 1 and depth_bracket == 0:
+                candidates.append(i + 1)   # end of a top-level value object
+        elif ch == "[":
+            depth_bracket += 1
+        elif ch == "]":
+            depth_bracket -= 1
+            if depth_brace == 1 and depth_bracket == 0:
+                candidates.append(i + 1)   # end of a top-level value array
+
+    for pos in reversed(candidates):
+        snippet = raw[:pos].rstrip().rstrip(",")
+        for suffix in ("}", ""):   # try closing outer object, then bare
+            try:
+                return json.loads(snippet + suffix)
+            except json.JSONDecodeError:
+                pass
+    return None
 
 
 def _deepseek_complete(model: str, system: str, user: str, max_tokens: int) -> tuple[str, dict, str]:

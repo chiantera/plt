@@ -613,12 +613,14 @@ function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClos
 // ── Legal analysis tab ────────────────────────────────────────────────────────
 
 
-function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdate }: {
+function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdate, draftMode, onSetDraftMode }: {
   la: LegalAnalysis;
   onSelectSource: (s: SourceRef) => void;
   onOpenChat: (key: string) => void;
   onOpenDraft: (type: DraftArtifactType, title?: string, extraInstruction?: string) => void;
   onUpdate: (updater: (la: LegalAnalysis) => LegalAnalysis) => void;
+  draftMode: 'flash' | 'pro';
+  onSetDraftMode: (m: 'flash' | 'pro') => void;
 }) {
   const [expandedCharge, setExpandedCharge] = useState<number | null>(0);
   const [expandedStrategy, setExpandedStrategy] = useState<number | null>(0);
@@ -1074,6 +1076,18 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdat
           <div>
             <div className="legal-drafting-title">Redazione atti con AI</div>
             <div className="legal-drafting-sub">Memorie, ricorsi, eccezioni — ragionamento giuridico reale, non template</div>
+          </div>
+          <div className="mode-toggle" role="group" aria-label="Modello per le bozze" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+            <button
+              className={`mode-toggle-btn${draftMode === 'flash' ? ' active' : ''}`}
+              onClick={() => onSetDraftMode('flash')}
+              title="Bozze Flash — veloce, ottimo per la maggior parte degli atti"
+            >Flash</button>
+            <button
+              className={`mode-toggle-btn mode-toggle-btn--pro${draftMode === 'pro' ? ' active' : ''}`}
+              onClick={() => onSetDraftMode('pro')}
+              title="Bozze Pro — ragionamento profondo, consigliato per Ricorso Cassazione"
+            >✦ Pro</button>
           </div>
         </div>
         <div className="legal-drafting-grid">
@@ -1538,6 +1552,14 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     setAnalyzeMode(m);
     try { localStorage.setItem('plt_analyze_mode', m); } catch {}
   }, []);
+  const [draftMode, setDraftMode] = useState<'flash' | 'pro'>(() => {
+    try { return (localStorage.getItem('plt_draft_mode') as 'flash' | 'pro') || 'flash'; }
+    catch { return 'flash'; }
+  });
+  const setAndSaveDraftMode = useCallback((m: 'flash' | 'pro') => {
+    setDraftMode(m);
+    try { localStorage.setItem('plt_draft_mode', m); } catch {}
+  }, []);
   const [aulaModeActive, setAulaModeActive] = useState(false);
   const [redactionOverride, setRedactionOverride] = useState<boolean | null>(null);
   const [showRedactionDrawer, setShowRedactionDrawer] = useState(false);
@@ -1927,7 +1949,10 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     showToast('Nuova workspace bozza creata');
 
     try {
-      const generated = await fetchChatFull(prompt, type === 'cassazione' ? { maxTokens: 131072, mode: 'pro' } : undefined);
+      const generated = await fetchChatFull(prompt, {
+        mode: draftMode,
+        ...(type === 'cassazione' ? { maxTokens: 131072 } : {}),
+      });
       const finalized = flagUnverifiedCassationCitations({
         ...placeholder,
         content_markdown: generated || 'Nessun contenuto generato. Riprova dalla chat o modifica manualmente questa bozza.',
@@ -2185,35 +2210,33 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       <button className="back-button" title="Torna alla lista principale dei fascicoli" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
 
       {analyzing && (
-        <div className="analysis-overlay">
-          <div className="analysis-overlay-card">
-            {showAbortConfirm ? (
-              <div className="analysis-abort-confirm">
-                <p>Sei sicuro di voler abbandonare l'analisi AI?</p>
-                <div className="analysis-abort-confirm-actions">
-                  <button className="ghost-button" onClick={() => setShowAbortConfirm(false)}>
-                    Porta a termine
-                  </button>
-                  <button className="analysis-abort-btn" style={{ borderColor: 'var(--critical)', color: 'var(--critical)' }}
-                    onClick={() => { analyzeAbortRef.current?.abort(); setShowAbortConfirm(false); }}>
-                    Abbandona analisi
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="analysis-overlay-spinner" />
-                <h2 className="analysis-overlay-title">ANALISI AI IN CORSO</h2>
-                <div className="analysis-overlay-bar">
-                  <div className="analysis-overlay-bar-fill" />
-                </div>
-                <p className="analysis-overlay-sub">GiulIA sta esaminando i materiali del fascicolo…</p>
-                <button className="analysis-abort-btn" onClick={() => setShowAbortConfirm(true)}>
-                  Rinuncia all'analisi
+        <div className="analysis-banner">
+          {showAbortConfirm ? (
+            <>
+              <div className="analysis-banner-spinner" />
+              <span className="analysis-banner-text">Abbandonare l'analisi?</span>
+              <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', flexShrink: 0 }}>
+                <button className="analysis-banner-btn" onClick={() => setShowAbortConfirm(false)}>
+                  Continua
                 </button>
-              </>
-            )}
-          </div>
+                <button className="analysis-banner-btn analysis-banner-btn--danger"
+                  onClick={() => { analyzeAbortRef.current?.abort(); setShowAbortConfirm(false); }}>
+                  Abbandona
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="analysis-banner-spinner" />
+              <span className="analysis-banner-text">Analisi AI in corso</span>
+              <div className="analysis-overlay-bar analysis-banner-bar">
+                <div className="analysis-overlay-bar-fill" />
+              </div>
+              <button className="analysis-banner-btn" onClick={() => setShowAbortConfirm(true)}>
+                Rinuncia
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -2668,6 +2691,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               onOpenChat={onOpenChat}
               onOpenDraft={handleOpenDraftWorkspace}
               onUpdate={updater => updateCase(c => ({ ...c, legal_analysis: c.legal_analysis ? updater(c.legal_analysis) : null }))}
+              draftMode={draftMode}
+              onSetDraftMode={setAndSaveDraftMode}
             />
           : (
             <section className="panel">

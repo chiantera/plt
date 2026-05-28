@@ -608,6 +608,50 @@ blockquote {
 .analysis-abort-confirm p { margin: 0; font-size: 0.97rem; color: var(--ink-1); line-height: 1.5; }
 .analysis-abort-confirm-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
+/* ── Analysis progress banner (non-blocking, sticky top) ────────────────── */
+.analysis-banner {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 16px;
+  background: var(--paper-raised);
+  border-bottom: 1px solid var(--rule-strong);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+.analysis-banner-spinner {
+  width: 18px; height: 18px;
+  border: 2.5px solid var(--info-soft);
+  border-top-color: var(--giulia-ink);
+  border-radius: 50%;
+  animation: overlay-spin 0.85s linear infinite;
+  flex-shrink: 0;
+}
+.analysis-banner-text {
+  font-size: 0.8rem; font-weight: 700;
+  color: var(--ink-2); white-space: nowrap; letter-spacing: 0.03em;
+}
+.analysis-banner-bar {
+  flex: 1; height: 4px; min-width: 48px;
+}
+.analysis-banner-btn {
+  background: none;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-2);
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+.analysis-banner-btn:hover { border-color: var(--giulia-ink); color: var(--giulia-ink); }
+.analysis-banner-btn--danger { color: var(--critical); border-color: var(--critical); }
+.analysis-banner-btn--danger:hover { background: color-mix(in srgb, var(--critical) 10%, transparent); }
+
 /* ── Draft generating state ──────────────────────────────────────────────── */
 .draft-generating-overlay {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
