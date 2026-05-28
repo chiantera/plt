@@ -91,10 +91,17 @@ def test_deepseek_flash_and_pro_routes_are_distinct_by_default(monkeypatch):
     assert _model("pro") == "deepseek-v4-pro"
 
 
-def test_pro_analysis_uses_larger_input_budget_by_default(monkeypatch):
-    monkeypatch.setattr(ai_service, "_FLASH_MAX_INPUT_CHARS", 60000)
-    monkeypatch.setattr(ai_service, "_PRO_MAX_INPUT_CHARS", 300000)
+def test_flash_and_pro_analysis_use_large_input_budget_by_default(monkeypatch):
+    monkeypatch.setattr(ai_service, "_FLASH_MAX_INPUT_CHARS", 1000000)
+    monkeypatch.setattr(ai_service, "_PRO_MAX_INPUT_CHARS", 1000000)
 
-    assert ai_service._max_input_chars("flash") == 60000
-    assert ai_service._max_input_chars("pro") == 300000
-    assert ai_service._max_input_chars("pro") > ai_service._max_input_chars("flash")
+    assert ai_service._max_input_chars("flash") == 1000000
+    assert ai_service._max_input_chars("pro") == 1000000
+
+
+def test_flash_and_pro_analysis_use_128k_output_budget_by_default(monkeypatch):
+    monkeypatch.setattr(ai_service, "_FLASH_MAX_TOKENS", 128000)
+    monkeypatch.setattr(ai_service, "_PRO_MAX_TOKENS", 128000)
+
+    assert ai_service._max_tokens("flash") == 128000
+    assert ai_service._max_tokens("pro") == 128000

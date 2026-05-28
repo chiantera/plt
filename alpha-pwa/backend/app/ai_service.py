@@ -155,13 +155,14 @@ FONTI E PRECEDENTI:
 # Token budgets: flash model analysis needs significant headroom because the
 # structured JSON schema is verbose.  Five-page documents routinely produce
 # 15-25K output tokens.  Budgets are set with ~2x safety margin.
-_FLASH_MAX_TOKENS = int(os.environ.get("PLT_FLASH_MAX_TOKENS", "32000"))
-_PRO_MAX_TOKENS = int(os.environ.get("PLT_PRO_MAX_TOKENS", "64000"))
+_FLASH_MAX_TOKENS = int(os.environ.get("PLT_FLASH_MAX_TOKENS", "128000"))
+_PRO_MAX_TOKENS = int(os.environ.get("PLT_PRO_MAX_TOKENS", "128000"))
 
-# Cap input text per mode. Flash is intentionally conservative; Pro exists
-# specifically for long-record analysis and should not inherit the Flash cap.
-_FLASH_MAX_INPUT_CHARS = int(os.environ.get("PLT_FLASH_MAX_ANALYSIS_CHARS", os.environ.get("PLT_MAX_ANALYSIS_CHARS", "60000")))
-_PRO_MAX_INPUT_CHARS = int(os.environ.get("PLT_PRO_MAX_ANALYSIS_CHARS", "300000"))
+# Cap input text per mode. Both DeepSeek V4 Flash and Pro advertise a large
+# context window; keep the application-side cap high so legal records are not
+# silently squeezed before provider-side token accounting.
+_FLASH_MAX_INPUT_CHARS = int(os.environ.get("PLT_FLASH_MAX_ANALYSIS_CHARS", os.environ.get("PLT_MAX_ANALYSIS_CHARS", "1000000")))
+_PRO_MAX_INPUT_CHARS = int(os.environ.get("PLT_PRO_MAX_ANALYSIS_CHARS", "1000000"))
 
 def _max_tokens(mode: str) -> int:
     return _PRO_MAX_TOKENS if mode == "pro" else _FLASH_MAX_TOKENS
