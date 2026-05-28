@@ -1875,8 +1875,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     setCaseData(updated);
   }, [caseData]);
 
-  const fetchChatFull = useCallback(async (userMessage: string, opts?: { maxTokens?: number }): Promise<string> => {
-    const body: Record<string, unknown> = { messages: [{ role: 'user', content: userMessage }], mode: 'flash' };
+  const fetchChatFull = useCallback(async (userMessage: string, opts?: { maxTokens?: number; mode?: 'flash' | 'pro' }): Promise<string> => {
+    const body: Record<string, unknown> = { messages: [{ role: 'user', content: userMessage }], mode: opts?.mode ?? 'flash' };
     if (opts?.maxTokens) body.max_tokens_override = opts.maxTokens;
     const res = await fetch(`${API}/api/chat`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1940,7 +1940,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     showToast('Nuova workspace bozza creata');
 
     try {
-      const generated = await fetchChatFull(prompt, type === 'cassazione' ? { maxTokens: 131072 } : undefined);
+      const generated = await fetchChatFull(prompt, type === 'cassazione' ? { maxTokens: 131072, mode: 'pro' } : undefined);
       const finalized = flagUnverifiedCassationCitations({
         ...placeholder,
         content_markdown: generated || 'Nessun contenuto generato. Riprova dalla chat o modifica manualmente questa bozza.',
