@@ -59,7 +59,8 @@ File: `alpha-pwa/backend/app/ai_service.py`
 
 - `PLT_FLASH_MAX_TOKENS`, default `32000`.
 - `PLT_PRO_MAX_TOKENS`, default `64000`.
-- `PLT_MAX_ANALYSIS_CHARS`, default `60000`.
+- `PLT_FLASH_MAX_ANALYSIS_CHARS`, default `60000` (`PLT_MAX_ANALYSIS_CHARS` remains a backward-compatible Flash override).
+- `PLT_PRO_MAX_ANALYSIS_CHARS`, default `300000`.
 - `_truncate_materials()` truncates longest materials first and inserts an explicit truncation marker.
 
 ### Chat token budget

@@ -157,11 +157,18 @@ FONTI E PRECEDENTI:
 # 15-25K output tokens.  Budgets are set with ~2x safety margin.
 _FLASH_MAX_TOKENS = int(os.environ.get("PLT_FLASH_MAX_TOKENS", "32000"))
 _PRO_MAX_TOKENS = int(os.environ.get("PLT_PRO_MAX_TOKENS", "64000"))
-# Cap input text to avoid overwhelming context window (DeepSeek V4 = 128K)
-_MAX_INPUT_CHARS = int(os.environ.get("PLT_MAX_ANALYSIS_CHARS", "60000"))
+
+# Cap input text per mode. Flash is intentionally conservative; Pro exists
+# specifically for long-record analysis and should not inherit the Flash cap.
+_FLASH_MAX_INPUT_CHARS = int(os.environ.get("PLT_FLASH_MAX_ANALYSIS_CHARS", os.environ.get("PLT_MAX_ANALYSIS_CHARS", "60000")))
+_PRO_MAX_INPUT_CHARS = int(os.environ.get("PLT_PRO_MAX_ANALYSIS_CHARS", "300000"))
 
 def _max_tokens(mode: str) -> int:
     return _PRO_MAX_TOKENS if mode == "pro" else _FLASH_MAX_TOKENS
+
+
+def _max_input_chars(mode: str) -> int:
+    return _PRO_MAX_INPUT_CHARS if mode == "pro" else _FLASH_MAX_INPUT_CHARS
 
 
 _PRO_MESSAGE_PREFIX = "Ho rilevato elementi che meritano un approfondimento"
@@ -276,13 +283,16 @@ def analyze_case(request: AnalyzeRequest) -> CaseAnalysis:
     model = _model(request.mode)
     max_tok = _max_tokens(request.mode)
 
-    # Truncate materials to fit within the analysis budget
-    truncated = _truncate_materials(request.materials, _MAX_INPUT_CHARS)
+    # Truncate materials to fit within the mode-specific analysis budget.
+    max_input_chars = _max_input_chars(request.mode)
+    truncated = _truncate_materials(request.materials, max_input_chars)
     if any(len(m.text) < len(orig.text) for m, orig in zip(truncated, request.materials)):
         logger.warning(
-            "analyze_case: input truncated from %d to %d chars",
+            "analyze_case: mode=%s input truncated from %d to %d chars (limit=%d)",
+            request.mode,
             sum(len(m.text) for m in request.materials),
             sum(len(m.text) for m in truncated),
+            max_input_chars,
         )
 
     fascicolo = [m for m in truncated if getattr(m, "category", "fascicolo") != "giurisprudenza"]
@@ -336,9 +346,14 @@ Istruzioni specifiche:
 
     if finish_reason == "length":
         logger.error("analyze_case: output truncated by token limit (max_tokens=%d)", max_tok)
+        next_step = (
+            "Prova a caricare meno documenti alla volta o aumenta PLT_PRO_MAX_TOKENS."
+            if request.mode == "pro"
+            else "Prova a caricare meno documenti alla volta o usa la modalità Pro per analisi più lunghe."
+        )
         raise ValueError(
             f"L'analisi è stata troncata dal limite di token ({max_tok}). "
-            "Prova a caricare meno documenti alla volta o usa la modalità Pro per analisi più lunghe."
+            f"{next_step}"
         )
 
     # Strip markdown fences and extract the outermost JSON object robustly

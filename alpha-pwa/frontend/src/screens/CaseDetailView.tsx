@@ -60,6 +60,19 @@ const MultiFileUploadDrawer = React.lazy(() => import('../components/MultiFileUp
 
 function pct(v: number) { return `${Math.round(v * 100)}%`; }
 
+async function readApiError(res: Response): Promise<string> {
+  try {
+    const data = await res.clone().json() as { detail?: unknown };
+    if (typeof data.detail === 'string' && data.detail.trim()) return data.detail;
+    if (Array.isArray(data.detail)) return data.detail.map(item => item?.msg ?? JSON.stringify(item)).join('; ');
+  } catch {}
+  try {
+    const text = await res.text();
+    if (text.trim()) return text.trim();
+  } catch {}
+  return `HTTP ${res.status}`;
+}
+
 function deadlineTypeLabel(t: ProceduralDeadline['deadline_type']) {
   return ({ hearing: 'udienza', defense_brief: 'memoria difensiva', filing: 'deposito', investigation: 'indagine difensiva', other: 'altro' })[t];
 }
@@ -2027,7 +2040,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ case_title: analysisBase.case_title, materials, mode, language: 'it' }),
       });
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (!res.ok) throw new Error(await readApiError(res));
       const merged = mergeWithAi(analysisBase, await res.json() as CaseAnalysis, { replaceAiFields: mode === 'pro' });
       // Segna i doc come analizzati ma NON li elimina — restano visibili sotto "Documenti del fascicolo"
       const analyzedDocIds = docs.map(d => d.doc_id);

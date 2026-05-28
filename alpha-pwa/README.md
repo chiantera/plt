@@ -59,6 +59,8 @@ The backend reads provider settings from the environment:
 | `PLT_MAX_UPLOAD_BYTES` | Upload limit, default `52428800` (50 MB) |
 | `PLT_FLASH_MAX_TOKENS` | Flash response token budget |
 | `PLT_PRO_MAX_TOKENS` | Pro response token budget |
+| `PLT_FLASH_MAX_ANALYSIS_CHARS` | Flash input text budget, default `60000` |
+| `PLT_PRO_MAX_ANALYSIS_CHARS` | Pro input text budget, default `300000` |
 
 ### Frontend
 

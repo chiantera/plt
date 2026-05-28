@@ -1,3 +1,4 @@
+import app.ai_service as ai_service
 from app.ai_service import _analysis_prompt_policy, _build_pro_recommendation, _model
 from app.models import (
     CaseAnalysis,
@@ -88,3 +89,12 @@ def test_deepseek_flash_and_pro_routes_are_distinct_by_default(monkeypatch):
 
     assert _model("flash") == "deepseek-v4-flash"
     assert _model("pro") == "deepseek-v4-pro"
+
+
+def test_pro_analysis_uses_larger_input_budget_by_default(monkeypatch):
+    monkeypatch.setattr(ai_service, "_FLASH_MAX_INPUT_CHARS", 60000)
+    monkeypatch.setattr(ai_service, "_PRO_MAX_INPUT_CHARS", 300000)
+
+    assert ai_service._max_input_chars("flash") == 60000
+    assert ai_service._max_input_chars("pro") == 300000
+    assert ai_service._max_input_chars("pro") > ai_service._max_input_chars("flash")
