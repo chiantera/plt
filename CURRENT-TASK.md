@@ -1,10 +1,10 @@
 # CURRENT TASK — PLT alpha handoff and backlog
 
-_Last updated: 2026-05-27 by Codex_
+_Last updated: 2026-05-28 by Claude_
 
 ## Current status
 
-Six slices complete and pushed to `main`. Current slice fixes Pro analysis routing and Pro upgrade visibility: the hero/recommendation Pro path now reaches the actual DeepSeek V4 Pro model, remains available after a Flash analysis, uses a 1M-character input budget for both Flash and Pro, and replaces AI-derived Flash analysis fields instead of hiding the Pro result behind conservative merge rules.
+Seven slices complete and pushed to `main`. Slice 7 fixes bozza truncation (SSE keepalive for DeepSeek reasoning models), adds a Flash/Pro toggle for draft generation, replaces the full-screen analysis overlay with a non-blocking sticky banner, fixes 422 errors on large Pro analyses via JSON repair, and doubles the Pro token budget to 256K.
 
 Target verified:
 
@@ -15,15 +15,47 @@ Target verified:
 Latest commits:
 
 ```text
-(in progress — README update)
-b84b0fd3 fix: token-clean MultiFileUploadDrawer — last hardcoded colors removed
-89eff3c3 fix: 13 dark-era color bugs — token-clean UI across all views
-5f4c92a4 docs: update CURRENT-TASK after slice 5 (Carta & Inchiostro design)
+4a0a0b5d fix: double Pro analysis token budget to 256K
+66b6d083 feat: draft model toggle + non-blocking analysis banner + 422 fix for large Pro cases
+8fbe0484 docs: prompts map update — 2026-05-28 session changes
+00b5c0d4 fix: stop bozza truncation — SSE keepalive during DeepSeek reasoning phase
+ebdf5eb9 feat: Cassazione bozza — mode:pro + prompt rafforzato (poi revertito)
 ```
 
 ---
 
 ## Completed in this slice
+
+### Slice 7 — Bozza truncation fix · Draft mode toggle · Non-blocking analysis · 422 repair · Pro 256K
+
+**Backend (`alpha-pwa/backend/app/ai_service.py`):**
+
+- **SSE keepalive for reasoning models:** DeepSeek V4 Pro (and Flash) emit `reasoning_content` tokens silently before producing `content`. During that silence (~80-100K tokens for Pro) the Vite proxy would drop the connection, causing mid-word bozza cutoff. Fix: `_deepseek_stream` now yields `": ping\n\n"` SSE comments for each `reasoning_content` chunk. SSE comments are invisible to browser EventSource/ReadableStream readers but keep the TCP socket alive through proxy inactivity timeouts.
+- **`_repair_truncated_json()`:** New function that walks the raw JSON string char-by-char (tracking `{}` and `[]` depth, handling string escapes) to collect safe truncation candidates at `depth_brace == 1`. Tries `raw[:pos].rstrip().rstrip(",") + "}"` for each candidate in reverse order. Returns the first valid parse, or `None` if all fail.
+- **`analyze_case()` — graceful 422 degradation:** Previously, `finish_reason == "length"` raised 422 before attempting JSON parse. Now: try JSON parse first; if that fails, try `_repair_truncated_json()`; only raise 422 if repair also fails. This recovers all fields except those that were mid-write at truncation (typically the end of `legal_analysis`).
+- **`_PRO_MAX_TOKENS` doubled:** Changed default from `"128000"` to `"256000"`. Pro uses ~80-100K reasoning tokens internally before producing output; the old 128K budget left only ~20-30K for output JSON. 256K gives ~150K+ for output.
+
+**Frontend (`alpha-pwa/frontend/`):**
+
+- **`vite.config.ts` — proxy timeout 600s:** Changed proxy from simple string target to object `{ target, timeout: 600000, proxyTimeout: 600000 }`. The Vite http-proxy default has no timeout configured, which caused connection drops during the reasoning silence.
+- **`src/screens/CaseDetailView.tsx` — Flash/Pro toggle for bozze:** Added `draftMode: 'flash' | 'pro'` state (localStorage-persisted, independent of `analyzeMode`). Toggle rendered inside "Redazione atti con AI" header in `LegalAnalysisTab`. Cassazione bozze use `draftMode` but always override `maxTokens: 131072` regardless of mode.
+- **`src/screens/CaseDetailView.tsx` — non-blocking analysis banner:** Replaced `position:fixed` full-screen overlay (blocking for 5-10 min) with compact `position:sticky` `.analysis-banner`. The `handleAnalyze` fetch now continues if the user navigates away from the fascicolo; `dbSave(localOwnerId, updated)` fires on completion and the result is available in IndexedDB when the user returns. Banner has: spinner, progress bar, "Rinuncia" button (asks for confirmation before abort).
+- **`src/screens/CaseDetailView.tsx` — `AnimatedDots` removed:** Replaced with the existing CSS-animated `analysis-overlay-bar` (already using `progress-slide` keyframes).
+- **Cassazione prompt reverted:** Removed "LUNGHEZZA: minimo 4000 parole" injection added in a prior commit (cannot override a connection timeout via prompt; reverted to original cassazioneGuide-based prompt).
+- **`src/styles.css`:** Added `.analysis-banner` block (sticky, flex, spinner, bar, button variants `--danger`); added `.draft-generating-bar` with `max-width: 320px`.
+
+**Docs:**
+- `07-prompts/2026-05-26-plt-ai-prompts-map.md`: updated date to 2026-05-28; SSE keepalive section; P11 major update with CASSAZIONE_GUIDE details; P27 new entry; P19 Cassazione exception documented; hotspot #6 marked RESOLVED; chat token budget 32768 documented.
+
+**All tests pass:**
+- `npm run test:plt-export` ✓
+- `npm run test:local-case-scope` ✓
+- `npm run test:draft-workspace` ✓
+- `npm run test:draft-workspace-ui` ✓
+
+---
+
+## Completed in previous slices
 
 ### Slice 6 — Design polish: fonts, favicon, layout, color sweep
 

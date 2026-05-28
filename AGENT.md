@@ -94,6 +94,17 @@ Avoid:
 - Classification, extraction, JSON, summaries, basic briefs: DeepSeek V4 Flash / `mode: "flash"`.
 - Deep legal reasoning, contradiction analysis, appeal prep, hard synthesis: DeepSeek V4 Pro / `mode: "pro"` after explicit user confirmation.
 
+### Token budgets (generated output, not total context)
+
+| Budget | Default | Env override (Render) |
+|---|---|---|
+| Flash analysis | 128 000 | `PLT_FLASH_MAX_TOKENS` |
+| Pro analysis | 256 000 | `PLT_PRO_MAX_TOKENS` |
+| Chat / streaming | 32 768 | `PLT_CHAT_MAX_TOKENS` |
+| Cassazione bozza | 131 072 | hard-coded per-request override |
+
+DeepSeek V4 reasoning models consume `reasoning_content` tokens silently before producing `content`. Pro uses ~80-100K reasoning tokens; the remaining budget goes to JSON output. The `reasoning_content` phase causes SSE silence — the backend emits keepalive `": ping\n\n"` comments and the Vite proxy has `timeout: 600000` to prevent mid-word connection drops.
+
 ## Workspace structure
 
 ```text

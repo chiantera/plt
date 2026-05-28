@@ -58,7 +58,8 @@ The backend reads provider settings from the environment:
 | `ANTHROPIC_API_KEY` | Fallback provider key |
 | `PLT_MAX_UPLOAD_BYTES` | Upload limit, default `52428800` (50 MB) |
 | `PLT_FLASH_MAX_TOKENS` | Flash generated-output token budget, default `128000` |
-| `PLT_PRO_MAX_TOKENS` | Pro generated-output token budget, default `128000` |
+| `PLT_PRO_MAX_TOKENS` | Pro generated-output token budget, default `256000` (doubled; Pro uses ~80-100K reasoning tokens before producing JSON output) |
+| `PLT_CHAT_MAX_TOKENS` | Chat / streaming token budget, default `32768` |
 | `PLT_FLASH_MAX_ANALYSIS_CHARS` | Flash input text budget, default `1000000` |
 | `PLT_PRO_MAX_ANALYSIS_CHARS` | Pro input text budget, default `1000000` |
 
