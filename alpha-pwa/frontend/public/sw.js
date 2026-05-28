@@ -24,6 +24,9 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
+  // Only handle http/https — chrome-extension:// and other schemes crash the Cache API
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
   // Never intercept API calls — always live
   if (url.pathname.startsWith('/api/')) return;
 
