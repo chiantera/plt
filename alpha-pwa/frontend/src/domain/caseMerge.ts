@@ -5,7 +5,10 @@ export function buildUserContextMaterial(c: CaseAnalysis): { name: string; kind:
   const lines: string[] = [];
   if (c.case_summary?.trim()) lines.push(`SINTESI: ${c.case_summary.trim()}`);
   if (c.people.length) lines.push('PERSONE:\n' + c.people.map(p => `- ${p.name} (${p.role})${p.notes ? ': ' + p.notes : ''}`).join('\n'));
-  if (c.timeline.length) lines.push('TIMELINE:\n' + c.timeline.map(e => `- [${e.date ?? '?'}${e.time ? ' ' + e.time : ''}] ${e.title}${e.description ? ': ' + e.description : ''}`).join('\n'));
+  if (c.timeline.length) lines.push('TIMELINE:\n' + c.timeline.map(e => {
+    const pos = e.defense_position === 'admitted' ? '[PACIFICO]' : e.defense_position === 'denied' ? '[NEGATO]' : '[CONTESTATO]';
+    return `- [${e.date ?? '?'}${e.time ? ' ' + e.time : ''}] ${pos} ${e.title}${e.description ? ': ' + e.description : ''}`;
+  }).join('\n'));
   if (c.evidence.length) lines.push('PROVE:\n' + c.evidence.map(e => `- ${e.title} (${e.status})${e.notes ? ': ' + e.notes : ''}`).join('\n'));
   if (c.contradictions.length) lines.push('CONTRADDIZIONI:\n' + c.contradictions.map(ct => `- ${ct.title}: ${ct.description}`).join('\n'));
   if (c.open_questions.length) lines.push('DOMANDE APERTE:\n' + c.open_questions.map(q => `- ${q.question} (${q.why_it_matters})`).join('\n'));

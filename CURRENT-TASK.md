@@ -4,7 +4,7 @@ _Last updated: 2026-05-28 by Claude_
 
 ## Current status
 
-Seven slices complete and pushed to `main`. Slice 7 fixes bozza truncation (SSE keepalive for DeepSeek reasoning models), adds a Flash/Pro toggle for draft generation, replaces the full-screen analysis overlay with a non-blocking sticky banner, fixes 422 errors on large Pro analyses via JSON repair, and doubles the Pro token budget to 256K.
+Eight slices complete and pushed to `main`. Slice 8 adds epistemic stance (difesa vs. accusa) a tutti i prompt AI e un toggle `defense_position` per-evento nella timeline.
 
 Target verified:
 
@@ -15,16 +15,41 @@ Target verified:
 Latest commits:
 
 ```text
+[Slice 8 — vedi sotto]
 4a0a0b5d fix: double Pro analysis token budget to 256K
 66b6d083 feat: draft model toggle + non-blocking analysis banner + 422 fix for large Pro cases
 8fbe0484 docs: prompts map update — 2026-05-28 session changes
 00b5c0d4 fix: stop bozza truncation — SSE keepalive during DeepSeek reasoning phase
-ebdf5eb9 feat: Cassazione bozza — mode:pro + prompt rafforzato (poi revertito)
 ```
 
 ---
 
 ## Completed in this slice
+
+### Slice 8 — Epistemic stance (prospettiva difensiva) · defense_position per-evento
+
+**Problema:** GiulIA trattava le ricostruzioni accusatorie come fatti accertati. "L'imputato ha acquistato X" invece di "secondo la prospettazione accusatoria l'imputato avrebbe acquistato X". Cruciale per ricorsi Cassazione dove i fatti della sentenza impugnata sono _oggetto di contestazione_.
+
+**Fix 1 — Prompts (backend + frontend):**
+
+- `ai_service.py` — `_SYSTEM_PROMPT`: aggiunta regola 8 — PROSPETTIVA DIFENSIVA con distinzione `fatto pacifico` / `prospettazione accusatoria` / `sentenza ritiene che`.
+- `ai_service.py` — `_PRO_POLICY`: aggiunta clausola PROSPETTIVA DIFENSIVA per analisi Pro.
+- `ai_service.py` — `_DEFAULT_CHAT_SYSTEM`: aggiunta regola di comportamento PROSPETTIVA DIFENSIVA.
+- `prompts/giulia.ts` — `SYSTEM_PROMPT_IT`: stesso blocco difensivo.
+- `prompts/documentDrafts.ts`: nuova costante `DEFENSE_PERSPECTIVE` iniettata in `memoria`, `cassazione`, `eccezione`, `strategy`. La Cassazione ora dice esplicitamente che la sentenza impugnata è oggetto di contestazione e richiede "la sentenza impugnata ritiene che..." non "l'imputato ha fatto X".
+
+**Fix 2 — Schema + UI:**
+
+- `domain/types.ts`: nuovo tipo `DefensePosition = 'admitted' | 'contested' | 'denied'`; campo `defense_position?: DefensePosition` su `TimelineEvent`.
+- `ai_service.py` — `_ANALYSIS_SCHEMA`: campo `defense_position` aggiunto alla timeline; la regola 8 del sistema prompt spiega i valori.
+- `domain/caseContext.ts` — `buildCaseContext()`: ogni evento timeline ora include `[PACIFICO]` / `[CONTESTATO]` / `[NEGATO DALLA DIFESA]` — il modello vede la posizione difensiva nel contesto.
+- `domain/caseMerge.ts` — `buildUserContextMaterial()`: stessa logica.
+- `screens/CaseDetailView.tsx`: badge colorato cliccabile per ogni evento timeline — verde per pacifico, giallo per contestato, rosso per negato. Click cicla admitted → denied → contested. Default AI: `contested`.
+- `styles.css`: `.defense-position-badge` + varianti `.dp-admitted`, `.dp-contested`, `.dp-denied`.
+
+**Build:** ✓ zero errori TypeScript.
+
+---
 
 ### Slice 7 — Bozza truncation fix · Draft mode toggle · Non-blocking analysis · 422 repair · Pro 256K
 

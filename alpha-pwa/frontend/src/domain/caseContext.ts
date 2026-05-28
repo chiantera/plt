@@ -17,7 +17,10 @@ export function buildCaseContext(c: CaseAnalysis): string {
   }
 
   if (c.timeline.length) {
-    ctx += `CRONOLOGIA:\n${c.timeline.map(e => `• [${e.date ?? '?'}${e.time ? ' ' + e.time : ''}] ${e.title}: ${e.description}`).join('\n')}\n\n`;
+    ctx += `CRONOLOGIA:\n${c.timeline.map(e => {
+      const pos = e.defense_position === 'admitted' ? '[PACIFICO]' : e.defense_position === 'denied' ? '[NEGATO DALLA DIFESA]' : '[CONTESTATO]';
+      return `• [${e.date ?? '?'}${e.time ? ' ' + e.time : ''}] ${pos} ${e.title}: ${e.description}`;
+    }).join('\n')}\n\n`;
   }
 
   if (la) {

@@ -197,6 +197,18 @@ button:active { transform: scale(0.97); }
 }
 .timeline-content { flex: 1; }
 
+/* ── Defense position badge ──────────────────────────────────────────────── */
+.defense-position-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid;
+  cursor: pointer; margin-bottom: 6px; transition: opacity 0.15s;
+}
+.defense-position-badge:hover { opacity: 0.8; }
+.dp-admitted { background: rgba(34,197,94,0.12); color: #22c55e; border-color: rgba(34,197,94,0.35); }
+.dp-contested { background: rgba(234,179,8,0.12); color: #ca8a04; border-color: rgba(234,179,8,0.35); }
+.dp-denied { background: rgba(239,68,68,0.12); color: #ef4444; border-color: rgba(239,68,68,0.35); }
+
 /* ── Source badges ───────────────────────────────────────────────────────── */
 .source-badge {
   border: 1px solid var(--rule-strong); background: var(--paper-sunken);

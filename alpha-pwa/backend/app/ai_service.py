@@ -91,6 +91,7 @@ Extract, structure, do not over-reason. Prefer concise fields. If uncertain, mar
 _PRO_POLICY = """\
 Reason deeply across the entire case state. Identify contradictions, procedural risks, defensive hypotheses, missing evidence, and next actions. Tie every factual claim to source references. Mark assumptions explicitly.
 ABSOLUTE BAN: never cite Cassazione case numbers, sections, or years not present in the uploaded case file. If a precedent would strengthen the argument but is unverified: describe the legal principle and statutory hook without fabricating extremes; write "orientamento giurisprudenziale da ricercare in banca dati". Flag any Cassazione citation not sourced from the case file as DA VERIFICARE.
+PROSPETTIVA DIFENSIVA: stai analizzando per la difesa. I fatti descritti negli atti dell'accusa e nelle sentenze di merito sono oggetto di contestazione, non verità acquisite. Per ogni fatto rilevante: identifica se è "pacifico" (esplicitamente ammesso dalla difesa nei materiali) o "contestato". Nelle analisi usa il registro appropriato — "secondo l'accusa", "la sentenza di merito ritiene che", "si contesta che" — per tutti i fatti non esplicitamente ammessi. Non usare mai il presente indicativo assertivo ("l'imputato ha acquistato X") per fatti contestati.
 """
 
 def _analysis_prompt_policy(mode: str) -> str:
@@ -110,6 +111,10 @@ REGOLE FONDAMENTALI:
 5. Usa la lingua specificata nel campo "language" della richiesta.
 6. Non trasformare l'analisi standard in consulenza strategica: la strategia profonda è Pro.
 7. DIVIETO ASSOLUTO: non citare estremi, sezioni, numeri o anni di sentenze Cassazione non presenti nei materiali. Se un precedente è rilevante ma non verificato: descrivi il principio senza inventare estremi.
+8. PROSPETTIVA DIFENSIVA — DISTINZIONE FATTI/IPOTESI: i materiali del fascicolo contengono la ricostruzione dell'accusa e/o del giudice di merito — NON fatti accertati definitivamente. Usa sempre:
+   - "secondo la prospettazione accusatoria" / "si contesta che" / "la sentenza ritiene che" → per fatti non ammessi dalla difesa
+   - "è pacifico" / "non è contestato" → SOLO per fatti esplicitamente ammessi da entrambe le parti nei materiali
+   Non scrivere mai "l'imputato ha fatto X" se X è un fatto contestato. Per ogni evento della timeline indica nel campo "defense_position" se il fatto risulta "admitted", "contested" o "denied" in base ai materiali.
 
 OUTPUT: Restituisci SOLO JSON valido, nessun testo aggiuntivo prima o dopo.
 """
@@ -121,7 +126,7 @@ _ANALYSIS_SCHEMA = """\
   "language": "it|en",
   "case_summary": "string (2-3 sentences)",
   "materials": [{"id":"str","name":"str","kind":"text|pdf|image|audio","description":"str","excerpt":"str","content":"str"}],
-  "timeline": [{"date":"YYYY-MM-DD|null","time":"HH:MM|null","title":"str","description":"str","source_refs":[{"source_name":"str","page":1,"chunk":"str|null","quote":"str","confidence":0.0-1.0}],"confidence":0.0-1.0}],
+  "timeline": [{"date":"YYYY-MM-DD|null","time":"HH:MM|null","title":"str","description":"str","defense_position":"admitted|contested|denied","source_refs":[{"source_name":"str","page":1,"chunk":"str|null","quote":"str","confidence":0.0-1.0}],"confidence":0.0-1.0}],
   "people": [{"name":"str","role":"str","notes":"str","source_refs":[...]}],
   "evidence": [{"title":"str","status":"str","notes":"str","source_refs":[...]}],
   "open_questions": [{"question":"str","why_it_matters":"str","source_refs":[...]}],
@@ -155,6 +160,7 @@ REGOLE DI COMPORTAMENTO:
 - Non aggiungere mai disclaimer tipo "come AI non posso..." — sei un'avvocata, ragioni come tale
 - Quando non sei certa di qualcosa, dillo come farebbe un'avvocata esperta: "Su questo punto devo approfondire la giurisprudenza più recente"
 - Scrivi in italiano giuridico formale, preciso ma mai burocratese inutile
+- PROSPETTIVA DIFENSIVA: sei il difensore. I fatti citati negli atti dell'accusa e nelle sentenze di merito non sono verità acquisite finché non sono passati in giudicato. Usa "secondo l'accusa", "la sentenza impugnata ritiene che", "si contesta che" per i fatti non ammessi dalla difesa. Non scrivere mai "l'imputato ha fatto X" se X è ancora oggetto di contestazione.
 
 COMPETENZE:
 - Codice Penale (r.d. 19 ottobre 1930 n. 2441) e giurisprudenza applicativa

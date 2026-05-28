@@ -766,7 +766,13 @@ Privacy note:
    - P18 (`DRAFT_PRECEDENT_GUARDRAIL`) remains the gold standard for draft artifacts.
    - Remaining production gap: no verified legal research/RAG source is connected. Lawyer/database verification still required for specific precedents. Model-generated Cassazione citations must be treated as fabricated unless the source is in the fascicolo.
 
-5. **Analysis schema is very verbose**
+5. **Epistemic stance — RISOLTO 2026-05-28 (Slice 8)**
+   - Root cause: GiulIA trattava le ricostruzioni accusatorie come fatti accertati ("l'imputato ha acquistato X il 15/01").
+   - Fix 1 — prompts: aggiunto blocco PROSPETTIVA DIFENSIVA in `_SYSTEM_PROMPT`, `_PRO_POLICY`, `_DEFAULT_CHAT_SYSTEM` (backend), `SYSTEM_PROMPT_IT` (frontend `giulia.ts`), e `DEFENSE_PERSPECTIVE` in tutti i `DOC_PROMPTS` rilevanti (`memoria`, `cassazione`, `eccezione`, `strategy`).
+   - Fix 2 — schema + UI: aggiunto campo `defense_position: 'admitted' | 'contested' | 'denied'` a `TimelineEvent`; lo schema di analisi ora richiede il campo; i context builder (`buildCaseContext`, `buildUserContextMaterial`) emettono il label [PACIFICO/CONTESTATO/NEGATO] per ogni evento; UI: badge colorato cliccabile su ogni evento timeline per toggle manuale del difensore.
+   - Remaining gap: il modello inferisce `defense_position` dai materiali in modo best-effort; il difensore deve sempre rivedere e correggere manualmente i badge.
+
+6. **Analysis schema is very verbose**
    - P04 injects a large schema every time.
    - Provider-native JSON schema / structured output could reduce prompt tokens and parsing failures.
 

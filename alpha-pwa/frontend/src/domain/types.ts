@@ -17,11 +17,14 @@ export type Material = {
   content: string;
 };
 
+export type DefensePosition = 'admitted' | 'contested' | 'denied';
+
 export type TimelineEvent = {
   date: string | null;
   time: string | null;
   title: string;
   description: string;
+  defense_position?: DefensePosition;
   source_refs: SourceRef[];
   confidence: number;
 };

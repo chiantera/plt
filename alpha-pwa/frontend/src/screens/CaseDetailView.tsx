@@ -35,6 +35,7 @@ import type {
   ChargeElement,
   ConstitutionalIssue,
   Contradiction,
+  DefensePosition,
   DefenseStrategy,
   EvidenceBalance,
   EvidenceItem,
@@ -2145,9 +2146,15 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   }, [updateCase]);
 
   // ── List edit helpers (Pass 1: timeline, people, evidence, contradictions) ──
+  const cycleDefensePosition = (current: DefensePosition | undefined): DefensePosition => {
+    if (!current || current === 'contested') return 'admitted';
+    if (current === 'admitted') return 'denied';
+    return 'contested';
+  };
+
   const addTimelineEvent = () => updateCase(c => ({
     ...c,
-    timeline: [...c.timeline, { date: '', time: null, title: '', description: '', source_refs: [], confidence: 1 }],
+    timeline: [...c.timeline, { date: '', time: null, title: '', description: '', defense_position: 'contested' as DefensePosition, source_refs: [], confidence: 1 }],
   }));
   const updateTimelineEvent = (i: number, patch: Partial<TimelineEvent>) => updateCase(c => ({
     ...c, timeline: c.timeline.map((ev, idx) => idx === i ? { ...ev, ...patch } : ev),
@@ -2483,6 +2490,13 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                     placeholder="Titolo evento…"
                   />
                 </h3>
+                <button
+                  className={`defense-position-badge dp-${ev.defense_position ?? 'contested'}`}
+                  title="Clicca per cambiare posizione difensiva su questo fatto"
+                  onClick={() => updateTimelineEvent(i, { defense_position: cycleDefensePosition(ev.defense_position) })}
+                >
+                  {ev.defense_position === 'admitted' ? '✓ Pacifico' : ev.defense_position === 'denied' ? '✗ Negato' : '⚠ Contestato'}
+                </button>
                 <p>
                   <Editable
                     value={ev.description}
