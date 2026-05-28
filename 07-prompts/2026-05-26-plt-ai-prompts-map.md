@@ -1,6 +1,6 @@
 # PLT AI Prompts Map
 
-Date: 2026-05-26; refreshed 2026-05-27 Europe/Berlin
+Date: 2026-05-26; refreshed 2026-05-28 Europe/Berlin
 Project inspected: `/home/deckard/plt/alpha-pwa`
 Primary app surfaces: FastAPI backend + React/Vite frontend
 
@@ -67,8 +67,21 @@ File: `alpha-pwa/backend/app/ai_service.py`
 
 File: `alpha-pwa/backend/app/ai_service.py`
 
-- `/api/chat` streaming uses `max_tokens=4096` for both DeepSeek/OpenAI-compatible and Anthropic paths.
-- This may be too shallow for long drafting outputs, especially memorie/ricorsi.
+- `/api/chat` streaming default: `_CHAT_MAX_TOKENS = 32768` (env: `PLT_CHAT_MAX_TOKENS`). Previously hardcoded 4096 — raised 2026-05-28.
+- Per-request override: `ChatRequest.max_tokens_override` (int | None). If set, overrides the module default for that call only.
+- Cassazione bozza uses `max_tokens_override: 131072` and `mode: 'pro'` (frontend `fetchChatFull` opts).
+- Anthropic and DeepSeek streaming paths both accept the override via the `max_tokens` parameter to `_deepseek_stream` / `_anthropic_stream`.
+
+### SSE keepalive for reasoning models
+
+File: `alpha-pwa/backend/app/ai_service.py`
+Section: `_deepseek_stream`
+
+DeepSeek V4 Flash and Pro are reasoning models that emit `reasoning_content` tokens internally before producing `content` tokens. During that silent phase no SSE data reaches the browser, causing the Vite HTTP proxy (and any other proxy) to drop the connection for inactivity and truncate the output mid-word.
+
+Fix (2026-05-28): `_deepseek_stream` now yields `": ping\n\n"` whenever a chunk carries `reasoning_content` but no `content`. SSE comments are silently discarded by the browser `EventSource` / manual `ReadableStream` reader — they have no effect on output but keep the socket alive.
+
+Companion fix: `vite.config.ts` proxy `timeout` and `proxyTimeout` raised to 600 s.
 
 ## Shared context builders and prompt modules
 
@@ -400,16 +413,25 @@ Current guardrail:
 
 File: `alpha-pwa/frontend/src/prompts/documentDrafts.ts`
 Section: `DOC_PROMPTS.cassazione`
+New file: `alpha-pwa/frontend/src/prompts/cassazioneGuide.ts` → `CASSAZIONE_GUIDE`
 Triggered by: chat quick action “Ricorso Cassazione” and draft workspace “Ricorso Cassazione”.
 
-Current instruction:
+**Major update 2026-05-28:**
 
-- Develop appeal grounds under art. 606 c.p.p.
-- Include favorable Cassazione precedents only if verified; otherwise indicate legal research to verify.
+The prompt now injects `CASSAZIONE_GUIDE` — a full operational reference for drafting Italian Supreme Court appeals:
+
+- SCOTUS framing: Cassazione as giudice di legittimità, not terza istanza; no re-examination of facts.
+- Presupposti (condizioni di ammissibilità): specificità dei motivi, autosufficienza, limiti di lunghezza.
+- All motivi ex art. 606 c.p.p.: lett. a (violazione di legge), b (erronea applicazione), c (inosservanza norme procedurali), d (mancata assunzione prove decisive), e (mancanza/contraddittorietà/manifesta illogicità della motivazione), plus e-bis/e-ter (2025 reforms).
+- Autosufficienza: each ground must include the exact passage from the challenged ruling.
+- Fatal errors to avoid (genericità, nova in sede di legittimità, mere richieste di rivalutazione fattuale).
+- Mandatory template: INTESTAZIONE → FATTO → DIRITTO (motivi) → CONCLUSIONI → NOTIFICAZIONE.
+
+Generation mode: `mode: 'pro'` with `max_tokens_override: 131072` — only Cassazione uses Pro; all other bozze remain Flash.
 
 Residual production gap:
 
-- Ideally connect to verified legal research/RAG before asking for specific precedents.
+- No verified legal research/RAG connected. Lawyer/database verification still required for specific precedents.
 
 ## P12 — Document prompt: `eccezione`
 
@@ -550,12 +572,13 @@ Assembly order:
 Payload:
 
 - Single user message to `/api/chat`.
-- `mode: 'flash'`.
+- `mode: 'flash'` for all draft types **except** Cassazione.
+- Cassazione: `mode: 'pro'`, `max_tokens_override: 131072`.
 - No `system_override`, so backend P07 applies.
 
 Optimization target:
 
-- For long legal drafts, consider a dedicated `task_type: 'draft_legal_act'` system prompt and larger output cap.
+- For long legal drafts, consider a dedicated `task_type: 'draft_legal_act'` system prompt.
 
 ## P20 — Witness-specific cross-examination draft prompt
 
@@ -659,6 +682,25 @@ Product note:
 
 - This is the right direction: drafting actions should create durable editable artifacts, not giant chat prompts.
 
+## P27 — CASSAZIONE_GUIDE operational reference (injected into P11)
+
+File: `alpha-pwa/frontend/src/prompts/cassazioneGuide.ts`
+Export: `CASSAZIONE_GUIDE` (string constant)
+Added: 2026-05-28
+Injected by: `DOC_PROMPTS.cassazione` (P11).
+
+A static operational guide for drafting a Corte di Cassazione appeal, written as instructions to the AI. Covers:
+
+- Legal role of Cassazione (legittimità, not facts).
+- Admissibility prerequisites and autosufficienza.
+- All grounds under art. 606 c.p.p. (lett. a–e, plus e-bis/e-ter post-2025 reforms).
+- Mandatory structural template.
+- Fatal errors to avoid (genericità, nova, rivalutazione fattuale).
+
+This guide replaces the brief one-liner that previously described art. 606 grounds, giving the model the context to produce a structurally sound ricorso rather than a generic appeal brief. It is a static string — not an LLM call — injected verbatim into the user message alongside the case context.
+
+Not subject to the Cassazione citation ban (it describes *structure*, not specific precedents).
+
 ## P25 — OCR call: no app-authored natural-language prompt
 
 File: `alpha-pwa/backend/app/ocr_adapter.py`
@@ -728,8 +770,10 @@ Privacy note:
    - P04 injects a large schema every time.
    - Provider-native JSON schema / structured output could reduce prompt tokens and parsing failures.
 
-6. **Draft generation output cap**
-   - `/api/chat` streaming max tokens remains `4096` regardless of draft type.
+6. **Draft generation output cap** — RISOLTO 2026-05-28
+   - Default raised to `32768` (`PLT_CHAT_MAX_TOKENS`).
+   - Cassazione uses `max_tokens_override: 131072` + `mode: 'pro'`.
+   - Root cause of prior truncation was proxy inactivity timeout during reasoning phase (not a hardcoded 4096) — fixed with SSE keepalive pings.
 
 ## Suggested optimization order
 
@@ -767,8 +811,10 @@ Privacy note:
 - `alpha-pwa/frontend/src/domain/caseContext.ts`
 - `alpha-pwa/frontend/src/prompts/giulia.ts`
 - `alpha-pwa/frontend/src/prompts/documentDrafts.ts`
+- `alpha-pwa/frontend/src/prompts/cassazioneGuide.ts` ← new 2026-05-28
 - `alpha-pwa/frontend/src/prompts/redaction.ts`
 - `alpha-pwa/frontend/src/draftArtifacts.ts`
+- `alpha-pwa/frontend/vite.config.ts`
 
 Generated/build artifacts under `frontend/dist/` are not source of truth.
 
