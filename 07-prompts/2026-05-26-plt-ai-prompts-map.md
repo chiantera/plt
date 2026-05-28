@@ -46,8 +46,8 @@ File: `alpha-pwa/backend/app/ai_service.py`
 - If `DEEPSEEK_API_KEY` is set:
   - SDK: OpenAI-compatible client.
   - base URL: `https://api.deepseek.com`.
-  - flash model: `DEEPSEEK_DEFAULT_MODEL` or `deepseek-chat`.
-  - pro model: `DEEPSEEK_PRO_MODEL` or `deepseek-chat`.
+  - flash model: `DEEPSEEK_DEFAULT_MODEL` or `deepseek-v4-flash`.
+  - pro model: `DEEPSEEK_PRO_MODEL` or `deepseek-v4-pro`.
 - Otherwise:
   - SDK: Anthropic.
   - flash model: `claude-haiku-4-5-20251001`.

@@ -1,4 +1,4 @@
-from app.ai_service import _analysis_prompt_policy, _build_pro_recommendation
+from app.ai_service import _analysis_prompt_policy, _build_pro_recommendation, _model
 from app.models import (
     CaseAnalysis,
     Contradiction,
@@ -79,3 +79,12 @@ def test_pro_recommendation_not_emitted_after_pro_run():
     assert rec.recommended is False
     assert rec.reasons == []
     assert rec.auto_charge is False
+
+
+def test_deepseek_flash_and_pro_routes_are_distinct_by_default(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.delenv("DEEPSEEK_DEFAULT_MODEL", raising=False)
+    monkeypatch.delenv("DEEPSEEK_PRO_MODEL", raising=False)
+
+    assert _model("flash") == "deepseek-v4-flash"
+    assert _model("pro") == "deepseek-v4-pro"

@@ -53,8 +53,8 @@ The backend reads provider settings from the environment:
 | Env var | Purpose |
 |---|---|
 | `DEEPSEEK_API_KEY` | Primary provider key |
-| `DEEPSEEK_DEFAULT_MODEL` | Ordinary work, defaults to DeepSeek Flash route |
-| `DEEPSEEK_PRO_MODEL` | Confirmed Pro legal reasoning route |
+| `DEEPSEEK_DEFAULT_MODEL` | Ordinary work, defaults to `deepseek-v4-flash` |
+| `DEEPSEEK_PRO_MODEL` | Confirmed Pro legal reasoning route, defaults to `deepseek-v4-pro` |
 | `ANTHROPIC_API_KEY` | Fallback provider key |
 | `PLT_MAX_UPLOAD_BYTES` | Upload limit, default `52428800` (50 MB) |
 | `PLT_FLASH_MAX_TOKENS` | Flash response token budget |

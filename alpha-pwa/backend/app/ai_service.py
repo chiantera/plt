@@ -41,13 +41,13 @@ def _get_anthropic_client():
 
 def _flash_model() -> str:
     if _use_deepseek():
-        return os.environ.get("DEEPSEEK_DEFAULT_MODEL", "deepseek-chat")
+        return os.environ.get("DEEPSEEK_DEFAULT_MODEL", "deepseek-v4-flash")
     return "claude-haiku-4-5-20251001"
 
 
 def _pro_model() -> str:
     if _use_deepseek():
-        return os.environ.get("DEEPSEEK_PRO_MODEL", "deepseek-chat")
+        return os.environ.get("DEEPSEEK_PRO_MODEL", "deepseek-v4-pro")
     return "claude-opus-4-7"
 
 
