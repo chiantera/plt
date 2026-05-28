@@ -156,7 +156,7 @@ FONTI E PRECEDENTI:
 # structured JSON schema is verbose.  Five-page documents routinely produce
 # 15-25K output tokens.  Budgets are set with ~2x safety margin.
 _FLASH_MAX_TOKENS = int(os.environ.get("PLT_FLASH_MAX_TOKENS", "128000"))
-_PRO_MAX_TOKENS = int(os.environ.get("PLT_PRO_MAX_TOKENS", "128000"))
+_PRO_MAX_TOKENS = int(os.environ.get("PLT_PRO_MAX_TOKENS", "256000"))
 
 # Cap input text per mode. Both DeepSeek V4 Flash and Pro advertise a large
 # context window; keep the application-side cap high so legal records are not
