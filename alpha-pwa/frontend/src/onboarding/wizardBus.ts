@@ -11,11 +11,11 @@ export type WizardEvent =
 type Handler = () => void;
 const handlers: Partial<Record<WizardEvent, Set<Handler>>> = {};
 
-export function emit(event: WizardEvent): void {
+function emit(event: WizardEvent): void {
   handlers[event]?.forEach(h => { try { h(); } catch { /* noop */ } });
 }
 
-export function on(event: WizardEvent, cb: Handler): () => void {
+function on(event: WizardEvent, cb: Handler): () => void {
   (handlers[event] ??= new Set()).add(cb);
   return () => { handlers[event]?.delete(cb); };
 }
@@ -25,7 +25,7 @@ export const wizardBus = { emit, on };
 // ── Persistence ──────────────────────────────────────────────────────────────
 // Default-on at every launch until the tester opts out ("Non mostrare più").
 
-export const ONBOARDING_DISMISSED_KEY = 'plt:onboarding:dismissed';
+const ONBOARDING_DISMISSED_KEY = 'plt:onboarding:dismissed';
 
 export function isOnboardingDismissed(): boolean {
   try { return localStorage.getItem(ONBOARDING_DISMISSED_KEY) === '1'; } catch { return false; }

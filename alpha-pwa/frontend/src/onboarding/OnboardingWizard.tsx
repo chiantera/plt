@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { on, isOnboardingDismissed, dismissOnboarding, type WizardEvent } from './wizardBus';
+import { wizardBus, isOnboardingDismissed, dismissOnboarding, type WizardEvent } from './wizardBus';
 
 type Screen = 'cases' | 'case';
 
@@ -59,20 +59,18 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
       if (next >= STEPS.length) { setActive(false); return i; }
       return next;
     });
-    lastKeyRef.current = '';
-    setRect(null);
   }, []);
 
   // Advance when the matching real action fires.
   useEffect(() => {
     if (!active || !step) return;
-    return on(step.advanceOn, advance);
+    return wizardBus.on(step.advanceOn, advance);
   }, [active, step, advance]);
 
   // Track the target element rect via rAF (handles async/lazy mount, scroll,
   // resize and drawer animations). Only re-renders when the rect changes.
   useEffect(() => {
-    if (!active || !step || !onCurrentScreen) { lastKeyRef.current = ''; setRect(null); return; }
+    if (!active || !step || !onCurrentScreen) return;
     let mounted = true;
     lastKeyRef.current = '';
     const tick = () => {
@@ -91,7 +89,13 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
-    return () => { mounted = false; if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+    // Cleanup (on step/screen change or unmount): stop the loop and drop stale geometry.
+    return () => {
+      mounted = false;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      lastKeyRef.current = '';
+      setRect(null);
+    };
   }, [active, step, onCurrentScreen]);
 
   const skip = useCallback(() => setActive(false), []);
@@ -119,9 +123,9 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
   }
 
   return (
-    <div className="onboarding-overlay" role="dialog" aria-live="polite" aria-label="Tutorial guidato">
-      {hole && <div className={`onboarding-spotlight${step.dim === false ? ' onboarding-spotlight--nodim' : ''}`} style={{ position: 'fixed', ...hole }} />}
-      <div className="onboarding-tooltip" style={{ position: 'fixed', ...ttStyle }}>
+    <div className="onboarding-overlay">
+      {hole && <div className={`onboarding-spotlight${step.dim === false ? ' onboarding-spotlight--nodim' : ''}`} style={{ position: 'fixed', ...hole }} aria-hidden="true" />}
+      <div className="onboarding-tooltip" aria-live="polite" aria-label="Tutorial guidato" style={{ position: 'fixed', ...ttStyle }}>
         <div className="onboarding-step-count">Passo {stepIndex + 1} di {STEPS.length}</div>
         <h3 className="onboarding-title">{step.title}</h3>
         <p className="onboarding-body">{step.body}</p>
