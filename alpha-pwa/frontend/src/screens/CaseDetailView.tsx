@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { type Session } from '@supabase/supabase-js';
 import { API } from '../config';
+import { wizardBus } from '../onboarding/wizardBus';
 import { formatDate, formatDateFull, formatShortDate } from '../dateUtils';
 import { dbGet, dbSave, localOwnerIdFromSession } from '../db';
 import { exportEncryptedPlt, exportPlainPlt } from '../pltExport';
@@ -2074,6 +2075,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     const newDocs = docs.filter(d => !analyzedIds.has(d.doc_id));
     const isIncremental = mode !== 'pro' && analysisBase.legal_analysis != null && newDocs.length > 0;
 
+    wizardBus.emit('analyze-started');
     setShowUpload(false);
     setUploadQueue(prev => prev.filter(i => i.status !== 'done'));
     setShowAbortConfirm(false);
@@ -2330,7 +2332,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           />
         </p>
         <div className="hero-actions">
-          <button className="primary-button" onClick={() => setShowUpload(true)} title="Carica nuovi documenti PDF o immagini" style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
+          <button className="primary-button" data-tour="add-document" onClick={() => { setShowUpload(true); wizardBus.emit('upload-opened'); }} title="Carica nuovi documenti PDF o immagini" style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
             <Upload size={15} /> Aggiungi documento
             {uploadQueue.length > 0 && (
               <span className="upload-badge-hero">
@@ -2353,6 +2355,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             >✦ Pro</button>
           </div>
           <button title="Esegui analisi AI"
+            data-tour="analyze"
             className={analyzeMode === 'pro' ? 'primary-button' : 'secondary-button'}
             onClick={() => handleAnalyze(analyzeMode)}
             disabled={analyzing || rawDocs.length === 0}

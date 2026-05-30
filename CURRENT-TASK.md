@@ -4,7 +4,7 @@ _Last updated: 2026-05-28 by Claude_
 
 ## Current status
 
-Eight slices complete and pushed to `main`. Slice 8 adds epistemic stance (difesa vs. accusa) a tutti i prompt AI e un toggle `defense_position` per-evento nella timeline.
+Nine slices complete and pushed to `main`. Slice 9 aggiunge un wizard di onboarding (spotlight) che guida il tester al primo fascicolo: `crea → carica → analizza`. Slice 8 aggiunge epistemic stance (difesa vs. accusa) a tutti i prompt AI e un toggle `defense_position` per-evento nella timeline.
 
 Target verified:
 
@@ -25,6 +25,25 @@ Latest commits:
 ---
 
 ## Completed in this slice
+
+### Slice 9 — Mini wizard di onboarding (spotlight) per i tester
+
+**Problema:** un tester al primo avvio non sa da dove partire. Invece di un ennesimo caso demo, un wizard guida la creazione del **primo fascicolo reale** con spotlight sui pulsanti veri.
+
+**Nuovi file (`alpha-pwa/frontend/src/onboarding/`):**
+- `wizardBus.ts` — micro pub/sub (eventi `new-case-drawer-opened`, `case-created`, `upload-opened`, `analyze-started`) + persistenza `localStorage['plt:onboarding:dismissed']` (`isOnboardingActive`, `dismissOnboarding`).
+- `OnboardingWizard.tsx` — overlay spotlight montato in `App`. 4 step (`crea → nome cliente → carica → analizza`). Tracking del target via `requestAnimationFrame` (gestisce mount lazy, scroll, resize, animazione drawer; re-render solo al cambio rect). Tooltip con "Avanti"/"Salta"/"Non mostrare più". Default-on a ogni avvio finché non si opt-out.
+
+**Modifiche:**
+- `main.tsx`: monta `<OnboardingWizard view={view} />`; `data-tour="new-case"` sui due pulsanti crea + `openNewCase` che emette `new-case-drawer-opened`; `NewCaseDrawer` ha la modalità `clientNameMode` (chiede "Nome del cliente", titolo → `Caso <nome>`); `handleCreate` emette `case-created`.
+- `CaseDetailView.tsx`: `data-tour` su "Aggiungi documento"/"Analizza" + emit `upload-opened` / `analyze-started`.
+- `styles.css`: blocco `.onboarding-*` (spotlight + tooltip, token Carta & Inchiostro). Variante `.onboarding-spotlight--nodim` per i target dentro un drawer (solo anello, niente oscuramento — fix conflitto z-index drawer 20 vs overlay 10000).
+
+**Delega:** CSS scritto da subagent Haiku su spec verbatim, reviewato da Opus.
+
+**Build:** ✓ zero errori TypeScript. I 4 test script invariati passano. QA browser su deploy (localhost non disponibile da remoto).
+
+---
 
 ### Slice 8 — Epistemic stance (prospettiva difensiva) · defense_position per-evento
 

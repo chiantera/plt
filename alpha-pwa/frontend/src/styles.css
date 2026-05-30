@@ -1622,3 +1622,126 @@ blockquote {
   .draft-side-panel { order: -1; }
   .draft-tab { min-width: 160px; }
 }
+
+/* ── Onboarding wizard (spotlight) ───────────────────────────────── */
+
+.onboarding-overlay {
+  position: fixed; inset: 0; z-index: 10000;
+  pointer-events: none;
+}
+
+.onboarding-spotlight {
+  position: fixed;
+  border-radius: 10px;
+  pointer-events: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 0 0 9999px rgba(20, 16, 12, 0.55), 0 0 0 3px var(--sigillo);
+}
+
+/* Target inside a modal/drawer that already dims the page: ring only, no dimming. */
+.onboarding-spotlight--nodim {
+  box-shadow: 0 0 0 3px var(--sigillo);
+}
+
+.onboarding-tooltip {
+  position: fixed;
+  z-index: 10001;
+  pointer-events: auto;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-3);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-2);
+  max-width: 320px;
+}
+
+.onboarding-step-count {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.7rem;
+  color: var(--ink-4);
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.onboarding-title {
+  font-family: var(--font-display);
+  color: var(--ink-1);
+  font-size: 1.1rem;
+  margin: 0 0 10px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.onboarding-body {
+  color: var(--ink-3);
+  line-height: 1.5;
+  font-size: 0.9rem;
+  margin: 0 0 12px;
+}
+
+.onboarding-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.onboarding-skip {
+  background: transparent;
+  color: var(--ink-4);
+  border: none;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color var(--dur-2) var(--ease);
+}
+
+.onboarding-skip:hover {
+  color: var(--ink-3);
+}
+
+.onboarding-next {
+  background: var(--sigillo);
+  color: var(--paper);
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: var(--radius-2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background var(--dur-2) var(--ease);
+}
+
+.onboarding-next:hover {
+  background: var(--sigillo-deep);
+}
+
+.onboarding-next:active {
+  transform: scale(0.97);
+}
+
+.onboarding-dontshow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 0.78rem;
+  color: var(--ink-4);
+}
+
+.onboarding-dontshow input[type="checkbox"] {
+  cursor: pointer;
+  margin: 0;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--sigillo);
+}
+
+.onboarding-dontshow label {
+  cursor: pointer;
+}

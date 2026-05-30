@@ -12,6 +12,8 @@ const MultiFileUploadDrawer = React.lazy(() => import('./components/MultiFileUpl
 const CaseDetailView = React.lazy(() => import('./screens/CaseDetailView'));
 import { ChatDrawer, FloatingChatButton, FabRestoreButton } from './components/ChatPanel';
 import GiuliaPromptBar from './components/GiuliaPromptBar';
+import OnboardingWizard from './onboarding/OnboardingWizard';
+import { wizardBus, isOnboardingActive } from './onboarding/wizardBus';
 import './tokens.css';
 import './styles.css';
 import { API } from './config';
@@ -84,8 +86,11 @@ if (import.meta.env.VITE_MOCK_DATA === 'true') installMockApi();
 
 // ── Domain helpers ───────────────────────────────────────────────────────────
 
-function NewCaseDrawer({ onClose, onCreate }: { onClose: () => void; onCreate: (title: string) => void }) {
-  const [title, setTitle] = useState('');
+function NewCaseDrawer({ onClose, onCreate, clientNameMode = false }: { onClose: () => void; onCreate: (title: string) => void; clientNameMode?: boolean }) {
+  const [value, setValue] = useState('');
+  // In onboarding, ask for the client name and derive the case title "Caso <nome>".
+  const titleFor = (v: string) => clientNameMode ? `Caso ${v.trim()}` : v.trim();
+  const submit = () => { if (value.trim()) onCreate(titleFor(value)); };
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <aside className="source-drawer upload-drawer" onClick={e => e.stopPropagation()}>
@@ -95,19 +100,23 @@ function NewCaseDrawer({ onClose, onCreate }: { onClose: () => void; onCreate: (
           <button title="Chiudi o annulla" onClick={onClose} className="ghost-button"><X size={18} /></button>
         </div>
         <div className="upload-field">
-          <label>Titolo del caso</label>
+          <label>{clientNameMode ? 'Nome del cliente' : 'Titolo del caso'}</label>
           <input
             className="upload-input"
-            placeholder="es. Caso Rossi — Furto aggravato"
-            value={title}
+            data-tour={clientNameMode ? 'client-name' : undefined}
+            placeholder={clientNameMode ? 'es. Sig. Rossi (anche pseudonimo o soprannome)' : 'es. Caso Rossi — Furto aggravato'}
+            value={value}
             autoFocus
-            onChange={e => setTitle(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && title.trim()) onCreate(title.trim()); }}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submit(); }}
           />
+          {clientNameMode && value.trim() && (
+            <p className="muted" style={{ marginTop: 6, fontSize: '0.82rem' }}>Il fascicolo si chiamerà «Caso {value.trim()}».</p>
+          )}
         </div>
         <div className="upload-actions">
           <button className="ghost-button" onClick={onClose} title="Annulla operazione">Annulla</button>
-          <button title="Conferma operazione principale" className="primary-button" disabled={!title.trim()} onClick={() => title.trim() && onCreate(title.trim())}>
+          <button title="Conferma operazione principale" className="primary-button" disabled={!value.trim()} onClick={submit}>
             <FolderPlus size={15} /> Crea fascicolo
           </button>
         </div>
@@ -406,7 +415,13 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
     });
     setLocalIds(prev => new Set([...prev, newCase.case_id]));
     onSelect(newCase.case_id);
+    wizardBus.emit('case-created');
   }, [localOwnerId, onSelect]);
+
+  const openNewCase = useCallback(() => {
+    setShowUpload(true);
+    wizardBus.emit('new-case-drawer-opened');
+  }, []);
 
   const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -457,7 +472,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
             {search && <button className="cases-search-clear" title="Azzera ricerca" onClick={() => setSearch('')}><X size={14} /></button>}
           </div>
         )}
-        <button className="primary-button home-new-btn" title="Crea un nuovo fascicolo vuoto" onClick={() => setShowUpload(true)}>
+        <button className="primary-button home-new-btn" data-tour="new-case" title="Crea un nuovo fascicolo vuoto" onClick={openNewCase}>
           <Plus size={15} /> Nuovo fascicolo
         </button>
         <button title="Esegui azione" className="secondary-button" onClick={() => document.getElementById('import-file-input')?.click()}>
@@ -540,7 +555,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
               Inizia creando un nuovo fascicolo vuoto per analizzare documenti, oppure importa un file <code>.plt</code> protetto.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button className="primary-button" onClick={() => setShowUpload(true)} title="Crea un nuovo fascicolo vuoto">
+              <button className="primary-button" data-tour="new-case" onClick={openNewCase} title="Crea un nuovo fascicolo vuoto">
                 <Plus size={15} /> Nuovo Fascicolo
               </button>
             </div>
@@ -581,7 +596,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
         ))}
       </div>
 
-      {showUpload && <NewCaseDrawer onClose={() => setShowUpload(false)} onCreate={handleCreate} />}
+      {showUpload && <NewCaseDrawer onClose={() => setShowUpload(false)} onCreate={handleCreate} clientNameMode={isOnboardingActive()} />}
     </main>
   );
 }
@@ -771,6 +786,7 @@ function App() {
         onClear={() => setChat(prev => ({ ...prev, messages: [] }))}
         streaming={chatStreaming}
       />
+      <OnboardingWizard view={view} />
     </>
   );
 }
