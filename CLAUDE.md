@@ -7,6 +7,8 @@ You are working in `/home/deckard/projects/plt`, the Pocket Legal Triage (PLT) w
 Repo: `chiantera/plt` (`origin https://github.com/chiantera/plt.git`).  
 Working convention: commit coherent slices directly to `main` and push, unless Deckard explicitly asks for a branch or worktree.
 
+Remote workflow: when Deckard works remotely he may ask you to send screenshots or code snippets to his Gmail via the Google Workspace integration (local `gws` skill pack, gitignored).
+
 ---
 
 ## Mission
