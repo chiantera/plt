@@ -22,17 +22,8 @@ const STEPS: Step[] = [
     screen: 'cases',
     selector: '[data-tour="new-case"]',
     title: 'Crea il tuo primo fascicolo',
-    body: 'Tocca «Nuovo fascicolo» per iniziare. Ti accompagno passo dopo passo.',
+    body: 'Tocca «Nuovo fascicolo»: ti chiederò il nome del tuo cliente e creerò il fascicolo.',
     advanceOn: 'new-case-drawer-opened',
-  },
-  {
-    id: 'client-name',
-    screen: 'cases',
-    selector: '[data-tour="client-name"]',
-    title: 'Come si chiama il tuo cliente?',
-    body: 'Va bene anche uno pseudonimo o un soprannome. Chiamerò il fascicolo «Caso <nome>».',
-    advanceOn: 'case-created',
-    dim: false, // input is inside the drawer, which already dims the page
   },
   {
     id: 'add-doc',
