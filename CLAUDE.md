@@ -180,6 +180,7 @@ Before saying work is complete:
    ```bash
    cd alpha-pwa/frontend && npm run build
    ```
+   Optionally run `npm run doctor` (react-doctor) on frontend changes to catch lint / a11y / bundle-size / architecture regressions. `/doctor` (skill in `alpha-pwa/frontend/skills/react-doctor/`) runs the full local-triage workflow.
 4. Run relevant frontend test scripts:
    ```bash
    npm run test:plt-export
@@ -224,6 +225,7 @@ The Vite dev server proxies `/api/*` to `http://localhost:8000`. Auth bypass is 
 - Real `.env` files
 - `netlify.toml` contents pasted raw into docs or summaries (contains deploy/env values)
 - Secrets of any kind
+- `assets/screenshots/` is a gitignored scratch drop-folder; screenshots used in `README.md` are already tracked, add new doc/marketing ones with `git add -f`.
 
 ---
 

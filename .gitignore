@@ -6,6 +6,10 @@
 # Local/private research and marketing collateral
 studiolegale-ai-package/
 
+# Scratch screenshots drop-folder (README/marketing). Screenshots used in
+# README.md are already tracked; add new ones for docs with `git add -f`.
+assets/screenshots/
+
 # Local environment files and secrets
 .env
 .env.*

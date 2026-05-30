@@ -126,7 +126,7 @@ Before saying work is complete:
 
 1. Verify target repo/path/branch/remote.
 2. Run focused backend tests for touched backend behavior.
-3. Run frontend build/type checks for touched frontend behavior.
+3. Run frontend build/type checks for touched frontend behavior. Optionally run `npm run doctor` (react-doctor) for lint / a11y / bundle-size / architecture health; `/doctor` runs the full local-triage workflow (skill in `alpha-pwa/frontend/skills/react-doctor/`).
 4. Use browser QA for user-visible flow changes when practical.
 5. Run `git diff --check` before commit.
 6. **Aggiorna `07-prompts/2026-05-26-plt-ai-prompts-map.md`** se cambi qualsiasi prompt, wording, policy Flash/Pro, o guardrail Cassazione. È il source-of-truth vivo dei prompt.
