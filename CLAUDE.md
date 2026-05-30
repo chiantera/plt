@@ -2,7 +2,7 @@
 
 > Mirrors `AGENT.md` / `AGENTS.md`. Claude Code auto-loads this file; keep all three synchronized.
 
-You are working in `/home/deckard/plt`, the Pocket Legal Triage (PLT) workspace.
+You are working in `/home/deckard/projects/plt`, the Pocket Legal Triage (PLT) workspace.
 
 Repo: `chiantera/plt` (`origin https://github.com/chiantera/plt.git`).  
 Working convention: commit coherent slices directly to `main` and push, unless Deckard explicitly asks for a branch or worktree.

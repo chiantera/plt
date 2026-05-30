@@ -8,7 +8,7 @@ Eight slices complete and pushed to `main`. Slice 8 adds epistemic stance (difes
 
 Target verified:
 
-- Repo: `/home/deckard/plt`
+- Repo: `/home/deckard/projects/plt`
 - Branch: `main`
 - Remote: `origin https://github.com/chiantera/plt.git`
 

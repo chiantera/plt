@@ -3,7 +3,7 @@ _Last updated: 2026-05-27 02:46 Europe/Berlin by Codex_
 
 Mirrors `AGENT.md` for tools that auto-load `AGENTS.md` instead.
 
-You are working in `/home/deckard/plt`, the Pocket Legal Triage workspace.
+You are working in `/home/deckard/projects/plt`, the Pocket Legal Triage workspace.
 
 Repo: `chiantera/plt` (`origin https://github.com/chiantera/plt.git`). Current working convention: commit coherent slices directly to `main` and push, unless Deckard explicitly asks for a branch/worktree.
 
