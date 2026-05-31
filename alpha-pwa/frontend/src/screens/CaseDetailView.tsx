@@ -1723,6 +1723,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     }));
     setUploadQueue(prev => [...prev, ...newItems]);
     processItems(newItems);
+    wizardBus.emit('material-added');
   }, [showToast, processItems]);
 
   const handleAddTextItem = useCallback((text: string, name?: string, category: 'fascicolo' | 'giurisprudenza' = 'fascicolo') => {
@@ -1757,6 +1758,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       return updated;
     });
     showToast(`"${label}" aggiunto!`);
+    wizardBus.emit('material-added');
   }, [showToast]);
 
   const handleAddUrlItem = useCallback(async (url: string, name: string) => {
@@ -1772,6 +1774,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       description: label,
     };
     setUploadQueue(prev => [...prev, item]);
+    wizardBus.emit('material-added');
     try {
       const res = await fetch(`${API}/api/fetch-url`, {
         method: 'POST',
@@ -3031,6 +3034,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             onClose={() => {
               setUploadQueue(prev => prev.filter(i => i.status !== 'done'));
               setShowUpload(false);
+              wizardBus.emit('upload-closed');
             }}
             onAddFiles={handleAddFiles}
             onRemoveItem={handleRemoveQueueItem}

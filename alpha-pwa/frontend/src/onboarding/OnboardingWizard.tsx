@@ -22,23 +22,23 @@ const STEPS: Step[] = [
     screen: 'cases',
     selector: '[data-tour="new-case"]',
     title: 'Crea il tuo primo fascicolo',
-    body: 'Tocca «Nuovo fascicolo»: ti chiederò il nome del tuo cliente e creerò il fascicolo.',
+    body: 'Tocca «Nuovo fascicolo» qui evidenziato. Ti chiederò il nome del cliente (anche uno pseudonimo) e creerò il fascicolo «Caso <nome>».',
     advanceOn: 'new-case-drawer-opened',
   },
   {
     id: 'add-doc',
     screen: 'case',
     selector: '[data-tour="add-document"]',
-    title: 'Aggiungi un documento',
-    body: 'Carica un atto, un verbale o la foto di un documento del caso.',
-    advanceOn: 'upload-opened',
+    title: 'Aggiungi il materiale del caso',
+    body: 'Apri «Aggiungi documento» e inserisci qualcosa: carica gli atti (PDF o foto), oppure scrivi o detta una breve descrizione del caso. Basta un solo elemento — senza materiale il fascicolo non viene salvato.',
+    advanceOn: 'material-added',
   },
   {
     id: 'analyze',
     screen: 'case',
     selector: '[data-tour="analyze"]',
-    title: 'Analizza il caso',
-    body: 'Avvia l’analisi: GiulIA organizza fatti, timeline e questioni in un fascicolo pulito.',
+    title: 'Analizza con AI',
+    body: 'Ora avvia l’analisi: GiulIA legge il materiale e costruisce fatti, timeline e questioni in un fascicolo ordinato. L’analisi consuma crediti.',
     advanceOn: 'analyze-started',
   },
 ];
@@ -47,6 +47,8 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
   const [active, setActive] = useState(() => !isOnboardingDismissed());
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
+  // Hide the overlay while the upload drawer is open (it dims the page itself).
+  const [suppressed, setSuppressed] = useState(false);
   const rafRef = useRef<number | null>(null);
   const lastKeyRef = useRef('');
 
@@ -67,10 +69,18 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
     return wizardBus.on(step.advanceOn, advance);
   }, [active, step, advance]);
 
+  // Hide the overlay while the upload drawer is open; restore when it closes.
+  useEffect(() => {
+    if (!active) return;
+    const offOpen = wizardBus.on('upload-opened', () => setSuppressed(true));
+    const offClose = wizardBus.on('upload-closed', () => setSuppressed(false));
+    return () => { offOpen(); offClose(); };
+  }, [active]);
+
   // Track the target element rect via rAF (handles async/lazy mount, scroll,
   // resize and drawer animations). Only re-renders when the rect changes.
   useEffect(() => {
-    if (!active || !step || !onCurrentScreen) return;
+    if (!active || !step || !onCurrentScreen || suppressed) return;
     let mounted = true;
     lastKeyRef.current = '';
     const tick = () => {
@@ -96,12 +106,11 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
       lastKeyRef.current = '';
       setRect(null);
     };
-  }, [active, step, onCurrentScreen]);
+  }, [active, step, onCurrentScreen, suppressed]);
 
-  const skip = useCallback(() => setActive(false), []);
   const dontShow = useCallback(() => { dismissOnboarding(); setActive(false); }, []);
 
-  if (!active || !step || !onCurrentScreen) return null;
+  if (!active || !step || !onCurrentScreen || suppressed) return null;
 
   const PAD = 8;
   const hole = rect
@@ -129,10 +138,6 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
         <div className="onboarding-step-count">Passo {stepIndex + 1} di {STEPS.length}</div>
         <h3 className="onboarding-title">{step.title}</h3>
         <p className="onboarding-body">{step.body}</p>
-        <div className="onboarding-actions">
-          <button type="button" className="onboarding-skip" onClick={skip}>Salta</button>
-          <button type="button" className="onboarding-next" onClick={advance}>Avanti</button>
-        </div>
         <label className="onboarding-dontshow">
           <input type="checkbox" onChange={e => { if (e.target.checked) dontShow(); }} />
           Non mostrare più
