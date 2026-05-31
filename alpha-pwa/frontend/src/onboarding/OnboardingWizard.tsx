@@ -21,7 +21,7 @@ const STEPS: Step[] = [
     id: 'create',
     screen: 'cases',
     selector: '[data-tour="new-case"]',
-    title: 'Crea il tuo primo fascicolo',
+    title: 'Crea un nuovo fascicolo',
     body: 'Tocca «Nuovo fascicolo» qui evidenziato. Ti chiederò il nome del cliente (anche uno pseudonimo) e creerò il fascicolo «Caso <nome>».',
     advanceOn: 'new-case-drawer-opened',
   },
@@ -82,12 +82,19 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
   useEffect(() => {
     if (!active || !step || !onCurrentScreen || suppressed) return;
     let mounted = true;
+    let scrolled = false; // scroll an off-screen target into view once per step
     lastKeyRef.current = '';
     const tick = () => {
       if (!mounted) return;
       const el = document.querySelector(step.selector) as HTMLElement | null;
       if (el) {
         const r = el.getBoundingClientRect();
+        if (!scrolled && r.width > 0 && r.height > 0) {
+          scrolled = true;
+          if (r.top < 0 || r.bottom > window.innerHeight || r.left < 0 || r.right > window.innerWidth) {
+            el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+          }
+        }
         if (r.width > 0 && r.height > 0) {
           const key = `${Math.round(r.top)}|${Math.round(r.left)}|${Math.round(r.width)}|${Math.round(r.height)}`;
           if (key !== lastKeyRef.current) { lastKeyRef.current = key; setRect(r); }
@@ -108,6 +115,9 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
     };
   }, [active, step, onCurrentScreen, suppressed]);
 
+  // Close just for this session (no opt-out): the wizard returns next launch.
+  const closeForSession = useCallback(() => setActive(false), []);
+  // Permanent opt-out: don't show again in future sessions.
   const dontShow = useCallback(() => { dismissOnboarding(); setActive(false); }, []);
 
   if (!active || !step || !onCurrentScreen || suppressed) return null;
@@ -135,6 +145,7 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
     <div className="onboarding-overlay">
       {hole && <div className={`onboarding-spotlight${step.dim === false ? ' onboarding-spotlight--nodim' : ''}`} style={{ position: 'fixed', ...hole }} aria-hidden="true" />}
       <div className="onboarding-tooltip" aria-live="polite" aria-label="Tutorial guidato" style={{ position: 'fixed', ...ttStyle }}>
+        <button type="button" className="onboarding-close" aria-label="Chiudi il tutorial per ora" onClick={closeForSession}>✕</button>
         <div className="onboarding-step-count">Passo {stepIndex + 1} di {STEPS.length}</div>
         <h3 className="onboarding-title">{step.title}</h3>
         <p className="onboarding-body">{step.body}</p>

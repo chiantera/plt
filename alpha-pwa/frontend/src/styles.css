@@ -1655,7 +1655,27 @@ blockquote {
   max-width: 320px;
 }
 
+.onboarding-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--ink-4);
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: var(--radius-1, 6px);
+  transition: color var(--dur-2) var(--ease);
+}
+
+.onboarding-close:hover {
+  color: var(--ink-2);
+}
+
 .onboarding-step-count {
+  padding-right: 18px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-size: 0.7rem;
