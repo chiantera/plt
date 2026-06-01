@@ -12,9 +12,6 @@ interface Step {
   /** Bus event that advances this step. Omitted for the auth step, which
    *  advances automatically once the user leaves the login screen. */
   advanceOn?: WizardEvent;
-  /** When false, highlight the target with just a ring (no page dimming).
-   *  Used for targets inside a modal/drawer that already dims the page. */
-  dim?: boolean;
 }
 
 // Spotlight-guided first-run tour: login → crea → carica → analizza.
@@ -192,7 +189,7 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
 
   return (
     <div className="onboarding-overlay">
-      {hole && <div className={`onboarding-spotlight${step.dim === false ? ' onboarding-spotlight--nodim' : ''}`} style={{ position: 'fixed', ...hole }} aria-hidden="true" />}
+      {hole && <div className="onboarding-spotlight" style={{ position: 'fixed', ...hole }} aria-hidden="true" />}
       <div ref={tooltipRef} className="onboarding-tooltip" aria-live="polite" aria-label="Tutorial guidato" style={{ position: 'fixed', ...ttStyle }}>
         <button type="button" className="onboarding-close" aria-label="Chiudi il tutorial per ora" onClick={closeForSession}>✕</button>
         <h3 className="onboarding-title">{step.title}</h3>

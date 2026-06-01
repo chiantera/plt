@@ -4,7 +4,6 @@
 
 export type WizardEvent =
   | 'new-case-drawer-opened'
-  | 'case-created'
   | 'upload-opened'
   | 'upload-closed'
   | 'material-added'

@@ -415,7 +415,6 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
     });
     setLocalIds(prev => new Set([...prev, newCase.case_id]));
     onSelect(newCase.case_id);
-    wizardBus.emit('case-created');
   }, [localOwnerId, onSelect]);
 
   const openNewCase = useCallback(() => {

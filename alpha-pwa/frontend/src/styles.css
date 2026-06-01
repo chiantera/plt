@@ -1643,11 +1643,6 @@ blockquote {
   box-shadow: 0 0 0 9999px rgba(20, 16, 12, 0.55), 0 0 0 3px var(--sigillo);
 }
 
-/* Target inside a modal/drawer that already dims the page: ring only, no dimming. */
-.onboarding-spotlight--nodim {
-  box-shadow: 0 0 0 3px var(--sigillo);
-}
-
 .onboarding-tooltip {
   position: fixed;
   z-index: 10001;
@@ -1677,16 +1672,6 @@ blockquote {
 
 .onboarding-close:hover {
   color: var(--ink-2);
-}
-
-.onboarding-step-count {
-  padding-right: 18px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 0.7rem;
-  color: var(--ink-4);
-  margin-bottom: 8px;
-  font-weight: 700;
 }
 
 .onboarding-title {
