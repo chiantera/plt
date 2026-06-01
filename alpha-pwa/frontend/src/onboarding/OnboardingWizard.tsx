@@ -111,9 +111,11 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
         if (r.width > 0 && r.height > 0) {
           const offScreen = r.top < 0 || r.bottom > window.innerHeight || r.left < 0 || r.right > window.innerWidth;
           const now = performance.now();
-          if (offScreen && now - lastScroll > 500 && now - stepStart < 3000) {
+          if (offScreen && now - lastScroll > 400 && now - stepStart < 3000) {
             lastScroll = now;
-            el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+            // Instant (not smooth): repeated smooth calls during layout settle
+            // cancel each other out and leave the target off-screen.
+            el.scrollIntoView({ block: 'center', inline: 'center' });
           }
         }
         if (r.width > 0 && r.height > 0) {
