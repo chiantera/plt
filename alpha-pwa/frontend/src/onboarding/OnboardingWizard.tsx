@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { wizardBus, isOnboardingDismissed, dismissOnboarding, type WizardEvent } from './wizardBus';
 
-type Screen = 'cases' | 'case';
+type Screen = 'auth' | 'cases' | 'case';
 
 interface Step {
   id: string;
@@ -9,14 +9,24 @@ interface Step {
   selector: string;
   title: string;
   body: string;
-  advanceOn: WizardEvent;
+  /** Bus event that advances this step. Omitted for the auth step, which
+   *  advances automatically once the user leaves the login screen. */
+  advanceOn?: WizardEvent;
   /** When false, highlight the target with just a ring (no page dimming).
    *  Used for targets inside a modal/drawer that already dims the page. */
   dim?: boolean;
 }
 
-// Spotlight-guided first-run tour: crea → carica → analizza.
+// Spotlight-guided first-run tour: login → crea → carica → analizza.
 const STEPS: Step[] = [
+  {
+    id: 'auth',
+    screen: 'auth',
+    selector: '[data-tour="auth-card"]',
+    title: 'Benvenuto in Pocket Legal Triage',
+    body: 'Accedi o registrati per iniziare: bastano email e password. Poi ti guido a creare il tuo primo fascicolo.',
+    // advances via the login-detection effect below (no bus event)
+  },
   {
     id: 'create',
     screen: 'cases',
@@ -65,9 +75,15 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
 
   // Advance when the matching real action fires.
   useEffect(() => {
-    if (!active || !step) return;
+    if (!active || !step || !step.advanceOn) return;
     return wizardBus.on(step.advanceOn, advance);
   }, [active, step, advance]);
+
+  // Auth step advances once the user is past the login screen (logged in),
+  // whether via the form or a restored session.
+  useEffect(() => {
+    if (active && step && step.screen === 'auth' && view !== 'auth') advance();
+  }, [active, step, view, advance]);
 
   // Hide the overlay while the upload drawer is open; restore when it closes.
   useEffect(() => {

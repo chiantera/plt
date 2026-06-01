@@ -262,7 +262,7 @@ function AuthScreen() {
           </ul>
         </section>
 
-        <div className="auth-card">
+        <div className="auth-card" data-tour="auth-card">
           <div className="auth-card-kicker">Accesso riservato</div>
           <div className="auth-tabs">
             {(['login', 'signup'] as const).map(t => (
@@ -759,34 +759,38 @@ function App() {
     </div>
   );
 
-  if (!session) return <AuthScreen />;
-
   return (
     <>
-      {/* Keep both views mounted; hide the inactive one so background analysis survives navigation */}
-      <div style={view === 'case' ? { display: 'none' } : undefined}>
-        <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onOpenChat={openChat} />
-      </div>
-      {selectedCaseId && (
-        <div style={view !== 'case' ? { display: 'none' } : undefined}>
-          <Suspense fallback={<div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)' }}><Loader2 size={28} className="spin" style={{ color: 'var(--giulia-ink)' }} /></div>}>
-            <CaseDetailView key={selectedCaseId} caseId={selectedCaseId} session={session} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
-          </Suspense>
-        </div>
+      {session ? (
+        <>
+          {/* Keep both views mounted; hide the inactive one so background analysis survives navigation */}
+          <div style={view === 'case' ? { display: 'none' } : undefined}>
+            <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onOpenChat={openChat} />
+          </div>
+          {selectedCaseId && (
+            <div style={view !== 'case' ? { display: 'none' } : undefined}>
+              <Suspense fallback={<div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)' }}><Loader2 size={28} className="spin" style={{ color: 'var(--giulia-ink)' }} /></div>}>
+                <CaseDetailView key={selectedCaseId} caseId={selectedCaseId} session={session} onBack={handleBack} onOpenChat={openChat} onCaseLoaded={handleCaseLoaded} onCaseAnalyzed={() => setListRefreshKey(k => k + 1)} />
+              </Suspense>
+            </div>
+          )}
+          {fabHidden
+            ? <FabRestoreButton onRestore={restoreFab} />
+            : <FloatingChatButton onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))} hasContext={!!activeCaseData} onHide={hideFab} />
+          }
+          <ChatDrawer
+            state={chat}
+            onClose={() => setChat(prev => ({ ...prev, open: false }))}
+            onSend={sendMessage}
+            onQuickAction={openChat}
+            onClear={() => setChat(prev => ({ ...prev, messages: [] }))}
+            streaming={chatStreaming}
+          />
+        </>
+      ) : (
+        <AuthScreen />
       )}
-      {fabHidden
-        ? <FabRestoreButton onRestore={restoreFab} />
-        : <FloatingChatButton onClick={() => setChat(prev => ({ ...prev, open: !prev.open }))} hasContext={!!activeCaseData} onHide={hideFab} />
-      }
-      <ChatDrawer
-        state={chat}
-        onClose={() => setChat(prev => ({ ...prev, open: false }))}
-        onSend={sendMessage}
-        onQuickAction={openChat}
-        onClear={() => setChat(prev => ({ ...prev, messages: [] }))}
-        streaming={chatStreaming}
-      />
-      <OnboardingWizard view={view} />
+      <OnboardingWizard view={session ? view : 'auth'} />
     </>
   );
 }
