@@ -18,6 +18,24 @@ are what the code falls back to when the var is unset.
 | `GROQ_API_KEY` | for voice | — | Speech-to-text (Whisper) for "Nota vocale". Missing → `/api/transcribe` returns 503; invalid → 502. |
 | `MISTRAL_API_KEY` | for OCR | `""` | OCR of scanned PDFs / images (`ocr_adapter.py`). |
 
+### Getting the provider keys
+
+- **Groq** (`GROQ_API_KEY`) — voice-note transcription. Go to
+  [console.groq.com](https://console.groq.com) → sign in → **API Keys** →
+  **Create API Key** → copy it (starts with `gsk_`; it's shown only once). Has a
+  free tier — no billing needed for testing. Paste into `GROQ_API_KEY` on Render.
+  An expired/revoked key gives Groq `401` (→ transcription fails); just create a
+  new one and replace it.
+- **DeepSeek** (`DEEPSEEK_API_KEY`) — [platform.deepseek.com](https://platform.deepseek.com)
+  → API keys → create (`sk-…`). Requires a funded account (pay-as-you-go).
+- **Mistral** (`MISTRAL_API_KEY`) — [console.mistral.ai](https://console.mistral.ai)
+  → API Keys. Used for OCR.
+- **Anthropic** (`ANTHROPIC_API_KEY`, optional fallback) —
+  [console.anthropic.com](https://console.anthropic.com) → API Keys (`sk-ant-…`).
+
+Each key is created in the provider's web console and pasted into the matching
+Render env var; the app never stores them in code.
+
 ### Model routing & budgets
 | Var | Default | Purpose |
 |---|---|---|
