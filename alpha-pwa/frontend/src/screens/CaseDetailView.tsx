@@ -9,6 +9,7 @@ import {
 import { type Session } from '@supabase/supabase-js';
 import { API } from '../config';
 import { wizardBus } from '../onboarding/wizardBus';
+import AnalysisProgressBanner from '../analysis/AnalysisProgressBanner';
 import { formatDate, formatDateFull, formatShortDate } from '../dateUtils';
 import { dbGet, dbSave, localOwnerIdFromSession } from '../db';
 import { exportEncryptedPlt, exportPlainPlt } from '../pltExport';
@@ -1543,7 +1544,6 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
   const [uploadProcessing, setUploadProcessing] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [showAbortConfirm, setShowAbortConfirm] = useState(false);
   const [generatingDraftId, setGeneratingDraftId] = useState<string | null>(null);
   const analyzeAbortRef = useRef<AbortController | null>(null);
   const [analyzeMode, setAnalyzeMode] = useState<'flash' | 'pro'>(() => {
@@ -2081,7 +2081,6 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     wizardBus.emit('analyze-started');
     setShowUpload(false);
     setUploadQueue(prev => prev.filter(i => i.status !== 'done'));
-    setShowAbortConfirm(false);
     const controller = new AbortController();
     analyzeAbortRef.current = controller;
     setAnalyzing(true);
@@ -2141,7 +2140,6 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       }
     } finally {
       setAnalyzing(false);
-      setShowAbortConfirm(false);
       analyzeAbortRef.current = null;
     }
   }, [caseData, localOwnerId, showToast, onCaseLoaded, onCaseAnalyzed]);
@@ -2247,36 +2245,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {/* Back button */}
       <button className="back-button" title="Torna alla lista principale dei fascicoli" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
 
-      {analyzing && (
-        <div className="analysis-banner">
-          {showAbortConfirm ? (
-            <>
-              <div className="analysis-banner-spinner" />
-              <span className="analysis-banner-text">Abbandonare l'analisi?</span>
-              <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', flexShrink: 0 }}>
-                <button className="analysis-banner-btn" onClick={() => setShowAbortConfirm(false)}>
-                  Continua
-                </button>
-                <button className="analysis-banner-btn analysis-banner-btn--danger"
-                  onClick={() => { analyzeAbortRef.current?.abort(); setShowAbortConfirm(false); }}>
-                  Abbandona
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="analysis-banner-spinner" />
-              <span className="analysis-banner-text">Analisi AI in corso</span>
-              <div className="analysis-overlay-bar analysis-banner-bar">
-                <div className="analysis-overlay-bar-fill" />
-              </div>
-              <button className="analysis-banner-btn" onClick={() => setShowAbortConfirm(true)}>
-                Rinuncia
-              </button>
-            </>
-          )}
-        </div>
-      )}
+      <AnalysisProgressBanner analyzing={analyzing} onAbort={() => analyzeAbortRef.current?.abort()} />
 
       {/* Hero */}
       <section className="hero-card">
