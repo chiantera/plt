@@ -106,6 +106,9 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
     const tick = () => {
       if (!mounted) return;
       const el = document.querySelector(step.selector) as HTMLElement | null;
+      const w = (window as unknown as Record<string, unknown>);
+      const r0 = el && el.getBoundingClientRect();
+      w.__wiz = { stepId: step.id, selector: step.selector, view, onCurrentScreen, foundEl: !!el, w: r0 ? Math.round(r0.width) : 0, h: r0 ? Math.round(r0.height) : 0, top: r0 ? Math.round(r0.top) : null, sinceStart: Math.round(performance.now() - stepStart), ticks: (((w.__wiz as { ticks?: number })?.ticks) || 0) + 1 };
       if (el) {
         const r = el.getBoundingClientRect();
         if (r.width > 0 && r.height > 0) {
