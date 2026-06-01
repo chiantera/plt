@@ -15,6 +15,8 @@ export default function MultiFileUploadDrawer({
   onAddTextItem,
   processing,
   onAnalyze,
+  analyzeMode,
+  onModeChange,
 }: {
   queue: UploadQueueItem[];
   onClose: () => void;
@@ -24,6 +26,8 @@ export default function MultiFileUploadDrawer({
   onAddTextItem: (text: string, name?: string, category?: 'fascicolo' | 'giurisprudenza') => void;
   processing: boolean;
   onAnalyze?: () => void;
+  analyzeMode?: 'flash' | 'pro';
+  onModeChange?: (m: 'flash' | 'pro') => void;
 }) {
   const [activeTab, setActiveTab] = useState<'fascicolo' | 'giurisprudenza'>('fascicolo');
   const [dragging, setDragging] = useState(false);
@@ -314,15 +318,36 @@ export default function MultiFileUploadDrawer({
             )}
             {errorCount > 0 && <span className="upload-status-error">{errorCount} errore/i</span>}
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <button className="ghost-button" onClick={onClose}>Chiudi</button>
             {doneCount > 0 && onAnalyze && (
-              <button className="primary-button upload-analyze-btn" onClick={onAnalyze}>
-                <Sparkles size={15} /> Avvia Analisi AI
-              </button>
+              <>
+                {onModeChange && (
+                  <div className="mode-toggle" role="group" aria-label="Modalità analisi AI">
+                    <button
+                      type="button"
+                      className={`mode-toggle-btn${analyzeMode !== 'pro' ? ' active' : ''}`}
+                      onClick={() => onModeChange('flash')}
+                      title="Analisi Flash — veloce, estrae struttura e fatti"
+                    >Flash</button>
+                    <button
+                      type="button"
+                      className={`mode-toggle-btn mode-toggle-btn--pro${analyzeMode === 'pro' ? ' active' : ''}`}
+                      onClick={() => onModeChange('pro')}
+                      title="Analisi Pro — ragionamento profondo su contraddizioni, strategie e rischi"
+                    >✦ Pro</button>
+                  </div>
+                )}
+                <button className="primary-button upload-analyze-btn" onClick={onAnalyze}>
+                  <Sparkles size={15} /> {analyzeMode === 'pro' ? 'Avvia Analisi (Pro)' : 'Avvia Analisi'}
+                </button>
+              </>
             )}
           </div>
         </div>
+        {doneCount > 0 && onAnalyze && (
+          <p className="upload-credits-note">L’analisi consuma crediti. Scegli Flash (veloce) o Pro (più approfondita) qui sopra.</p>
+        )}
       </aside>
     </div>
   );

@@ -3042,6 +3042,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             onAddTextItem={handleAddTextItem}
             processing={uploadProcessing}
             onAnalyze={() => handleAnalyze(analyzeMode)}
+            analyzeMode={analyzeMode}
+            onModeChange={setAndSaveMode}
           />
         </Suspense>
       )}

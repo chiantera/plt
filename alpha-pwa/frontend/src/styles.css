@@ -289,7 +289,7 @@ button:active { transform: scale(0.97); }
 
 /* ── Drawers ─────────────────────────────────────────────────────────────── */
 .drawer-backdrop {
-  position: fixed; inset: 0; z-index: 20;
+  position: fixed; inset: 0; z-index: 500;
   background: rgba(26,24,20,0.5); display: flex; align-items: flex-end;
 }
 .source-drawer {
@@ -411,13 +411,16 @@ blockquote {
 /* ── Upload drawer: mic button ────────────────────────────────────────────── */
 .mic-btn {
   display: flex; align-items: center; gap: 6px;
-  padding: 5px 10px; border-radius: 999px; border: none; cursor: pointer;
-  font-weight: 600; font-size: 0.69rem; font: inherit; font-size: 0.69rem;
-  background: var(--paper-sunken); color: var(--ink-4);
-  transition: background var(--dur-1), color var(--dur-1);
+  padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-weight: 700; font-size: 0.74rem;
+  background: var(--paper-sunken); color: var(--giulia-ink);
+  border: 1px solid var(--rule-strong);
+  transition: background var(--dur-1), color var(--dur-1), border-color var(--dur-1);
 }
+.mic-btn:hover { background: var(--giulia-soft); border-color: var(--giulia-ink); }
 .mic-btn:disabled { opacity: 0.5; cursor: default; }
 .mic-btn--recording { background: var(--critical-soft); color: var(--critical); }
+.upload-credits-note { margin: 8px 0 0; font-size: 0.74rem; color: var(--ink-4); text-align: right; }
 .mic-btn-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--critical); display: inline-block;

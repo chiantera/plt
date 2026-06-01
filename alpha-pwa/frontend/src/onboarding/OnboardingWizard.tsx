@@ -75,7 +75,7 @@ const STEPS: Step[] = [
     screen: 'case',
     inDrawer: true,
     title: 'Materiale aggiunto!',
-    body: 'Da qui puoi fare tre cose: aggiungere altri documenti, chiudere il drawer per tornare al fascicolo, oppure avviare subito l’analisi con il pulsante «Avvia Analisi AI» qui nel drawer.',
+    body: 'Da qui puoi: aggiungere altri documenti, chiudere il drawer per tornare al fascicolo, oppure avviare subito l’analisi. Prima di avviarla scegli Flash (veloce) o Pro (più approfondita) col toggle accanto al pulsante — l’analisi consuma crediti.',
     advanceOn: 'upload-closed',
   },
   {
