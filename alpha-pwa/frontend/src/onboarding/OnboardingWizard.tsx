@@ -97,30 +97,27 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
   // resize and drawer animations). Only re-renders when the rect changes.
   useEffect(() => {
     if (!active || !step || !onCurrentScreen || suppressed) return;
+    // Bring the target into view as soon as the step is active. Done synchronously
+    // (plus a few timed retries for late layout shifts) rather than inside the rAF
+    // loop, whose callback can be cancelled by a re-render before it ever fires.
+    const scrollTargetIntoView = () => {
+      const el = document.querySelector(step.selector) as HTMLElement | null;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (r.height > 0 && (r.top < 0 || r.bottom > window.innerHeight || r.left < 0 || r.right > window.innerWidth)) {
+        el.scrollIntoView({ block: 'center', inline: 'center' });
+      }
+    };
+    scrollTargetIntoView();
+    const timers = [350, 900, 1800].map(ms => window.setTimeout(scrollTargetIntoView, ms));
+
     let mounted = true;
-    // Nudge an off-screen target into view, retrying (throttled) while the layout
-    // settles over the first few seconds — then leave the user's scroll alone.
-    let lastScroll = 0;
-    const stepStart = performance.now();
     lastKeyRef.current = '';
     const tick = () => {
       if (!mounted) return;
       const el = document.querySelector(step.selector) as HTMLElement | null;
-      const w = (window as unknown as Record<string, unknown>);
-      const r0 = el && el.getBoundingClientRect();
-      w.__wiz = { stepId: step.id, selector: step.selector, view, onCurrentScreen, foundEl: !!el, w: r0 ? Math.round(r0.width) : 0, h: r0 ? Math.round(r0.height) : 0, top: r0 ? Math.round(r0.top) : null, sinceStart: Math.round(performance.now() - stepStart), ticks: (((w.__wiz as { ticks?: number })?.ticks) || 0) + 1 };
       if (el) {
         const r = el.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) {
-          const offScreen = r.top < 0 || r.bottom > window.innerHeight || r.left < 0 || r.right > window.innerWidth;
-          const now = performance.now();
-          if (offScreen && now - lastScroll > 400 && now - stepStart < 3000) {
-            lastScroll = now;
-            // Instant (not smooth): repeated smooth calls during layout settle
-            // cancel each other out and leave the target off-screen.
-            el.scrollIntoView({ block: 'center', inline: 'center' });
-          }
-        }
         if (r.width > 0 && r.height > 0) {
           const key = `${Math.round(r.top)}|${Math.round(r.left)}|${Math.round(r.width)}|${Math.round(r.height)}`;
           if (key !== lastKeyRef.current) { lastKeyRef.current = key; setRect(r); }
@@ -136,6 +133,7 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
     return () => {
       mounted = false;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      timers.forEach(clearTimeout);
       lastKeyRef.current = '';
       setRect(null);
     };
