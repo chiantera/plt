@@ -1,12 +1,23 @@
 from pathlib import Path
 
 
-FRONTEND = Path(__file__).resolve().parents[2] / "frontend" / "src" / "main.tsx"
-STYLES = Path(__file__).resolve().parents[2] / "frontend" / "src" / "styles.css"
+SRC = Path(__file__).resolve().parents[2] / "frontend" / "src"
+STYLES = SRC / "styles.css"
+
+
+def _frontend_source() -> str:
+    """The UI was split across files (app shell + case workspace + upload drawer).
+    Scan the combined source so these checks survive component extraction."""
+    files = [
+        SRC / "main.tsx",
+        SRC / "screens" / "CaseDetailView.tsx",
+        SRC / "components" / "MultiFileUploadDrawer.tsx",
+    ]
+    return "\n".join(f.read_text() for f in files)
 
 
 def test_mobile_navigation_uses_product_language_not_raw_model_names():
-    source = FRONTEND.read_text()
+    source = _frontend_source()
 
     # Tab labels present
     assert "label: 'Cronologia'" in source
@@ -28,11 +39,11 @@ def test_mobile_navigation_uses_product_language_not_raw_model_names():
 
 
 def test_dashboard_cards_and_navigation_links_are_wired():
-    source = FRONTEND.read_text()
+    source = _frontend_source()
     styles = STYLES.read_text()
 
-    # Stats cards still wired to navigation
-    assert "className=\"stats-card\"" in source
+    # Home stats wired; case tabs switchable
+    assert "className=\"home-stats\"" in source
     assert "setActiveTab" in source
 
     # Cases list view present
