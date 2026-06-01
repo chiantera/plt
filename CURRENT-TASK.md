@@ -1,10 +1,10 @@
 # CURRENT TASK — PLT alpha handoff and backlog
 
-_Last updated: 2026-05-28 by Claude_
+_Last updated: 2026-06-01 by Claude_
 
 ## Current status
 
-Nine slices complete and pushed to `main`. Slice 9 aggiunge un wizard di onboarding (spotlight) che guida il tester al primo fascicolo: `crea → carica → analizza`. Slice 8 aggiunge epistemic stance (difesa vs. accusa) a tutti i prompt AI e un toggle `defense_position` per-evento nella timeline.
+Nine slices complete and pushed to `main`. Slice 9 aggiunge un wizard di onboarding (spotlight) che guida il tester dal login al primo fascicolo: `login → crea → carica → analizza`. Slice 8 aggiunge epistemic stance (difesa vs. accusa) a tutti i prompt AI e un toggle `defense_position` per-evento nella timeline.
 
 Target verified:
 
@@ -26,22 +26,36 @@ Latest commits:
 
 ## Completed in this slice
 
-### Slice 9 — Mini wizard di onboarding (spotlight) per i tester
+### Slice 9 — Wizard di onboarding (spotlight) per i tester
 
-**Problema:** un tester al primo avvio non sa da dove partire. Invece di un ennesimo caso demo, un wizard guida la creazione del **primo fascicolo reale** con spotlight sui pulsanti veri.
+**Problema:** un tester al primo avvio non sa da dove partire. Invece di un ennesimo caso demo, un wizard guida la creazione del **primo fascicolo reale** con spotlight sui pulsanti veri. Tour: **login → crea → carica → analizza**.
 
 **Nuovi file (`alpha-pwa/frontend/src/onboarding/`):**
-- `wizardBus.ts` — micro pub/sub (eventi `new-case-drawer-opened`, `case-created`, `upload-opened`, `analyze-started`) + persistenza `localStorage['plt:onboarding:dismissed']` (`isOnboardingActive`, `dismissOnboarding`).
-- `OnboardingWizard.tsx` — overlay spotlight montato in `App`. 4 step (`crea → nome cliente → carica → analizza`). Tracking del target via `requestAnimationFrame` (gestisce mount lazy, scroll, resize, animazione drawer; re-render solo al cambio rect). Tooltip con "Avanti"/"Salta"/"Non mostrare più". Default-on a ogni avvio finché non si opt-out.
+- `wizardBus.ts` — micro pub/sub disaccoppiato dai componenti (eventi: `new-case-drawer-opened`, `case-created`, `upload-opened`, `upload-closed`, `material-added`, `analyze-started`) + persistenza opt-out `localStorage['plt:onboarding:dismissed']` (`isOnboardingActive`, `isOnboardingDismissed`, `dismissOnboarding`).
+- `OnboardingWizard.tsx` — overlay spotlight montato **una sola volta** in `App` (sopra sia il ramo auth che quello autenticato). Step (screen → target → avanza su):
+  1. `auth` → `[data-tour="auth-card"]` → avanza quando si lascia la login (effetto su `view`).
+  2. `create` (cases) → `[data-tour="new-case"]` → `new-case-drawer-opened`.
+  3. `add-doc` (case) → `[data-tour="add-document"]` → `material-added` (non al semplice apertura del drawer).
+  4. `analyze` (case) → `[data-tour="analyze"]` → `analyze-started` → fine.
 
-**Modifiche:**
-- `main.tsx`: monta `<OnboardingWizard view={view} />`; `data-tour="new-case"` sui due pulsanti crea + `openNewCase` che emette `new-case-drawer-opened`; `NewCaseDrawer` ha la modalità `clientNameMode` (chiede "Nome del cliente", titolo → `Caso <nome>`); `handleCreate` emette `case-created`.
-- `CaseDetailView.tsx`: `data-tour` su "Aggiungi documento"/"Analizza" + emit `upload-opened` / `analyze-started`.
-- `styles.css`: blocco `.onboarding-*` (spotlight + tooltip, token Carta & Inchiostro). Variante `.onboarding-spotlight--nodim` per i target dentro un drawer (solo anello, niente oscuramento — fix conflitto z-index drawer 20 vs overlay 10000).
+**Comportamenti chiave:**
+- **Posizionamento tooltip** sempre dentro il viewport: sotto/sopra il target se c'è spazio, altrimenti **centrato** (con `maxHeight`+scroll). Fix per finestre molto basse dove il target riempie lo schermo.
+- **scrollIntoView** del target eseguito **sincrono** all'attivazione dello step (+ retry temporizzati) — non dentro il loop rAF, il cui callback poteva essere cancellato da un re-render prima di partire (bug osservato sull'auth step). Il rAF traccia solo il rect.
+- **Soppressione** mentre il drawer di upload è aperto (`upload-opened`/`upload-closed`) per non oscurarlo.
+- **Niente contatore** "Passo n di N" mostrato allo user (interno).
+- **× = chiudi per la sessione** (riappare al prossimo avvio); **checkbox "Non mostrare più"** = opt-out permanente.
+- **Click fuori dal pannello** = nasconde solo quel pannello (`hiddenStep`); i listener di avanzamento restano attivi, quindi il pannello successivo si apre comunque quando triggerato.
 
-**Delega:** CSS scritto da subagent Haiku su spec verbatim, reviewato da Opus.
+**Modifiche ai file esistenti:**
+- `main.tsx`: mount singolo `<OnboardingWizard view={session ? view : 'auth'} />`; `data-tour="new-case"` sui due pulsanti crea + `openNewCase` (emette `new-case-drawer-opened`); `NewCaseDrawer` con `clientNameMode` (chiede "Nome del cliente", titolo → `Caso <nome>`) attivo durante l'onboarding; `data-tour="auth-card"` sulla card di login; `handleCreate` emette `case-created`.
+- `CaseDetailView.tsx`: `data-tour` su "Aggiungi documento"/"Analizza"; emit `upload-opened`/`upload-closed` (apertura/chiusura drawer), `material-added` (in `handleAddFiles`/`handleAddTextItem`/`handleAddUrlItem`), `analyze-started` (in `handleAnalyze`).
+- `styles.css`: blocco `.onboarding-*` (spotlight + tooltip, token Carta & Inchiostro) + `.onboarding-close`. **Fix layout auth mobile:** gli override `@media (max-width:540px)` dell'auth sono stati spostati **dopo** le regole base `.auth-*` (a parità di specificità vince l'ultima nel sorgente): prima la colonna intro collassava a ~0px e il testo diventava illeggibile su telefono.
 
-**Build:** ✓ zero errori TypeScript. I 4 test script invariati passano. QA browser su deploy (localhost non disponibile da remoto).
+**Delega:** CSS iniziale scritto da subagent Haiku su spec verbatim, reviewato da Opus.
+
+**Verifica:** ✓ build TypeScript pulito; i 4 test script invariati passano; QA browser end-to-end sul deploy Netlify (login sloggato → crea → carica testo → analizza), incluso il caso finestra bassa.
+
+**Nota prossimi passi:** tra il pannello 3 (`add-doc`) e il 4 (`analyze`) potrebbero servire 1-2 pannelli aggiuntivi (da definire con Deckard).
 
 ---
 

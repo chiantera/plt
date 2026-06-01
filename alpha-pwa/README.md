@@ -178,6 +178,10 @@ frontend/
       ChatPanel.tsx       ChatDrawer · FloatingChatButton · FabRestoreButton
       MultiFileUploadDrawer.tsx  (lazy-loaded chunk)
 
+    onboarding/
+      OnboardingWizard.tsx  First-run spotlight tour (login → crea → carica → analizza)
+      wizardBus.ts          Pub/sub for advancement events + opt-out persistence
+
     data/
       demo.json           Demo case fixture for local dev
       mockApi.ts          Mock API for offline testing
