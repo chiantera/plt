@@ -152,20 +152,23 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
   const TT_WIDTH = 300;
   const TT_H = 200; // height estimate for placement; maxHeight keeps it bounded
   const maxHeight = Math.max(140, window.innerHeight - 24);
+  // Centered fallback — always fully inside the viewport.
+  const centered: React.CSSProperties = { top: '50%', left: '50%', width: TT_WIDTH, transform: 'translate(-50%, -50%)', maxHeight, overflowY: 'auto' };
   let ttStyle: React.CSSProperties;
   if (hole) {
     let left = hole.left + hole.width / 2 - TT_WIDTH / 2;
     left = Math.max(12, Math.min(left, window.innerWidth - TT_WIDTH - 12));
     const belowTop = hole.top + hole.height + 12;
     const aboveTop = hole.top - 12 - TT_H;
-    let top: number;
-    if (belowTop + TT_H <= window.innerHeight) top = belowTop;      // fits below
-    else if (aboveTop >= 12) top = aboveTop;                        // fits above
-    else top = window.innerHeight - TT_H - 12;                      // tall target: pin in viewport
-    top = Math.max(12, Math.min(top, window.innerHeight - 48));     // never off-screen
-    ttStyle = { top, left, width: TT_WIDTH, maxHeight, overflowY: 'auto' };
+    if (belowTop + TT_H <= window.innerHeight) {
+      ttStyle = { top: belowTop, left, width: TT_WIDTH, maxHeight, overflowY: 'auto' };   // fits below
+    } else if (aboveTop >= 12) {
+      ttStyle = { top: aboveTop, left, width: TT_WIDTH, maxHeight, overflowY: 'auto' };    // fits above
+    } else {
+      ttStyle = centered;  // target too tall to sit a tooltip beside it
+    }
   } else {
-    ttStyle = { top: '50%', left: '50%', width: TT_WIDTH, transform: 'translate(-50%, -50%)', maxHeight, overflowY: 'auto' };
+    ttStyle = centered;
   }
 
   return (
