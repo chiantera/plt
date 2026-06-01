@@ -82,17 +82,23 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
   useEffect(() => {
     if (!active || !step || !onCurrentScreen || suppressed) return;
     let mounted = true;
-    let scrolled = false; // scroll an off-screen target into view once per step
+    // Nudge an off-screen target into view, retrying (throttled) as the layout
+    // settles, until it is actually visible — then stop so we don't fight scroll.
+    let scrollSettled = false;
+    let lastScroll = 0;
     lastKeyRef.current = '';
     const tick = () => {
       if (!mounted) return;
       const el = document.querySelector(step.selector) as HTMLElement | null;
       if (el) {
         const r = el.getBoundingClientRect();
-        if (!scrolled && r.width > 0 && r.height > 0) {
-          scrolled = true;
-          if (r.top < 0 || r.bottom > window.innerHeight || r.left < 0 || r.right > window.innerWidth) {
-            el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+        if (!scrollSettled && r.width > 0 && r.height > 0) {
+          const offScreen = r.top < 0 || r.bottom > window.innerHeight || r.left < 0 || r.right > window.innerWidth;
+          if (offScreen) {
+            const now = performance.now();
+            if (now - lastScroll > 500) { lastScroll = now; el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' }); }
+          } else {
+            scrollSettled = true;
           }
         }
         if (r.width > 0 && r.height > 0) {
