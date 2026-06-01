@@ -1447,6 +1447,11 @@ blockquote {
 .auth-accept { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; padding: 11px 12px; border: 1px solid var(--rule); border-radius: var(--radius-2); background: var(--paper-sunken); color: var(--ink-2); font-size: 0.8rem; line-height: 1.45; cursor: pointer; }
 .auth-accept input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--sigillo); flex: none; }
 .auth-accept-hint { margin-top: 8px !important; color: var(--warning); font-size: 0.75rem; font-weight: 700; }
+.auth-tour-backdrop { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 18px; background: rgba(20, 16, 12, 0.55); }
+.auth-tour-panel { position: static; max-width: 380px; width: 100%; }
+.auth-tour-steps { margin: 0 0 16px; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--ink-2); font-size: 0.88rem; line-height: 1.45; }
+.auth-tour-steps strong { color: var(--ink-1); }
+.auth-tour-ok { width: 100%; padding: 12px; border-radius: var(--radius-2); border: none; background: var(--sigillo); color: var(--paper-raised); font-weight: 700; font-size: 0.9rem; cursor: pointer; font-family: inherit; transition: background var(--dur-1); }
 .auth-brand { display: flex; align-items: center; gap: 12px; }
 .auth-brand--hero { margin-bottom: 0; }
 .auth-brand-icon { width: 42px; height: 42px; border-radius: var(--radius-2); flex: none; background: var(--sigillo); display: flex; align-items: center; justify-content: center; color: var(--paper-raised); }

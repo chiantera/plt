@@ -203,6 +203,42 @@ function useAuth() {
   return session;
 }
 
+const AUTH_TOUR_KEY = 'plt:auth-tour:dismissed';
+
+/** First-run welcome panel on the login page. Reuses the wizard's `.tour-*`
+ *  look. Guides the user: read the warning → tick the box → sign in / sign up.
+ *  ✕ / "Ho capito" close for this visit; "Non mostrare più" persists. */
+function AuthTour() {
+  const [show, setShow] = useState(() => {
+    try { return localStorage.getItem(AUTH_TOUR_KEY) !== '1'; } catch { return false; }
+  });
+  if (!show) return null;
+  const close = () => setShow(false);
+  const never = () => {
+    try { localStorage.setItem(AUTH_TOUR_KEY, '1'); } catch {}
+    setShow(false);
+  };
+  return (
+    <div className="auth-tour-backdrop" role="dialog" aria-modal="true" aria-labelledby="auth-tour-title">
+      <div className="tour-tooltip auth-tour-panel">
+        <button type="button" className="tour-close" aria-label="Chiudi" onClick={close}>✕</button>
+        <h3 className="tour-title" id="auth-tour-title">Benvenuto in PLT 👋</h3>
+        <p className="tour-body">Prima di entrare, tre passaggi rapidi:</p>
+        <ol className="auth-tour-steps">
+          <li>Leggi l'<strong>avvertimento</strong> qui a fianco (responsabilità professionale e privacy).</li>
+          <li>Spunta «<strong>Ho letto e compreso</strong>».</li>
+          <li><strong>Accedi</strong> o <strong>registrati</strong> con la tua email.</li>
+        </ol>
+        <button type="button" className="auth-tour-ok" onClick={close}>Ho capito, iniziamo</button>
+        <label className="tour-dontshow">
+          <input type="checkbox" onChange={e => { if (e.target.checked) never(); }} />
+          Non mostrare più
+        </label>
+      </div>
+    </div>
+  );
+}
+
 function AuthScreen() {
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
@@ -236,6 +272,7 @@ function AuthScreen() {
 
   return (
     <div className="auth-screen">
+      <AuthTour />
       <div className="auth-shell">
         <div className="auth-col">
           <div className="auth-disclaimer auth-disclaimer--card" role="note">
