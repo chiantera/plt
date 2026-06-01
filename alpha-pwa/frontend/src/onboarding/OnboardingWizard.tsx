@@ -98,23 +98,22 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
   useEffect(() => {
     if (!active || !step || !onCurrentScreen || suppressed) return;
     let mounted = true;
-    // Nudge an off-screen target into view, retrying (throttled) as the layout
-    // settles, until it is actually visible — then stop so we don't fight scroll.
-    let scrollSettled = false;
+    // Nudge an off-screen target into view, retrying (throttled) while the layout
+    // settles over the first few seconds — then leave the user's scroll alone.
     let lastScroll = 0;
+    const stepStart = performance.now();
     lastKeyRef.current = '';
     const tick = () => {
       if (!mounted) return;
       const el = document.querySelector(step.selector) as HTMLElement | null;
       if (el) {
         const r = el.getBoundingClientRect();
-        if (!scrollSettled && r.width > 0 && r.height > 0) {
+        if (r.width > 0 && r.height > 0) {
           const offScreen = r.top < 0 || r.bottom > window.innerHeight || r.left < 0 || r.right > window.innerWidth;
-          if (offScreen) {
-            const now = performance.now();
-            if (now - lastScroll > 500) { lastScroll = now; el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' }); }
-          } else {
-            scrollSettled = true;
+          const now = performance.now();
+          if (offScreen && now - lastScroll > 500 && now - stepStart < 3000) {
+            lastScroll = now;
+            el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
           }
         }
         if (r.width > 0 && r.height > 0) {
@@ -162,7 +161,7 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
     const aboveTop = hole.top - 12 - TT_H;
     if (belowTop + TT_H <= window.innerHeight) {
       ttStyle = { top: belowTop, left, width: TT_WIDTH, maxHeight, overflowY: 'auto' };   // fits below
-    } else if (aboveTop >= 12) {
+    } else if (aboveTop >= 12 && hole.top - 12 <= window.innerHeight) {
       ttStyle = { top: aboveTop, left, width: TT_WIDTH, maxHeight, overflowY: 'auto' };    // fits above
     } else {
       ttStyle = centered;  // target too tall to sit a tooltip beside it
