@@ -150,17 +150,22 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
     : null;
 
   const TT_WIDTH = 300;
+  const TT_H = 200; // height estimate for placement; maxHeight keeps it bounded
+  const maxHeight = Math.max(140, window.innerHeight - 24);
   let ttStyle: React.CSSProperties;
   if (hole) {
-    const belowTop = hole.top + hole.height + 12;
-    const placeBelow = belowTop + 170 < window.innerHeight || hole.top < 180;
     let left = hole.left + hole.width / 2 - TT_WIDTH / 2;
     left = Math.max(12, Math.min(left, window.innerWidth - TT_WIDTH - 12));
-    ttStyle = placeBelow
-      ? { top: belowTop, left, width: TT_WIDTH }
-      : { top: Math.max(12, hole.top - 12), left, width: TT_WIDTH, transform: 'translateY(-100%)' };
+    const belowTop = hole.top + hole.height + 12;
+    const aboveTop = hole.top - 12 - TT_H;
+    let top: number;
+    if (belowTop + TT_H <= window.innerHeight) top = belowTop;      // fits below
+    else if (aboveTop >= 12) top = aboveTop;                        // fits above
+    else top = window.innerHeight - TT_H - 12;                      // tall target: pin in viewport
+    top = Math.max(12, Math.min(top, window.innerHeight - 48));     // never off-screen
+    ttStyle = { top, left, width: TT_WIDTH, maxHeight, overflowY: 'auto' };
   } else {
-    ttStyle = { top: '50%', left: '50%', width: TT_WIDTH, transform: 'translate(-50%, -50%)' };
+    ttStyle = { top: '50%', left: '50%', width: TT_WIDTH, transform: 'translate(-50%, -50%)', maxHeight, overflowY: 'auto' };
   }
 
   return (
