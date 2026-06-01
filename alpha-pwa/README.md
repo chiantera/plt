@@ -88,6 +88,8 @@ Useful frontend env vars:
 
 Do not commit real `.env` files once the app moves beyond closed alpha testing.
 
+**Full env-var reference** (Render backend, Netlify frontend, Supabase setup): [`docs/environment.md`](docs/environment.md).
+
 ## Android APK
 
 The Android wrapper lives under `frontend/android/`. For a debug APK:
