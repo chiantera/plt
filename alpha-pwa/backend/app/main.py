@@ -407,15 +407,10 @@ async def transcribe_audio(file: UploadFile = File(...)) -> dict[str, Any]:
             language="it",
             response_format="text",
         )
-    except Exception as e:  # surface the real cause instead of an opaque 500
+    except Exception:  # log the real cause server-side; keep the client message generic
         import logging
         logging.getLogger("uvicorn.error").exception("Groq transcription failed")
-        msg = str(e).lower()
-        if getattr(e, "status_code", None) == 401 or "invalid_api_key" in msg or "invalid api key" in msg:
-            detail = "Trascrizione non riuscita: chiave Groq non valida o scaduta (aggiorna GROQ_API_KEY)."
-        else:
-            detail = f"Trascrizione non riuscita ({type(e).__name__})."
-        raise HTTPException(status_code=502, detail=detail)
+        raise HTTPException(status_code=502, detail="Trascrizione non riuscita. Contatta studiolegale.ai@gmail.com")
 
     return {"text": transcription if isinstance(transcription, str) else transcription.text}
 

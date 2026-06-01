@@ -62,7 +62,7 @@ export default function MultiFileUploadDrawer({
             setPasteText(prev => prev ? prev + '\n\n' + data.text : data.text);
             setPendingItemName('Nota vocale');
           } else {
-            alert(`Trascrizione non riuscita: ${data.detail || `errore ${res.status}`}`);
+            alert('Trascrizione non riuscita. Contatta studiolegale.ai@gmail.com');
           }
         } finally {
           setTranscribing(false);
