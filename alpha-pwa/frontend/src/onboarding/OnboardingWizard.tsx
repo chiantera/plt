@@ -59,8 +59,12 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
   const [rect, setRect] = useState<DOMRect | null>(null);
   // Hide the overlay while the upload drawer is open (it dims the page itself).
   const [suppressed, setSuppressed] = useState(false);
+  // Step the user dismissed by clicking outside its panel. The panel is hidden,
+  // but advancement keeps listening so the NEXT step still appears when triggered.
+  const [hiddenStep, setHiddenStep] = useState<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastKeyRef = useRef('');
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
 
   const step = STEPS[stepIndex];
   const onCurrentScreen = !!step && step.screen === view;
@@ -93,10 +97,23 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
     return () => { offOpen(); offClose(); };
   }, [active]);
 
+  // Click outside the panel hides just this step (advancement keeps listening,
+  // so the next panel still opens when its trigger fires).
+  useEffect(() => {
+    if (!active) return;
+    const onDown = (e: Event) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(e.target as Node)) {
+        setHiddenStep(stepIndex);
+      }
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  }, [active, stepIndex]);
+
   // Track the target element rect via rAF (handles async/lazy mount, scroll,
   // resize and drawer animations). Only re-renders when the rect changes.
   useEffect(() => {
-    if (!active || !step || !onCurrentScreen || suppressed) return;
+    if (!active || !step || !onCurrentScreen || suppressed || hiddenStep === stepIndex) return;
     // Bring the target into view as soon as the step is active. Done synchronously
     // (plus a few timed retries for late layout shifts) rather than inside the rAF
     // loop, whose callback can be cancelled by a re-render before it ever fires.
@@ -137,14 +154,14 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
       lastKeyRef.current = '';
       setRect(null);
     };
-  }, [active, step, onCurrentScreen, suppressed]);
+  }, [active, step, onCurrentScreen, suppressed, hiddenStep, stepIndex]);
 
   // Close just for this session (no opt-out): the wizard returns next launch.
   const closeForSession = useCallback(() => setActive(false), []);
   // Permanent opt-out: don't show again in future sessions.
   const dontShow = useCallback(() => { dismissOnboarding(); setActive(false); }, []);
 
-  if (!active || !step || !onCurrentScreen || suppressed) return null;
+  if (!active || !step || !onCurrentScreen || suppressed || hiddenStep === stepIndex) return null;
 
   const PAD = 8;
   const hole = rect
@@ -176,9 +193,8 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
   return (
     <div className="onboarding-overlay">
       {hole && <div className={`onboarding-spotlight${step.dim === false ? ' onboarding-spotlight--nodim' : ''}`} style={{ position: 'fixed', ...hole }} aria-hidden="true" />}
-      <div className="onboarding-tooltip" aria-live="polite" aria-label="Tutorial guidato" style={{ position: 'fixed', ...ttStyle }}>
+      <div ref={tooltipRef} className="onboarding-tooltip" aria-live="polite" aria-label="Tutorial guidato" style={{ position: 'fixed', ...ttStyle }}>
         <button type="button" className="onboarding-close" aria-label="Chiudi il tutorial per ora" onClick={closeForSession}>✕</button>
-        <div className="onboarding-step-count">Passo {stepIndex + 1} di {STEPS.length}</div>
         <h3 className="onboarding-title">{step.title}</h3>
         <p className="onboarding-body">{step.body}</p>
         <label className="onboarding-dontshow">
