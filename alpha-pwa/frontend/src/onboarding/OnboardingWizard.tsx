@@ -1,3 +1,29 @@
+/**
+ * OnboardingWizard — first-run spotlight tour for new testers.
+ *
+ * Mounted ONCE in `App` (above both the auth and authenticated branches) with
+ * `view = session ? appView : 'auth'`. A single instance persists across login,
+ * so the per-session close (×) and step progress survive the auth → app switch.
+ *
+ * Tour (one panel per step): login → crea → carica → analizza.
+ * Each STEP declares the screen it belongs to, the `[data-tour="…"]` element to
+ * spotlight, and how it advances:
+ *   - `auth`     → advances via an effect when `view` leaves 'auth' (logged in).
+ *   - the others → advance on a `wizardBus` event emitted by the real UI action
+ *     (open new-case drawer, add material, start analysis). The bus decouples
+ *     advancement from the components (incl. the lazy CaseDetailView).
+ *
+ * Behaviours:
+ *   - The target rect is tracked via rAF (spotlight follows layout/scroll).
+ *   - The target is scrolled into view SYNCHRONOUSLY when a step activates (the
+ *     rAF callback can be cancelled by a re-render before it fires).
+ *   - The tooltip is always kept inside the viewport (see tooltipStyle).
+ *   - The overlay is suppressed while the upload drawer is open.
+ *   - Clicking outside a panel hides just that panel (`hiddenStep`); advancement
+ *     keeps listening, so the next panel still opens when triggered.
+ *   - × closes for the session only; "Non mostrare più" opts out permanently
+ *     (localStorage). Default-on every launch until opted out.
+ */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { wizardBus, isOnboardingDismissed, dismissOnboarding, type WizardEvent } from './wizardBus';
 
