@@ -1020,13 +1020,6 @@ blockquote {
 }
 @media (max-width: 540px) {
   .strategy-cols, .witness-cols, .balance-cols { grid-template-columns: 1fr; }
-  .auth-screen { align-items: start; padding: 14px; }
-  .auth-shell { grid-template-columns: 1fr; gap: 14px; }
-  .auth-intro { padding: 22px; border-radius: var(--radius-3); }
-  .auth-intro h1 { font-size: clamp(2rem, 12vw, 3rem); }
-  .auth-feature-list { grid-template-columns: 1fr; gap: 9px; }
-  .auth-feature-list li { padding: 11px; }
-  .auth-card { padding: 22px; border-radius: var(--radius-3); }
 }
 @media (max-width: 420px) {
   .app-shell { padding-left: 10px; }
@@ -1557,6 +1550,18 @@ blockquote {
 .auth-submit:disabled { opacity: 0.45; cursor: not-allowed; }
 .auth-error { color: var(--critical); font-size: 0.82rem; padding: 10px 14px; background: var(--critical-soft); border: 1px solid var(--critical); border-radius: var(--radius-2); }
 .auth-info { color: var(--success); font-size: 0.82rem; padding: 10px 14px; background: var(--success-soft); border: 1px solid var(--success); border-radius: var(--radius-2); }
+
+/* Mobile auth layout — must come AFTER the base .auth-* rules above so the
+   single-column override wins (equal specificity → last one in source). */
+@media (max-width: 540px) {
+  .auth-screen { align-items: start; padding: 14px; }
+  .auth-shell { grid-template-columns: 1fr; gap: 14px; }
+  .auth-intro { padding: 22px; border-radius: var(--radius-3); }
+  .auth-intro h1 { font-size: clamp(1.9rem, 9vw, 2.8rem); }
+  .auth-feature-list { grid-template-columns: 1fr; gap: 9px; }
+  .auth-feature-list li { padding: 11px; }
+  .auth-card { padding: 22px; border-radius: var(--radius-3); }
+}
 
 /* ── Profile drawer ──────────────────────────────────────────────────────── */
 .profile-overlay { position: fixed; inset: 0; z-index: 400; background: rgba(26,24,20,0.5); display: flex; align-items: flex-end; justify-content: center; }
