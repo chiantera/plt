@@ -58,9 +58,33 @@ live locally in IndexedDB).
   and the **anon public** key into `VITE_SUPABASE_ANON_KEY`.
 - **Auth:** email/password sign-in & sign-up (`supabase.auth.signInWithPassword` /
   `signUp`). Enable the Email provider.
-- **Table `profiles`** (read/written by the Profile drawer), columns used:
-  `id` (uuid, = auth user id), `full_name`, `studio`, `phone`.
-  Recommended: RLS so a user can only read/write their own row (`id = auth.uid()`).
+- **Table `profiles`** (read/written by the Profile drawer). Schema + RLS below
+  mirror the live `plt-alpha` project (verified via the Supabase connector).
+  Paste into the SQL editor of a new project:
+
+```sql
+-- Profile rows are 1:1 with auth users.
+create table public.profiles (
+  id         uuid primary key references auth.users (id) on delete cascade,
+  full_name  text,
+  studio     text,
+  phone      text,
+  created_at timestamptz default now()
+);
+
+alter table public.profiles enable row level security;
+
+-- A user can read and write only their own profile row.
+create policy "users can read/write own profile"
+  on public.profiles
+  for all
+  to public
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
+```
+
+  > For a different domain (e.g. personal trainers) keep `id`/`created_at` and the
+  > policy; rename/extend the profile fields (`studio` → e.g. `gym`, etc.).
 
 ## Quick setup (new environment)
 
