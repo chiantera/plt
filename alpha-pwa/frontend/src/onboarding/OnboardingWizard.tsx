@@ -50,6 +50,26 @@ const STEPS: Step[] = [
   },
 ];
 
+type Hole = { top: number; left: number; width: number; height: number };
+
+// Position the tooltip beside the spotlight when there's room, otherwise center
+// it — always fully inside the viewport (maxHeight + scroll as a safety net).
+function tooltipStyle(hole: Hole | null): React.CSSProperties {
+  const TT_WIDTH = 300;
+  const TT_H = 200; // height estimate for placement; maxHeight keeps it bounded
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const base = { width: TT_WIDTH, maxHeight: Math.max(140, vh - 24), overflowY: 'auto' as const };
+  const centered: React.CSSProperties = { ...base, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+  if (!hole) return centered;
+  const left = Math.max(12, Math.min(hole.left + hole.width / 2 - TT_WIDTH / 2, vw - TT_WIDTH - 12));
+  const belowTop = hole.top + hole.height + 12;
+  const aboveTop = hole.top - 12 - TT_H;
+  if (belowTop + TT_H <= vh) return { ...base, top: belowTop, left };                  // fits below
+  if (aboveTop >= 12 && hole.top - 12 <= vh) return { ...base, top: aboveTop, left };  // fits above
+  return centered;                                                                     // target too tall
+}
+
 export default function OnboardingWizard({ view }: { view: Screen }) {
   const [active, setActive] = useState(() => !isOnboardingDismissed());
   const [stepIndex, setStepIndex] = useState(0);
@@ -164,28 +184,7 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
   const hole = rect
     ? { top: rect.top - PAD, left: rect.left - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2 }
     : null;
-
-  const TT_WIDTH = 300;
-  const TT_H = 200; // height estimate for placement; maxHeight keeps it bounded
-  const maxHeight = Math.max(140, window.innerHeight - 24);
-  // Centered fallback — always fully inside the viewport.
-  const centered: React.CSSProperties = { top: '50%', left: '50%', width: TT_WIDTH, transform: 'translate(-50%, -50%)', maxHeight, overflowY: 'auto' };
-  let ttStyle: React.CSSProperties;
-  if (hole) {
-    let left = hole.left + hole.width / 2 - TT_WIDTH / 2;
-    left = Math.max(12, Math.min(left, window.innerWidth - TT_WIDTH - 12));
-    const belowTop = hole.top + hole.height + 12;
-    const aboveTop = hole.top - 12 - TT_H;
-    if (belowTop + TT_H <= window.innerHeight) {
-      ttStyle = { top: belowTop, left, width: TT_WIDTH, maxHeight, overflowY: 'auto' };   // fits below
-    } else if (aboveTop >= 12 && hole.top - 12 <= window.innerHeight) {
-      ttStyle = { top: aboveTop, left, width: TT_WIDTH, maxHeight, overflowY: 'auto' };    // fits above
-    } else {
-      ttStyle = centered;  // target too tall to sit a tooltip beside it
-    }
-  } else {
-    ttStyle = centered;
-  }
+  const ttStyle = tooltipStyle(hole);
 
   return (
     <div className="onboarding-overlay">
