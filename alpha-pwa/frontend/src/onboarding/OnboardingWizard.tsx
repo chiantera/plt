@@ -26,6 +26,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { wizardBus, isOnboardingDismissed, dismissOnboarding, type WizardEvent } from './wizardBus';
+import './onboarding.css';
 
 type Screen = 'auth' | 'cases' | 'case';
 

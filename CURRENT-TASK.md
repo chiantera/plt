@@ -28,34 +28,36 @@ Latest commits:
 
 ### Slice 9 — Wizard di onboarding (spotlight) per i tester
 
-**Problema:** un tester al primo avvio non sa da dove partire. Invece di un ennesimo caso demo, un wizard guida la creazione del **primo fascicolo reale** con spotlight sui pulsanti veri. Tour: **login → crea → carica → analizza**.
+**Problema:** un tester al primo avvio non sa da dove partire. Invece di un ennesimo caso demo, un wizard guida la creazione del **primo fascicolo reale** con spotlight sui pulsanti veri. Tour (5 pannelli): **login → crea → carica → opzioni drawer → analizza**.
 
-**Nuovi file (`alpha-pwa/frontend/src/onboarding/`):**
-- `wizardBus.ts` — micro pub/sub disaccoppiato dai componenti (eventi: `new-case-drawer-opened`, `case-created`, `upload-opened`, `upload-closed`, `material-added`, `analyze-started`) + persistenza opt-out `localStorage['plt:onboarding:dismissed']` (`isOnboardingActive`, `isOnboardingDismissed`, `dismissOnboarding`).
+**Modulo portabile (`alpha-pwa/frontend/src/onboarding/`)** — pensato per essere copiato in un'altra app (vedi `onboarding/README.md`):
+- `wizardBus.ts` — micro pub/sub disaccoppiato dai componenti (eventi: `new-case-drawer-opened`, `upload-opened`, `upload-closed`, `material-added`, `analyze-started`) + persistenza opt-out `localStorage['plt:onboarding:dismissed']`.
 - `OnboardingWizard.tsx` — overlay spotlight montato **una sola volta** in `App` (sopra sia il ramo auth che quello autenticato). Step (screen → target → avanza su):
   1. `auth` → `[data-tour="auth-card"]` → avanza quando si lascia la login (effetto su `view`).
   2. `create` (cases) → `[data-tour="new-case"]` → `new-case-drawer-opened`.
   3. `add-doc` (case) → `[data-tour="add-document"]` → `material-added` (non al semplice apertura del drawer).
-  4. `analyze` (case) → `[data-tour="analyze"]` → `analyze-started` → fine.
+  4. `drawer-actions` (case, `inDrawer`) → nessuno spotlight, pannello ancorato in alto mentre il drawer è aperto; spiega le 3 opzioni (aggiungi altro / chiudi / analizza da qui) + crediti + scelta Flash/Pro → `upload-closed`.
+  5. `analyze` (case) → `[data-tour="analyze"]` → termina via listener globale `analyze-started`.
+- `onboarding.css` — stili spotlight/tooltip co-locati (dipende dai design token, elencati nel file/README).
+- `README.md` — guida al port (contratto d'integrazione + checklist).
 
 **Comportamenti chiave:**
-- **Posizionamento tooltip** sempre dentro il viewport: sotto/sopra il target se c'è spazio, altrimenti **centrato** (con `maxHeight`+scroll). Fix per finestre molto basse dove il target riempie lo schermo.
-- **scrollIntoView** del target eseguito **sincrono** all'attivazione dello step (+ retry temporizzati) — non dentro il loop rAF, il cui callback poteva essere cancellato da un re-render prima di partire (bug osservato sull'auth step). Il rAF traccia solo il rect.
-- **Soppressione** mentre il drawer di upload è aperto (`upload-opened`/`upload-closed`) per non oscurarlo.
-- **Niente contatore** "Passo n di N" mostrato allo user (interno).
-- **× = chiudi per la sessione** (riappare al prossimo avvio); **checkbox "Non mostrare più"** = opt-out permanente.
-- **Click fuori dal pannello** = nasconde solo quel pannello (`hiddenStep`); i listener di avanzamento restano attivi, quindi il pannello successivo si apre comunque quando triggerato.
+- **Tooltip** sempre dentro il viewport: sotto/sopra il target se c'è spazio, altrimenti **centrato**; per i pannelli `inDrawer` senza target è **ancorato in alto** (libera i pulsanti del drawer).
+- **scrollIntoView** del target **sincrono** all'attivazione (+ retry) — non nel loop rAF (il cui callback poteva essere cancellato da un re-render). Il rAF traccia solo il rect.
+- **Soppressione** mentre il drawer di upload è aperto (`upload-opened`/`upload-closed`); i pannelli `inDrawer` sono esenti.
+- **`analyze-started` termina il tour globalmente** (copre l'analisi lanciata da dentro il drawer).
+- **Niente contatore** "Passo n di N" allo user. **× = chiudi per la sessione**; **"Non mostrare più"** = opt-out permanente.
+- **Click fuori dal pannello** = nasconde solo quel pannello (`hiddenStep`); i listener di avanzamento restano attivi → il successivo si apre comunque. Il pannello `drawer-actions` riappare a ogni `material-added`.
 
 **Modifiche ai file esistenti:**
-- `main.tsx`: mount singolo `<OnboardingWizard view={session ? view : 'auth'} />`; `data-tour="new-case"` sui due pulsanti crea + `openNewCase` (emette `new-case-drawer-opened`); `NewCaseDrawer` con `clientNameMode` (chiede "Nome del cliente", titolo → `Caso <nome>`) attivo durante l'onboarding; `data-tour="auth-card"` sulla card di login; `handleCreate` emette `case-created`.
-- `CaseDetailView.tsx`: `data-tour` su "Aggiungi documento"/"Analizza"; emit `upload-opened`/`upload-closed` (apertura/chiusura drawer), `material-added` (in `handleAddFiles`/`handleAddTextItem`/`handleAddUrlItem`), `analyze-started` (in `handleAnalyze`).
-- `styles.css`: blocco `.onboarding-*` (spotlight + tooltip, token Carta & Inchiostro) + `.onboarding-close`. **Fix layout auth mobile:** gli override `@media (max-width:540px)` dell'auth sono stati spostati **dopo** le regole base `.auth-*` (a parità di specificità vince l'ultima nel sorgente): prima la colonna intro collassava a ~0px e il testo diventava illeggibile su telefono.
+- `main.tsx`: mount singolo `<OnboardingWizard view={session ? view : 'auth'} />`; `data-tour="new-case"` sui pulsanti crea + `openNewCase`; `NewCaseDrawer` con `clientNameMode` (titolo → `Caso <nome>`) durante l'onboarding; `data-tour="auth-card"` sulla card login.
+- `CaseDetailView.tsx`: `data-tour` su "Aggiungi documento"/"Analizza"; emit `upload-opened`/`upload-closed`/`material-added`/`analyze-started`; passa `analyzeMode`/`onModeChange` al drawer.
+- `MultiFileUploadDrawer.tsx`: **toggle Flash/Pro** accanto a "Avvia Analisi" + nota crediti; label del bottone in base al mode.
+- `styles.css`: **fix layout auth mobile** (override `@media (max-width:540px)` spostati **dopo** le regole base `.auth-*`: prima la colonna intro collassava a ~0px → testo illeggibile su telefono); **`.drawer-backdrop` z-index 20 → 500** (il drawer copre il FAB GiulIA, prima lo nascondeva); **`.mic-btn`** ("Nota vocale") contrasto migliorato (navy + bordo). Il blocco `.onboarding-*` è stato **spostato** in `onboarding/onboarding.css`.
 
-**Delega:** CSS iniziale scritto da subagent Haiku su spec verbatim, reviewato da Opus.
+**Verifica:** ✓ build TypeScript pulito; i 5 test script invariati passano; QA browser end-to-end sul deploy Netlify (login sloggato → crea → carica testo → opzioni → analizza), incluso il caso finestra bassa e il layout auth mobile.
 
-**Verifica:** ✓ build TypeScript pulito; i 4 test script invariati passano; QA browser end-to-end sul deploy Netlify (login sloggato → crea → carica testo → analizza), incluso il caso finestra bassa.
-
-**Nota prossimi passi:** tra il pannello 3 (`add-doc`) e il 4 (`analyze`) potrebbero servire 1-2 pannelli aggiuntivi (da definire con Deckard).
+**Nota:** il wizard verrà **portato in un'altra app** — vedi `onboarding/README.md` per il contratto d'integrazione e la checklist di port.
 
 ---
 
