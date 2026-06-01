@@ -1417,7 +1417,8 @@ blockquote {
 
 /* ── Auth screen ─────────────────────────────────────────────────────────── */
 .auth-screen { min-height: 100dvh; display: grid; place-items: center; padding: clamp(18px, 4vw, 36px); background: var(--paper); }
-.auth-shell { width: min(100%, 980px); display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, 380px); gap: clamp(18px, 4vw, 42px); align-items: center; }
+.auth-shell { width: min(100%, 980px); display: grid; grid-template-columns: minmax(340px, 420px) minmax(0, 1.05fr); gap: clamp(18px, 4vw, 42px); align-items: start; }
+.auth-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .auth-intro {
   min-width: 0; border: 1px solid var(--rule);
   background: var(--paper-raised);
@@ -1432,6 +1433,20 @@ blockquote {
 .auth-feature-list strong { color: var(--ink-1); font-size: 0.86rem; }
 .auth-feature-list span { color: var(--ink-3); font-size: 0.78rem; line-height: 1.4; }
 .auth-card { width: 100%; background: var(--paper-raised); border: 1px solid var(--rule); border-radius: var(--radius-4); padding: 28px; box-shadow: var(--shadow-2); }
+.auth-disclaimer {
+  width: min(100%, 980px);
+  margin: 0 auto 14px;
+  color: var(--ink-3);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+.auth-disclaimer strong { color: var(--ink-1); }
+.auth-disclaimer--card { width: 100%; margin: 0; padding: 16px 18px; border: 1px solid var(--rule); background: var(--paper-raised); border-radius: var(--radius-4); box-shadow: var(--shadow-2); font-size: 0.82rem; line-height: 1.5; }
+.auth-disclaimer--card p { margin: 0; }
+.auth-disclaimer--card p + p { margin-top: 12px; }
+.auth-accept { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; padding: 11px 12px; border: 1px solid var(--rule); border-radius: var(--radius-2); background: var(--paper-sunken); color: var(--ink-2); font-size: 0.8rem; line-height: 1.45; cursor: pointer; }
+.auth-accept input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--sigillo); flex: none; }
+.auth-accept-hint { margin-top: 8px !important; color: var(--warning); font-size: 0.75rem; font-weight: 700; }
 .auth-brand { display: flex; align-items: center; gap: 12px; }
 .auth-brand--hero { margin-bottom: 0; }
 .auth-brand-icon { width: 42px; height: 42px; border-radius: var(--radius-2); flex: none; background: var(--sigillo); display: flex; align-items: center; justify-content: center; color: var(--paper-raised); }
@@ -1452,6 +1467,10 @@ blockquote {
 
 /* Mobile auth layout — must come AFTER the base .auth-* rules above so the
    single-column override wins (equal specificity → last one in source). */
+@media (max-width: 880px) {
+  .auth-shell { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 540px) {
   .auth-screen { align-items: start; padding: 14px; }
   .auth-shell { grid-template-columns: 1fr; gap: 14px; }
@@ -1480,6 +1499,9 @@ blockquote {
 .profile-save:disabled { opacity: 0.5; cursor: not-allowed; }
 .profile-logout { padding: 11px; border-radius: var(--radius-2); font-family: inherit; border: 1px solid var(--rule); background: transparent; color: var(--ink-3); font-weight: 600; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: border-color var(--dur-1), color var(--dur-1); }
 .profile-logout:hover { border-color: var(--critical); color: var(--critical); }
+.account-controls { display: flex; align-items: center; gap: 6px; }
+.case-topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+.case-topbar .back-button { margin-bottom: 0; }
 
 @media (max-width: 380px) {
   .home-actions-bar { padding: 10px 12px; gap: 8px; }

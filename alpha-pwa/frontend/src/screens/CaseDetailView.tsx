@@ -52,10 +52,10 @@ import type {
   TabId,
   TimelineEvent,
   UploadQueueItem,
-  UserProfile,
   WitnessAssessment,
 } from '../domain/types';
 import GiuliaPromptBar from '../components/GiuliaPromptBar';
+import AccountControls from '../components/AccountControls';
 
 const MultiFileUploadDrawer = React.lazy(() => import('../components/MultiFileUploadDrawer'));
 
@@ -2052,7 +2052,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     }
   }, [caseData, fetchChatFull, showToast]);
 
-  const handleAnalyze = useCallback(async (mode: 'flash' | 'pro' = 'flash') => {
+  const handleAnalyze = useCallback(async (mode: 'flash' | 'pro' = 'flash', opts: { full?: boolean } = {}) => {
     if (!caseData) return;
     let analysisBase = caseData;
     if (mode === 'pro') {
@@ -2076,7 +2076,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
 
     const analyzedIds = new Set(analysisBase.analyzed_doc_ids ?? []);
     const newDocs = docs.filter(d => !analyzedIds.has(d.doc_id));
-    const isIncremental = mode !== 'pro' && analysisBase.legal_analysis != null && newDocs.length > 0;
+    const isIncremental = !opts.full && mode !== 'pro' && analysisBase.legal_analysis != null && newDocs.length > 0;
 
     wizardBus.emit('analyze-started');
     setShowUpload(false);
@@ -2143,6 +2143,11 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       analyzeAbortRef.current = null;
     }
   }, [caseData, localOwnerId, showToast, onCaseLoaded, onCaseAnalyzed]);
+
+  const requestReanalyze = useCallback(() => {
+    if (!confirm('Ri-analizzare tutti i documenti del fascicolo? Le modifiche manuali e i documenti restano salvati; GiulIA aggiornerà solo l’analisi.')) return;
+    handleAnalyze('flash', { full: true });
+  }, [handleAnalyze]);
 
   const setCaseRedactionRules = useCallback((rules: RedactionRule[]) => {
     updateCase(c => ({ ...c, redaction_rules: rules }));
@@ -2243,7 +2248,10 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   return (
     <main className="app-shell">
       {/* Back button */}
-      <button className="back-button" title="Torna alla lista principale dei fascicoli" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
+      <div className="case-topbar">
+        <button className="back-button" title="Torna alla lista principale dei fascicoli" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
+        <AccountControls session={session} />
+      </div>
 
       <AnalysisProgressBanner analyzing={analyzing} onAbort={() => analyzeAbortRef.current?.abort()} />
 
@@ -2338,13 +2346,11 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           {hasExistingAnalysis && (
             <button
               className="ghost-button"
-              onClick={() => {
-                const updated = { ...caseData, analyzed_doc_ids: [], case_summary: '', materials: [], timeline: [], people: [], evidence: [], open_questions: [], missing_documents: [], contradictions: [], procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, pro_recommendation: { recommended: false, reasons: [], message: '', cta_label: 'Avvia Analisi Pro', alternate_label: 'Continua con analisi standard', requires_confirmation: true, auto_charge: false }, legal_analysis: null };
-                dbSave(localOwnerId, updated).then(() => { setCaseData(updated); onCaseLoaded(updated); showToast('Analisi resettata. Ora puoi ri-analizzare da capo.'); });
-              }}
-              title="Cancella l'analisi corrente e torna allo stato pre-analisi"
+              onClick={requestReanalyze}
+              disabled={analyzing || rawDocs.length === 0}
+              title="Ri-analizza tutti i documenti preservando modifiche manuali e materiali"
             >
-              <RefreshCw size={13} /> Reset analisi
+              <RefreshCw size={13} /> Ri-analizza
             </button>
           )}
           <button className="aula-trigger-btn" title="Avvia la modalità Aula per la consultazione rapida in udienza" onClick={() => setAulaModeActive(true)}>

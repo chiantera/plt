@@ -3,15 +3,16 @@ import { createRoot } from 'react-dom/client';
 import {
   AlertTriangle, ArrowLeft, ArrowRight, BookOpen,
   CalendarClock, CheckCircle2, CheckSquare, ChevronDown, ChevronRight,
-  Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, LogOut, MessageSquare, Mic, Plus, RefreshCw,
+  Clock, Copy, Eye, EyeOff, FileText, FolderPlus, Gavel, Loader2, MessageSquare, Mic, Plus, RefreshCw,
   Globe, Scale, Search, Send, Share2, ShieldAlert, ShieldCheck, ShieldOff, Sparkles,
-  Square, Trash2, Upload, User, Users, X, Zap, FolderOpen,
+  Square, Trash2, Upload, Users, X, Zap, FolderOpen,
 } from 'lucide-react';
 
 const MultiFileUploadDrawer = React.lazy(() => import('./components/MultiFileUploadDrawer'));
 const CaseDetailView = React.lazy(() => import('./screens/CaseDetailView'));
 import { ChatDrawer, FloatingChatButton, FabRestoreButton } from './components/ChatPanel';
 import GiuliaPromptBar from './components/GiuliaPromptBar';
+import AccountControls from './components/AccountControls';
 import OnboardingWizard from './onboarding/OnboardingWizard';
 import { wizardBus, isOnboardingActive } from './onboarding/wizardBus';
 import './tokens.css';
@@ -34,7 +35,8 @@ import {
   type DraftArtifact,
   type DraftArtifactType,
 } from './draftArtifacts';
-import { createClient, type Session } from '@supabase/supabase-js';
+import { type Session } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient';
 import { DOC_PROMPTS } from './prompts/documentDrafts';
 import { REDACT_APPLY_PROMPT, REDACT_DETECT_PROMPT } from './prompts/redaction';
 import { SYSTEM_PROMPT_IT } from './prompts/giulia';
@@ -64,20 +66,8 @@ import type {
   TabId,
   TimelineEvent,
   UploadQueueItem,
-  UserProfile,
   WitnessAssessment,
 } from './domain/types';
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  document.getElementById('root')!.innerHTML =
-    '<div style="min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#0d1117;color:#f87171;font-family:system-ui;text-align:center;padding:24px"><div><strong>Configurazione mancante</strong><br><small style="color:#6b7280">VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY non impostati.<br>Aggiungi le variabili d\'ambiente e rideploya.</small></div></div>';
-  throw new Error('Missing Supabase env vars');
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const DEV_BYPASS_AUTH =
   import.meta.env.VITE_BYPASS_AUTH === 'true' &&
   ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -200,7 +190,10 @@ function useAuth() {
           created_at: new Date(0).toISOString(),
         },
       } as Session);
-      return;
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'SIGNED_OUT') setSession(null);
+      });
+      return () => subscription.unsubscribe();
     }
 
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -215,11 +208,13 @@ function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!accepted) return;
     setError(null);
     setInfo(null);
     setLoading(true);
@@ -242,6 +237,43 @@ function AuthScreen() {
   return (
     <div className="auth-screen">
       <div className="auth-shell">
+        <div className="auth-col">
+          <div className="auth-disclaimer auth-disclaimer--card" role="note">
+            <p><strong>Importante:</strong> PLT aiuta a organizzare fascicoli, bozze e checklist. Non sostituisce il giudizio dell'avvocato: ogni termine, fonte, precedente o citazione resta da verificare prima dell'uso.</p>
+            <p><strong>Privacy:</strong> carica solo materiali che puoi trattare. Usa anonimizzazione o pseudonimi quando opportuno; le chiamate AI/OCR/STT sono superfici di trasferimento dati esterne.</p>
+            <label className="auth-accept">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={e => setAccepted(e.target.checked)}
+              />
+              <span>Ho letto e compreso: PLT produce materiale di lavoro da verificare, non decisioni.</span>
+            </label>
+            {!accepted && <p className="auth-accept-hint">Spunta la casella per accedere o creare un account.</p>}
+          </div>
+
+          <div className="auth-card" data-tour="auth-card">
+            <div className="auth-card-kicker">Accesso riservato</div>
+            <div className="auth-tabs">
+              {(['login', 'signup'] as const).map(t => (
+                <button title="Cambia modalità di accesso" key={t} className={`auth-tab${tab === t ? ' auth-tab--active' : ''}`} onClick={() => setTab(t)}>
+                  {t === 'login' ? 'Accedi' : 'Registrati'}
+                </button>
+              ))}
+            </div>
+
+            <form className="auth-form" onSubmit={handleSubmit}>
+              <input className="auth-input" type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
+              <input className="auth-input" type="password" placeholder="Password (min. 6 caratteri)" value={password} onChange={e => setPassword(e.target.value)} required />
+              {error && <div className="auth-error">{error}</div>}
+              {info && <div className="auth-info">{info}</div>}
+              <button className="auth-submit" title="Conferma dati di accesso" type="submit" disabled={loading || !accepted}>
+                {loading ? 'Caricamento…' : tab === 'login' ? 'Accedi' : 'Crea account'}
+              </button>
+            </form>
+          </div>
+        </div>
+
         <section className="auth-intro" aria-labelledby="auth-title">
           <div className="auth-brand auth-brand--hero">
             <div className="auth-brand-icon"><Scale size={20} /></div>
@@ -261,74 +293,6 @@ function AuthScreen() {
             <li><CheckSquare size={18} /><div><strong>Bozze e checklist, non decisioni</strong><span>Preparazione e triage sotto controllo del difensore, non un “AI lawyer”.</span></div></li>
           </ul>
         </section>
-
-        <div className="auth-card" data-tour="auth-card">
-          <div className="auth-card-kicker">Accesso riservato</div>
-          <div className="auth-tabs">
-            {(['login', 'signup'] as const).map(t => (
-              <button title="Cambia modalità di accesso" key={t} className={`auth-tab${tab === t ? ' auth-tab--active' : ''}`} onClick={() => setTab(t)}>
-                {t === 'login' ? 'Accedi' : 'Registrati'}
-              </button>
-            ))}
-          </div>
-
-          <form className="auth-form" onSubmit={handleSubmit}>
-            <input className="auth-input" type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
-            <input className="auth-input" type="password" placeholder="Password (min. 6 caratteri)" value={password} onChange={e => setPassword(e.target.value)} required />
-            {error && <div className="auth-error">{error}</div>}
-            {info && <div className="auth-info">{info}</div>}
-            <button className="auth-submit" title="Conferma dati di accesso" type="submit" disabled={loading}>
-              {loading ? 'Caricamento…' : tab === 'login' ? 'Accedi' : 'Crea account'}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProfileDrawer({ session, onClose }: { session: Session; onClose: () => void }) {
-  const [profile, setProfile] = useState<Omit<UserProfile, 'id'>>({ full_name: null, studio: null, phone: null });
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    supabase.from('profiles').select('full_name,studio,phone').eq('id', session.user.id).single()
-      .then(({ data }) => { if (data) setProfile(data); });
-  }, [session.user.id]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    await supabase.from('profiles').upsert({ id: session.user.id, ...profile });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-
-  return (
-    <div className="profile-overlay" onClick={onClose}>
-      <div className="profile-drawer" onClick={e => e.stopPropagation()}>
-        <div className="profile-header">
-          <div className="profile-title">Profilo</div>
-          <button className="profile-close" title="Chiudi profilo" onClick={onClose}><X size={18} /></button>
-        </div>
-        <div className="profile-email">{session.user.email}</div>
-        {[
-          { label: 'Nome completo', key: 'full_name' as const, placeholder: 'Avv. Mario Rossi' },
-          { label: 'Studio legale', key: 'studio' as const, placeholder: 'Studio Rossi & Associati' },
-          { label: 'Telefono', key: 'phone' as const, placeholder: '+39 02 1234567' },
-        ].map(({ label, key, placeholder }) => (
-          <div key={key} className="profile-field">
-            <label className="profile-label">{label}</label>
-            <input className="profile-input" value={profile[key] ?? ''} onChange={e => setProfile(p => ({ ...p, [key]: e.target.value }))} placeholder={placeholder} />
-          </div>
-        ))}
-        <button title="Salva modifiche profilo" className={`profile-save${saved ? ' profile-save--saved' : ''}`} onClick={handleSave} disabled={saving}>
-          {saving ? 'Salvataggio…' : saved ? 'Salvato ✓' : 'Salva profilo'}
-        </button>
-        <button className="profile-logout" title="Disconnettiti dall'applicazione" onClick={() => supabase.auth.signOut()}>
-          <LogOut size={15} /> Esci dall'account
-        </button>
       </div>
     </div>
   );
@@ -344,7 +308,6 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
   const [showUpload, setShowUpload] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [search, setSearch] = useState('');
-  const [showProfile, setShowProfile] = useState(false);
   const [profileTagline, setProfileTagline] = useState<string | null>(null);
   const localOwnerId = useMemo(() => localOwnerIdFromSession(session), [session]);
 
@@ -443,16 +406,13 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
               <div className="home-brand-tagline">{profileTagline ?? 'Il tuo studio'}</div>
             </div>
           </div>
-          <button onClick={() => setShowProfile(true)} className="profile-btn" title="Profilo">
-            <User size={16} />
-          </button>
+          <AccountControls session={session} />
         </div>
         <h1 className="home-headline">
           I miei <span className="home-headline-accent">fascicoli</span>
         </h1>
         {cases && <HomepageStats cases={cases} />}
       </header>
-      {showProfile && <ProfileDrawer session={session} onClose={() => setShowProfile(false)} />}
 
       {/* ── GiulIA inline prompt ── */}
       <GiuliaPromptBar onOpenChat={onOpenChat} />
