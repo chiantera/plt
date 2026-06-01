@@ -5,12 +5,12 @@
    literals): --paper, --sigillo, --ink-1, --ink-2, --ink-3, --ink-4, --rule,
    --radius-1, --radius-3, --shadow-2, --dur-2, --ease, --font-display. */
 
-.onboarding-overlay {
+.tour-overlay {
   position: fixed; inset: 0; z-index: 10000;
   pointer-events: none;
 }
 
-.onboarding-spotlight {
+.tour-spotlight {
   position: fixed;
   border-radius: 10px;
   pointer-events: none;
@@ -18,7 +18,7 @@
   box-shadow: 0 0 0 9999px rgba(20, 16, 12, 0.55), 0 0 0 3px var(--sigillo);
 }
 
-.onboarding-tooltip {
+.tour-tooltip {
   position: fixed;
   z-index: 10001;
   pointer-events: auto;
@@ -30,7 +30,7 @@
   max-width: 320px;
 }
 
-.onboarding-close {
+.tour-close {
   position: absolute;
   top: 6px;
   right: 8px;
@@ -45,11 +45,11 @@
   transition: color var(--dur-2) var(--ease);
 }
 
-.onboarding-close:hover {
+.tour-close:hover {
   color: var(--ink-2);
 }
 
-.onboarding-title {
+.tour-title {
   font-family: var(--font-display);
   color: var(--ink-1);
   font-size: 1.1rem;
@@ -58,14 +58,14 @@
   letter-spacing: -0.02em;
 }
 
-.onboarding-body {
+.tour-body {
   color: var(--ink-3);
   line-height: 1.5;
   font-size: 0.9rem;
   margin: 0 0 12px;
 }
 
-.onboarding-dontshow {
+.tour-dontshow {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -74,7 +74,7 @@
   color: var(--ink-4);
 }
 
-.onboarding-dontshow input[type="checkbox"] {
+.tour-dontshow input[type="checkbox"] {
   cursor: pointer;
   margin: 0;
   width: 14px;
@@ -82,6 +82,6 @@
   accent-color: var(--sigillo);
 }
 
-.onboarding-dontshow label {
+.tour-dontshow label {
   cursor: pointer;
 }

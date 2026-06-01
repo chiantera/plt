@@ -243,13 +243,13 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
   const ttStyle = tooltipStyle(hole, step.inDrawer);
 
   return (
-    <div className="onboarding-overlay">
-      {hole && <div className="onboarding-spotlight" style={{ position: 'fixed', ...hole }} aria-hidden="true" />}
-      <div ref={tooltipRef} className="onboarding-tooltip" aria-live="polite" aria-label="Tutorial guidato" style={{ position: 'fixed', ...ttStyle }}>
-        <button type="button" className="onboarding-close" aria-label="Chiudi il tutorial per ora" onClick={closeForSession}>✕</button>
-        <h3 className="onboarding-title">{step.title}</h3>
-        <p className="onboarding-body">{step.body}</p>
-        <label className="onboarding-dontshow">
+    <div className="tour-overlay">
+      {hole && <div className="tour-spotlight" style={{ position: 'fixed', ...hole }} aria-hidden="true" />}
+      <div ref={tooltipRef} className="tour-tooltip" aria-live="polite" aria-label="Tutorial guidato" style={{ position: 'fixed', ...ttStyle }}>
+        <button type="button" className="tour-close" aria-label="Chiudi il tutorial per ora" onClick={closeForSession}>✕</button>
+        <h3 className="tour-title">{step.title}</h3>
+        <p className="tour-body">{step.body}</p>
+        <label className="tour-dontshow">
           <input type="checkbox" onChange={e => { if (e.target.checked) dontShow(); }} />
           Non mostrare più
         </label>
