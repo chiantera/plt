@@ -4,61 +4,39 @@ _Last updated: 2026-06-01 by Claude_
 
 ---
 
-## 🟢 ACTIVE HANDOFF TASK (for Hermes / Codex) — port login + account UX from SchedaPRO
+## ✅ DONE — SchedaPRO login/account/AI UX fully ported to PLT (2026-06-01)
 
-> Autonomous, ~1h, UI-only. Reviewed by Deckard afterwards. **Work on a branch, do NOT push to `main`.**
+The login/account port handoff is **complete and merged to `main`**. Codex did the UI-only
+half on `port/login-account-ux`; the rest was added in the same session.
 
-**Goal.** Port a self-contained bundle of login/account UX improvements that SchedaPRO (the
-fitness twin, forked from PLT) built on top of this same `AuthScreen` / `useAuth` /
-`CaseDetailView` structure. The spec with exact file locations + code is:
+**Codex (merged `0c8b3dcc`):** §1 disclaimer + mandatory gating checkbox · §3 two-column
+top-aligned login · §4 dev-bypass logout fix · §5 `AccountControls` (Profilo + quick Logout
+with confirm) on home **and** case `.case-topbar` + `supabaseClient.ts` · §8b non-destructive
+"Ri-analizza". Copy correctly adapted to PLT/GiulIA (avvocato/fascicolo, no medical disclaimer);
+overlay a11y improved (onMouseDown + role/aria-modal). Build + 12 auth-onboarding checks green.
 
-`/home/deckard/projects/schedapro/docs/port-login-to-plt.md` — **read it first**, do the
-sections listed below. Source code to copy from: `/home/deckard/projects/schedapro/frontend/`.
-Target: `/home/deckard/projects/plt/alpha-pwa/frontend/`.
+**Then added (the deferred pieces):**
+- **§2 AuthTour** (`b6ccd44e`): first-run welcome panel on login, `.tour-*` look, key
+  `plt:auth-tour:dismissed`, "Benvenuto in PLT 👋".
+- **§6 pre-flight "istruzioni per GiulIA" modal** (`32dd3bf6`): before Analizza / Pro /
+  Ri-analizza / Crea bozza, an optional steering box (`AiInstructionsModal`). Backend
+  `AnalyzeRequest.user_instructions` woven as `ISTRUZIONI DELL'AVVOCATO` above materials,
+  below the no-inventing rules. Pro `confirm()` dropped (the modal is the confirmation;
+  `auto_charge:false`). Excludes inline GiulIA bar + FAB.
+- **§8 resilient background analysis** (`64dfc399`): analysis runs as a server-side job
+  (`POST/GET /api/analyze-jobs`, ThreadPool, 1h TTL) driven by
+  `frontend/src/analysis/analysisManager.ts` (POST once, persist job_id, poll 2s, re-poke on
+  `visibilitychange`, resume on app start, merge into IndexedDB on done). Survives navigating
+  away / opening another case / phone-lock / refresh. Case list shows "Analisi in corso…" pill
+  + auto-refreshes on finish.
 
-**DO (these sections only):**
-1. **§1 — Disclaimer + mandatory checkbox** on the login screen that *gates* the submit
-   button until ticked (state `accepted`, `disabled={loading || !accepted}`, hint when unticked).
-2. **§3 — Two-column login layout, top-aligned** (`align-items: start`, responsive < 880px).
-3. **§4 — Dev-bypass logout fix**: in `useAuth`, even in `VITE_BYPASS_AUTH` mode subscribe to
-   `onAuthStateChange` and clear the faked session on `SIGNED_OUT` (today PLT's logout almost
-   certainly does nothing on localhost — verify, then fix).
-4. **§5 — AccountControls**: extract the supabase client into `src/supabaseClient.ts`, move
-   `ProfileDrawer` into `src/components/AccountControls.tsx`, add a quick **Logout** button
-   (same `.profile-btn` look) that confirms then signs out, and render `<AccountControls/>` in
-   the home header **and** the case-detail back-bar (a `.case-topbar` flex row).
-5. **§8b — "Ri-analizza" made non-destructive**: if PLT has a one-click reset that wipes the
-   analysis, route it through a confirmation and re-run a *full* analysis instead of deleting
-   the user's data (`mergeWithAi` already preserves edits). Verify PLT's current behavior first.
-
-**DO NOT (leave for a supervised session):** §2 AuthTour, §6 placeholder/autofocus tweaks,
-**§7 AI-instructions modal**, **§8 background-analysis jobs**. Don't touch backend, prompts, or
-the Cassazione/`DA VERIFICARE` guardrails.
-
-**Adapt to PLT, do not paste fitness copy:** brand is PLT, assistant is **GiulIA** (not Aria),
-domain is **Italian criminal defense** (avvocato, fascicolo — not trainer/scheda fitness). The
-warning copy must keep PLT's "bozze, non decisioni" + "non inventare precedenti / DA VERIFICARE"
-spirit and the privacy/anonimizzazione line; **no medical disclaimer**.
-
-**Constraints & guardrails:**
-- Create branch `port/login-account-ux`; commit there; open a draft PR with `gh` if available,
-  otherwise just leave the branch. **Never push to `main`.**
-- Keep diffs minimal and matching surrounding style. Touch only the files the sections require.
-- If PLT's actual code diverges from the spec's assumptions (different file paths, missing
-  pieces), **STOP and write what you found** in the PR/branch description — do not guess in a way
-  that could delete data or break auth.
-
-**Verify before claiming done:**
-```bash
-cd alpha-pwa/frontend && npm run build          # must pass (tsc -b && vite build)
-npm run doctor                                  # optional: lint/a11y/bundle
-```
-Run any existing `npm run test:*` scripts that touch auth/onboarding. Confirm the login page
-renders with the gated checkbox, both columns top-aligned, logout works under
-`VITE_BYPASS_AUTH=true` localhost, and Profilo+Logout appear on the case page.
-
-**Success =** branch pushed with a clean build, copy adapted to PLT/GiulIA, no `main` changes,
-and a short note of anything that diverged from the spec.
+**Verified:** frontend `npm run build` green · all `test:*` checks green · backend `pytest`
+**32 passed** (added `test_user_instructions.py`, `test_analysis_jobs.py`). Prompt map P04
+updated; `alpha-pwa/README.md` notes the new endpoints.
+⚠️ Render free-tier caveat: a cold-start mid-job → client gets 404 → "Analisi interrotta sul
+server. Riprova." (bulletproof = persist jobs to Supabase, out of scope).
+**Not yet done:** live browser e2e of the background flow on PLT (the port mirrors SchedaPRO's
+e2e-verified system; a browser QA pass is still worth doing).
 
 ---
 

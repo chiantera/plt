@@ -24,6 +24,8 @@ Pushes to `main` trigger the Netlify frontend deploy. Backend deploys are handle
 - OCR boundary for native PDFs and scanned/image inputs.
 - Inline editing across case facts, deadlines, legal analysis, witnesses, and strategies.
 - AI merge flow that updates analyzed case state without intentionally overwriting local edits.
+- Resilient background analysis: analyses run as backend jobs (`POST/GET /api/analyze-jobs`) driven by `frontend/src/analysis/analysisManager.ts`, so they survive navigating away, opening another case, locking the phone, or a refresh; the case list shows an "Analisi in corso…" pill and refreshes on completion.
+- Optional pre-flight "istruzioni per GiulIA" steering before Analizza / Pro / Ri-analizza / Crea bozza (`AnalyzeRequest.user_instructions`); never a source of facts, deadlines, or precedents.
 - GiulIA assistant with case context and quick actions.
 - Draft workspace for memoria, ricorso Cassazione, eccezione, controesame, strategy memo, and client note.
 - Strict ban on invented Cassazione citations across all AI prompts (DIVIETO ASSOLUTO pattern); `DA VERIFICARE` post-processing as safety net.

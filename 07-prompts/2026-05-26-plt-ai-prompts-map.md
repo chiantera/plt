@@ -216,6 +216,11 @@ Modalità: {request.mode}
 POLITICA MODALITÀ:
 {_analysis_prompt_policy(request.mode)}
 
+# Optional, only when the lawyer typed steering text in the pre-flight modal:
+ISTRUZIONI DELL'AVVOCATO (da seguire per orientare l'analisi, senza mai violare
+le regole sottostanti — non sono una fonte di fatti, termini o precedenti):
+{request.user_instructions}
+
 MATERIALI DEL FASCICOLO:
 {materials_text}
 
@@ -236,8 +241,11 @@ Istruzioni specifiche:
 Frontend payload:
 
 - Standard analysis: `mode: 'flash'`, `language: 'it'`.
-- Pro analysis: frontend calls the same handler with `mode: 'pro'` only after explicit user click.
+- Pro analysis: frontend calls the same handler with `mode: 'pro'` only after explicit user click (the pre-flight modal **is** the confirmation; `auto_charge: false`).
 - `materials`: uploaded raw documents and, for incremental analysis, possibly `buildUserContextMaterial(caseData)`.
+- `user_instructions` (optional): free-text steering collected by the pre-flight "istruzioni per GiulIA" modal (`AiInstructionsModal`). Woven as the `ISTRUZIONI DELL'AVVOCATO` block above; never a source of facts/deadlines/precedents. Tested in `backend/tests/test_user_instructions.py`.
+
+> **Transport (2026-06-01):** the UI no longer streams `/api/analyze-text` from the case screen. It POSTs to **`/api/analyze-jobs`** (background job) and polls `/api/analyze-jobs/{id}`, so analysis survives navigation / phone-lock / refresh (`frontend/src/analysis/analysisManager.ts`). The prompt assembly above is unchanged and shared; `/api/analyze-text` still exists server-side.
 
 Optimization targets:
 
