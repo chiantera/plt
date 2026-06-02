@@ -12,6 +12,7 @@ def _frontend_source() -> str:
         SRC / "main.tsx",
         SRC / "screens" / "CaseDetailView.tsx",
         SRC / "components" / "MultiFileUploadDrawer.tsx",
+        SRC / "analysis" / "analysisManager.ts",
     ]
     return "\n".join(f.read_text() for f in files)
 
@@ -50,9 +51,10 @@ def test_dashboard_cards_and_navigation_links_are_wired():
     assert "CaseListView" in source
     assert "CaseDetailView" in source
 
-    # Upload flow present
+    # Upload flow present. Analysis runs as a background job now
+    # (/api/analyze-jobs); /api/analyze-text still exists server-side.
     assert "UploadDrawer" in source
-    assert "/api/analyze-text" in source
+    assert "/api/analyze-jobs" in source
     assert "/api/upload" in source
 
     # Risk level coloring present

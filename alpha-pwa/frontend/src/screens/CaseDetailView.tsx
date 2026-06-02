@@ -57,25 +57,13 @@ import type {
 import GiuliaPromptBar from '../components/GiuliaPromptBar';
 import AccountControls from '../components/AccountControls';
 import AiInstructionsModal, { type AiInstructionsRequest } from '../components/AiInstructionsModal';
+import { startAnalysis, abortAnalysis, dismissAnalysis, useAnalysisState } from '../analysis/analysisManager';
 
 const MultiFileUploadDrawer = React.lazy(() => import('../components/MultiFileUploadDrawer'));
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function pct(v: number) { return `${Math.round(v * 100)}%`; }
-
-async function readApiError(res: Response): Promise<string> {
-  try {
-    const data = await res.clone().json() as { detail?: unknown };
-    if (typeof data.detail === 'string' && data.detail.trim()) return data.detail;
-    if (Array.isArray(data.detail)) return data.detail.map(item => item?.msg ?? JSON.stringify(item)).join('; ');
-  } catch {}
-  try {
-    const text = await res.text();
-    if (text.trim()) return text.trim();
-  } catch {}
-  return `HTTP ${res.status}`;
-}
 
 function deadlineTypeLabel(t: ProceduralDeadline['deadline_type']) {
   return ({ hearing: 'udienza', defense_brief: 'memoria difensiva', filing: 'deposito', investigation: 'indagine difensiva', other: 'altro' })[t];
@@ -1544,10 +1532,12 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const [showUpload, setShowUpload] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
   const [uploadProcessing, setUploadProcessing] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
+  // Analysis state comes from the app-level manager, so it survives navigating
+  // away / locking the phone and reconnects when this screen remounts.
+  const analysis = useAnalysisState(caseId);
+  const analyzing = analysis?.status === 'running';
   const [pendingAi, setPendingAi] = useState<AiInstructionsRequest | null>(null);
   const [generatingDraftId, setGeneratingDraftId] = useState<string | null>(null);
-  const analyzeAbortRef = useRef<AbortController | null>(null);
   const [analyzeMode, setAnalyzeMode] = useState<'flash' | 'pro'>(() => {
     try { return (localStorage.getItem('plt_analyze_mode') as 'flash' | 'pro') || 'flash'; }
     catch { return 'flash'; }
@@ -1643,6 +1633,29 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       } catch (e) { setError((e as Error).message); }
     })();
   }, [caseId, localOwnerId, onCaseLoaded]);
+
+  // React to the background analysis finishing (here or while we were away):
+  // reload the merged result the manager already saved, or surface an error.
+  const analysisStatus = analysis?.status;
+  useEffect(() => {
+    if (analysisStatus === 'done') {
+      (async () => {
+        const fresh = await dbGet(localOwnerId, caseId) as CaseAnalysis | null;
+        if (fresh) {
+          setCaseData(fresh); onCaseLoaded(fresh); onCaseAnalyzed?.(fresh);
+          if (fresh.pro_recommendation?.recommended) {
+            showToast('Analisi standard completata. GiulIA suggerisce un Approfondimento Pro: nessun addebito senza conferma.', 'info');
+          } else {
+            showToast('Analisi completata.', 'info');
+          }
+        }
+        dismissAnalysis(caseId);
+      })();
+    } else if (analysisStatus === 'error') {
+      showToast(`Errore analisi: ${analysis?.error ?? ''}`, 'error');
+      dismissAnalysis(caseId);
+    }
+  }, [analysisStatus, caseId, localOwnerId, onCaseLoaded, onCaseAnalyzed, showToast]);
 
   const scrollTo = (ref: React.RefObject<HTMLElement | HTMLHeadingElement | null>) => {
     setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
@@ -2090,68 +2103,23 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     wizardBus.emit('analyze-started');
     setShowUpload(false);
     setUploadQueue(prev => prev.filter(i => i.status !== 'done'));
-    const controller = new AbortController();
-    analyzeAbortRef.current = controller;
-    setAnalyzing(true);
-    try {
-      const sourceDocs = isIncremental ? newDocs : docs;
-      const docMaterials = sourceDocs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text, category: d.category ?? 'fascicolo' }));
-      const ctxMaterial = buildUserContextMaterial(analysisBase);
-      const materials = ctxMaterial ? [ctxMaterial, ...docMaterials] : docMaterials;
-      // The backend streams SSE so keepalive pings flow during DeepSeek's
-      // reasoning phase, preventing Chrome's 300-second idle-read timeout.
-      const res = await fetch(`${API}/api/analyze-text`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ case_title: analysisBase.case_title, materials, mode, language: 'it', user_instructions: userInstructions.trim() || undefined }),
-        signal: controller.signal,
-      });
-      if (!res.ok || !res.body) throw new Error(await readApiError(res));
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let sseBuffer = '';
-      let analysisResult: CaseAnalysis | null = null;
-      let analysisError: string | null = null;
-      outer: while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        sseBuffer += dec.decode(value, { stream: true });
-        const lines = sseBuffer.split('\n');
-        sseBuffer = lines.pop() ?? '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const payload = line.slice(6).trim();
-          if (payload === '[DONE]') break outer;
-          try {
-            const evt = JSON.parse(payload) as { status: string; analysis?: CaseAnalysis; detail?: string };
-            if (evt.status === 'done' && evt.analysis) analysisResult = evt.analysis;
-            else if (evt.status === 'error') analysisError = evt.detail ?? 'Errore analisi';
-          } catch {}
-        }
-      }
-      if (analysisError) throw new Error(analysisError);
-      if (!analysisResult) throw new Error('Nessun risultato ricevuto dal server');
-      const merged = mergeWithAi(analysisBase, analysisResult, { replaceAiFields: mode === 'pro' });
-      const analyzedDocIds = docs.map(d => d.doc_id);
-      const updated = { ...merged, raw_documents: docs, analyzed_doc_ids: analyzedDocIds };
-      await dbSave(localOwnerId, updated);
-      setCaseData(updated);
-      onCaseLoaded(updated);
-      onCaseAnalyzed?.(updated);
-      if (updated.pro_recommendation?.recommended) {
-        showToast('Analisi standard completata. GiulIA suggerisce un Approfondimento Pro: nessun addebito senza conferma.', 'info');
-      }
-    } catch (e) {
-      if ((e as Error).name === 'AbortError') {
-        showToast('Analisi annullata.', 'info');
-      } else {
-        showToast(`Errore analisi: ${(e as Error).message}`, 'error');
-      }
-    } finally {
-      setAnalyzing(false);
-      analyzeAbortRef.current = null;
-    }
-  }, [caseData, localOwnerId, showToast, onCaseLoaded, onCaseAnalyzed]);
+
+    const sourceDocs = isIncremental ? newDocs : docs;
+    const docMaterials = sourceDocs.map(d => ({ name: d.description || d.name, kind: 'text', text: d.text, category: d.category ?? 'fascicolo' }));
+    const ctxMaterial = buildUserContextMaterial(analysisBase);
+    const materials = ctxMaterial ? [ctxMaterial, ...docMaterials] : docMaterials;
+
+    // Hand the analysis to the app-level manager: it runs as a background job
+    // (POST + poll) so it survives navigating away, locking the phone, or a
+    // refresh, and writes the merged result back to IndexedDB on completion.
+    void startAnalysis({
+      caseId: analysisBase.case_id,
+      ownerId: localOwnerId,
+      analyzedDocIds: docs.map(d => d.doc_id),
+      mode,
+      body: { case_title: analysisBase.case_title, materials, mode, language: 'it', user_instructions: userInstructions.trim() || undefined },
+    });
+  }, [caseData, localOwnerId, showToast, onCaseLoaded]);
 
   // Open the pre-flight "istruzioni per GiulIA" modal, then analyze with them.
   const requestAnalyze = useCallback((mode: 'flash' | 'pro' = 'flash') => {
@@ -2286,7 +2254,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         <AccountControls session={session} />
       </div>
 
-      <AnalysisProgressBanner analyzing={analyzing} onAbort={() => analyzeAbortRef.current?.abort()} />
+      <AnalysisProgressBanner analyzing={analyzing} onAbort={() => abortAnalysis(caseId)} />
 
       {/* Hero */}
       <section className="hero-card">

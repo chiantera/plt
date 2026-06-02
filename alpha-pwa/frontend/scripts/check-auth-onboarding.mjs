@@ -75,9 +75,9 @@ const checks = [
       styles.includes('.case-topbar'),
   },
   {
-    name: 'reanalyze is routed through a full analysis request without wiping existing analysis',
+    name: 'reanalyze is routed through the pre-flight modal as a full, non-destructive analysis',
     pass: caseDetail.includes('requestReanalyze') &&
-      /handleAnalyze\([^,\n]+,\s*\{ full: true \}\)/.test(caseDetail) &&
+      /handleAnalyze\('flash',\s*instr,\s*\{ full: true \}\)/.test(caseDetail) &&
       !caseDetail.includes('const reset: CaseAnalysis'),
   },
 ];

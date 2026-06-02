@@ -29,7 +29,9 @@ assert.match(cdv, /Ri-analizza/);
 assert.equal(/Reset analisi/.test(cdv), false, 'reanalyze must not use the old destructive reset action');
 assert.match(cdv, /const analyzeButtonLabel = !hasExistingAnalysis/);
 assert.equal(cdv.includes('{(!hasExistingAnalysis || unanalyzedCount > 0) &&'), false, 'Flash/Pro selector must remain available after an existing analysis');
-assert.match(cdv, /async function readApiError/);
-assert.match(cdv, /throw new Error\(await readApiError\(res\)\)/);
+// Analysis now runs as an app-level background job (survives navigation/lock/refresh).
+assert.match(cdv, /void startAnalysis\(\{/);
+assert.match(cdv, /const analyzing = analysis\?\.status === 'running'/);
+assert.match(cdv, /onAbort=\{\(\) => abortAnalysis\(caseId\)\}/);
 
 console.log('draft workspace UI checks passed');

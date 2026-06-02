@@ -324,6 +324,19 @@ class AnalyzeRequest(BaseModel):
     user_instructions: str | None = None
 
 
+class AnalyzeJobCreated(BaseModel):
+    """Returned immediately when an analysis job is accepted."""
+    job_id: str
+    status: Literal["running"] = "running"
+
+
+class AnalyzeJobStatus(BaseModel):
+    """Polled by the client until the background analysis finishes."""
+    status: Literal["running", "done", "error"]
+    result: CaseAnalysis | None = None
+    error: str | None = None
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str

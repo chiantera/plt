@@ -4,7 +4,9 @@ import io
 import logging
 import os
 import tempfile
+import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +27,15 @@ from .ai_service import analyze_case, stream_analyze_case, stream_chat
 
 logger = logging.getLogger(__name__)
 from .demo_data import build_demo_case, get_all_cases, get_case_summaries
-from .models import AnalyzeRequest, CaseAnalysis, CaseSummary, ChatRequest, FetchUrlRequest
+from .models import (
+    AnalyzeJobCreated,
+    AnalyzeJobStatus,
+    AnalyzeRequest,
+    CaseAnalysis,
+    CaseSummary,
+    ChatRequest,
+    FetchUrlRequest,
+)
 from .ocr_adapter import MistralOcrAdapter, PptxAdapter, PypdfAdapter, XlsxAdapter
 from .ocr_models import OcrInput
 
@@ -108,6 +118,57 @@ def analyze_text(request: AnalyzeRequest) -> StreamingResponse:
         media_type="text/event-stream",
         headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
     )
+
+
+# ── Background analysis jobs ──────────────────────────────────────────────────
+# The streaming /analyze-text above dies if the client navigates away or locks
+# the phone. These job endpoints let the analysis run server-side regardless:
+# the client POSTs once, gets a job_id, then polls. Survives navigation, phone
+# lock and refresh (the client persists the job_id and re-polls).
+
+_ANALYSIS_GENERIC_ERROR = "Analisi non riuscita. Riprova tra qualche secondo."
+_JOB_TTL_SECONDS = 60 * 60  # keep finished jobs around an hour for late pollers
+_jobs: dict[str, dict[str, Any]] = {}
+_jobs_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="analyze-job")
+
+
+def _purge_stale_jobs() -> None:
+    cutoff = time.time() - _JOB_TTL_SECONDS
+    for jid in [j for j, v in _jobs.items() if v.get("updated_at", 0) < cutoff]:
+        _jobs.pop(jid, None)
+
+
+def _run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
+    try:
+        result = analyze_case(request)
+        _jobs[job_id] = {"status": "done", "result": result, "error": None, "updated_at": time.time()}
+    except ValueError as exc:
+        logger.error("analyze-job %s value error: %s", job_id, exc)
+        _jobs[job_id] = {"status": "error", "result": None, "error": str(exc), "updated_at": time.time()}
+    except Exception as exc:
+        logger.error("analyze-job %s failed: %s", job_id, exc, exc_info=True)
+        _jobs[job_id] = {"status": "error", "result": None, "error": _ANALYSIS_GENERIC_ERROR, "updated_at": time.time()}
+
+
+@app.post("/api/analyze-jobs", response_model=AnalyzeJobCreated)
+def create_analysis_job(request: AnalyzeRequest) -> AnalyzeJobCreated:
+    """Accept an analysis, run it in the background, return a job id to poll."""
+    _purge_stale_jobs()
+    job_id = uuid.uuid4().hex
+    _jobs[job_id] = {"status": "running", "result": None, "error": None, "updated_at": time.time()}
+    logger.info("analyze-job %s queued: title=%s, materials=%d, mode=%s",
+                job_id, request.case_title, len(request.materials), request.mode)
+    _jobs_executor.submit(_run_analysis_job, job_id, request)
+    return AnalyzeJobCreated(job_id=job_id)
+
+
+@app.get("/api/analyze-jobs/{job_id}", response_model=AnalyzeJobStatus)
+def get_analysis_job(job_id: str) -> AnalyzeJobStatus:
+    """Poll an analysis job. 404 if unknown (e.g. lost to a cold start)."""
+    job = _jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job di analisi sconosciuto o scaduto.")
+    return AnalyzeJobStatus(status=job["status"], result=job["result"], error=job["error"])
 
 
 # ── Chat (SSE streaming) ─────────────────────────────────────────────────────
