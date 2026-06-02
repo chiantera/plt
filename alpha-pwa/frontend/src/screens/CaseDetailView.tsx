@@ -56,6 +56,7 @@ import type {
 } from '../domain/types';
 import GiuliaPromptBar from '../components/GiuliaPromptBar';
 import AccountControls from '../components/AccountControls';
+import AiInstructionsModal, { type AiInstructionsRequest } from '../components/AiInstructionsModal';
 
 const MultiFileUploadDrawer = React.lazy(() => import('../components/MultiFileUploadDrawer'));
 
@@ -1544,6 +1545,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
   const [uploadProcessing, setUploadProcessing] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [pendingAi, setPendingAi] = useState<AiInstructionsRequest | null>(null);
   const [generatingDraftId, setGeneratingDraftId] = useState<string | null>(null);
   const analyzeAbortRef = useRef<AbortController | null>(null);
   const [analyzeMode, setAnalyzeMode] = useState<'flash' | 'pro'>(() => {
@@ -1921,11 +1923,18 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     URL.revokeObjectURL(url);
   }, []);
 
-  const handleOpenDraftWorkspace = useCallback(async (type: DraftArtifactType, title?: string, extraInstruction = '') => {
+  const handleOpenDraftWorkspace = useCallback(async (type: DraftArtifactType, title?: string, extraInstruction = '', userInstructions = '') => {
     if (!caseData) return;
     const sourceCase = redactionActive && hasActiveRules ? applyRedactionToCase(caseData, mergedRules) : caseData;
+    // Weave the lawyer's optional steering text into the draft instruction. It
+    // flows into both branches: the crossExam promptTail closure (which captures
+    // effInstruction) and buildDraftPrompt's extraInstruction for the others.
+    const steer = userInstructions.trim()
+      ? `\n\n---\nISTRUZIONI DELL'AVVOCATO (orienta la bozza; non inventare fatti, termini o precedenti non presenti nei materiali):\n${userInstructions.trim()}`
+      : '';
+    const effInstruction = `${extraInstruction}${steer}`;
     const promptTail = type === 'witnessCrossExam'
-      ? (ctx: string) => `${ctx}\n\n---\n${extraInstruction}`
+      ? (ctx: string) => `${ctx}\n\n---\n${effInstruction}`
       : DOC_PROMPTS[type] ?? DOC_PROMPTS.strategy;
     const prompt = buildDraftPrompt({
       caseData: sourceCase,
@@ -1933,7 +1942,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       promptTail,
       buildCaseContext,
       anonymized: redactionActive && hasActiveRules,
-      extraInstruction: type === 'witnessCrossExam' ? '' : extraInstruction,
+      extraInstruction: type === 'witnessCrossExam' ? '' : effInstruction,
       workspaceTitle: title || draftTypeLabel(type),
     });
     const placeholder = createDraftArtifact({
@@ -2052,12 +2061,12 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     }
   }, [caseData, fetchChatFull, showToast]);
 
-  const handleAnalyze = useCallback(async (mode: 'flash' | 'pro' = 'flash', opts: { full?: boolean } = {}) => {
+  const handleAnalyze = useCallback(async (mode: 'flash' | 'pro' = 'flash', userInstructions = '', opts: { full?: boolean } = {}) => {
     if (!caseData) return;
     let analysisBase = caseData;
     if (mode === 'pro') {
-      const ok = confirm(`Confermi Analisi Pro con GiulIA?\n\nPiu profonda di Flash: ragiona su contraddizioni, strategie difensive e rischi procedurali.\nNessun addebito automatico -- parte solo con questa conferma.`);
-      if (!ok) return;
+      // The pre-flight modal ("Approfondimento Pro con GiulIA") is the explicit
+      // confirmation now — no separate confirm() dialog. Still no auto-charge.
       if (caseData.pro_recommendation?.recommended) {
         analysisBase = {
           ...caseData,
@@ -2094,7 +2103,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       const res = await fetch(`${API}/api/analyze-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ case_title: analysisBase.case_title, materials, mode, language: 'it' }),
+        body: JSON.stringify({ case_title: analysisBase.case_title, materials, mode, language: 'it', user_instructions: userInstructions.trim() || undefined }),
         signal: controller.signal,
       });
       if (!res.ok || !res.body) throw new Error(await readApiError(res));
@@ -2144,10 +2153,34 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     }
   }, [caseData, localOwnerId, showToast, onCaseLoaded, onCaseAnalyzed]);
 
-  const requestReanalyze = useCallback(() => {
-    if (!confirm('Ri-analizzare tutti i documenti del fascicolo? Le modifiche manuali e i documenti restano salvati; GiulIA aggiornerà solo l’analisi.')) return;
-    handleAnalyze('flash', { full: true });
+  // Open the pre-flight "istruzioni per GiulIA" modal, then analyze with them.
+  const requestAnalyze = useCallback((mode: 'flash' | 'pro' = 'flash') => {
+    setPendingAi({
+      title: mode === 'pro' ? 'Approfondimento Pro con GiulIA' : 'Analizza con GiulIA',
+      actionLabel: mode === 'pro' ? 'Avvia Pro' : 'Analizza',
+      run: (instr) => handleAnalyze(mode, instr),
+    });
   }, [handleAnalyze]);
+
+  // "Ri-analizza": confirm via the pre-flight modal, then re-analyze ALL
+  // documents. Non-destructive — keeps the lawyer's notes, documents and edits
+  // (the merge refreshes GiulIA's output around them).
+  const requestReanalyze = useCallback(() => {
+    setPendingAi({
+      title: 'Ri-analizza da capo',
+      actionLabel: 'Ri-analizza',
+      run: (instr) => handleAnalyze('flash', instr, { full: true }),
+    });
+  }, [handleAnalyze]);
+
+  // Same pre-flight step before opening a draft workspace.
+  const requestDraft = useCallback((type: DraftArtifactType, title?: string, extraInstruction = '') => {
+    setPendingAi({
+      title: `Bozza: ${title || draftTypeLabel(type)}`,
+      actionLabel: 'Crea bozza',
+      run: (instr) => handleOpenDraftWorkspace(type, title, extraInstruction, instr),
+    });
+  }, [handleOpenDraftWorkspace]);
 
   const setCaseRedactionRules = useCallback((rules: RedactionRule[]) => {
     updateCase(c => ({ ...c, redaction_rules: rules }));
@@ -2337,7 +2370,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           <button title="Esegui analisi AI"
             data-tour="analyze"
             className={analyzeMode === 'pro' ? 'primary-button' : 'secondary-button'}
-            onClick={() => handleAnalyze(analyzeMode)}
+            onClick={() => requestAnalyze(analyzeMode)}
             disabled={analyzing || rawDocs.length === 0}
           >
             <Sparkles size={14} />
@@ -2365,7 +2398,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               <p className="muted">L'analisi standard resta inclusa. Pro parte solo con conferma: nessun addebito automatico.</p>
             </div>
             <div className="pro-recommendation-actions">
-              <button className="primary-button" onClick={() => handleAnalyze('pro')} disabled={analyzing || rawDocs.length === 0}>
+              <button className="primary-button" onClick={() => requestAnalyze('pro')} disabled={analyzing || rawDocs.length === 0}>
                 <Sparkles size={14} /> {d.pro_recommendation.cta_label}
               </button>
               <button
@@ -2409,7 +2442,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               className="giulia-ctx-btn"
               onClick={e => {
                 e.stopPropagation();
-                handleOpenDraftWorkspace(
+                requestDraft(
                   'strategy',
                   nextDeadline.title,
                   `Prepara una bozza operativa sulla prossima priorità "${nextDeadline.title}" (${nextDeadline.due_date}${nextDeadline.due_time ? ` alle ${nextDeadline.due_time}` : ''}). Indica priorità difensive, documenti da portare o acquisire, atti da predisporre, rischi, verifiche fattuali e fonti da controllare. Descrizione scadenza/priorità: ${nextDeadline.description}`
@@ -2710,7 +2743,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               la={la}
               onSelectSource={setSelectedSource}
               onOpenChat={onOpenChat}
-              onOpenDraft={handleOpenDraftWorkspace}
+              onOpenDraft={requestDraft}
               onUpdate={updater => updateCase(c => ({ ...c, legal_analysis: c.legal_analysis ? updater(c.legal_analysis) : null }))}
               draftMode={draftMode}
               onSetDraftMode={setAndSaveDraftMode}
@@ -2722,7 +2755,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 <p className="muted" style={{ fontSize: '0.85rem' }}>Carica dei documenti e clicca su <strong>Analizza con AI</strong> per estrarre in automatico capi di imputazione e strategia, oppure clicca qui sotto per creare l'analisi manualmente.</p>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-                <button title="Esegui analisi AI" className="primary-button" onClick={() => handleAnalyze(analyzeMode)} disabled={analyzing || rawDocs.length === 0}>
+                <button title="Esegui analisi AI" className="primary-button" onClick={() => requestAnalyze(analyzeMode)} disabled={analyzing || rawDocs.length === 0}>
                   <Sparkles size={14} /> {analyzeMode === 'pro' ? 'Analizza con AI (Pro)' : 'Analizza con AI'}
                 </button>
                 <button title="Esegui azione"
@@ -3016,7 +3049,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             onRetryItem={handleRetryQueueItem}
             onAddTextItem={handleAddTextItem}
             processing={uploadProcessing}
-            onAnalyze={() => handleAnalyze(analyzeMode)}
+            onAnalyze={() => requestAnalyze(analyzeMode)}
             analyzeMode={analyzeMode}
             onModeChange={setAndSaveMode}
           />
@@ -3024,6 +3057,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       )}
       {aulaModeActive && <AulaModeOverlay caseData={caseData} onClose={() => setAulaModeActive(false)} />}
       {toast && <ToastNotification message={toast.message} type={toast.type} onDismiss={dismissToast} />}
+      <AiInstructionsModal request={pendingAi} onClose={() => setPendingAi(null)} />
     </main>
   );
 }

@@ -342,6 +342,14 @@ def _build_analysis_prompt(request: AnalyzeRequest) -> tuple[str, str, int]:
     materials_text = "\n\n".join(parts)
     prompt_policy = _analysis_prompt_policy(request.mode)
     today = date.today().isoformat()
+
+    avvocato_block = ""
+    if request.user_instructions and request.user_instructions.strip():
+        avvocato_block = f"""
+ISTRUZIONI DELL'AVVOCATO (da seguire per orientare l'analisi, senza mai violare le regole sottostanti — non sono una fonte di fatti, termini o precedenti):
+{request.user_instructions.strip()}
+"""
+
     user_message = f"""\
 Data odierna: {today}
 Titolo del caso: {request.case_title}
@@ -350,7 +358,7 @@ Modalità: {request.mode}
 
 POLICY MODALITÀ:
 {prompt_policy}
-
+{avvocato_block}
 MATERIALI DEL FASCICOLO:
 {materials_text}
 

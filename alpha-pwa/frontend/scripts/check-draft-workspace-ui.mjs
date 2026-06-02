@@ -7,7 +7,11 @@ const domainTypes = readFileSync(new URL('../src/domain/types.ts', import.meta.u
 
 assert.match(domainTypes, /export type TabId = 'timeline' \| 'deadlines' \| 'facts' \| 'legal' \| 'drafts'/);
 assert.match(cdv, /function DraftingWorkspace/);
-assert.match(cdv, /onOpenDraft=\{handleOpenDraftWorkspace\}/);
+// Drafts now go through the pre-flight "istruzioni per GiulIA" modal (§6).
+assert.match(cdv, /onOpenDraft=\{requestDraft\}/);
+assert.match(cdv, /const requestDraft = useCallback/);
+assert.match(cdv, /<AiInstructionsModal request=\{pendingAi\}/);
+assert.match(cdv, /run: \(instr\) => handleOpenDraftWorkspace\(type, title, extraInstruction, instr\)/);
 assert.match(cdv, /onClick=\{\(\) => onOpenDraft\(key, label\)\}/);
 assert.equal(/onClick=\{\(\) => onOpenChat\(key\)\}/.test(cdv), false, 'drafting cards must not open chat by key');
 assert.equal(/Prepara controesame con GiulIA[\s\S]{0,260}onOpenChat/.test(cdv), false, 'witness controesame button must not open chat');

@@ -319,6 +319,9 @@ class AnalyzeRequest(BaseModel):
     materials: list[AnalyzeMaterialInput]
     mode: Literal["flash", "pro"] = "flash"
     language: Literal["it", "en"] = "it"
+    # Optional free-text steering from the lawyer (pre-flight modal). Never a
+    # source of facts/deadlines/precedents — only orients GiulIA's response.
+    user_instructions: str | None = None
 
 
 class ChatMessage(BaseModel):

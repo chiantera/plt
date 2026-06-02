@@ -1452,6 +1452,19 @@ blockquote {
 .auth-tour-steps { margin: 0 0 16px; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--ink-2); font-size: 0.88rem; line-height: 1.45; }
 .auth-tour-steps strong { color: var(--ink-1); }
 .auth-tour-ok { width: 100%; padding: 12px; border-radius: var(--radius-2); border: none; background: var(--sigillo); color: var(--paper-raised); font-weight: 700; font-size: 0.9rem; cursor: pointer; font-family: inherit; transition: background var(--dur-1); }
+
+/* ── AI pre-flight instructions modal ────────────────────────────────────── */
+.ai-instr-backdrop { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 18px; background: rgba(20, 16, 12, 0.55); }
+.ai-instr-modal { width: min(100%, 440px); background: var(--paper-raised); border: 1px solid var(--rule); border-radius: var(--radius-4); padding: 22px; box-shadow: var(--shadow-3); }
+.ai-instr-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.ai-instr-icon { color: var(--giulia-ink, var(--sigillo)); display: flex; }
+.ai-instr-title { margin: 0; font-family: var(--font-display); font-size: 1.1rem; letter-spacing: -0.02em; color: var(--ink-1); }
+.ai-instr-sub { margin: 0 0 12px; font-size: 0.84rem; line-height: 1.45; color: var(--ink-3); }
+.ai-instr-sub strong { color: var(--ink-2); }
+.ai-instr-textarea { width: 100%; padding: 11px 13px; border-radius: var(--radius-2); border: 1px solid var(--rule-strong); background: var(--paper-sunken); color: var(--ink-1); font: inherit; font-size: 0.9rem; line-height: 1.45; outline: none; resize: vertical; min-height: 72px; transition: border-color var(--dur-1); }
+.ai-instr-textarea::placeholder { color: var(--ink-4); }
+.ai-instr-textarea:focus { border-color: var(--sigillo); }
+.ai-instr-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .auth-brand { display: flex; align-items: center; gap: 12px; }
 .auth-brand--hero { margin-bottom: 0; }
 .auth-brand-icon { width: 42px; height: 42px; border-radius: var(--radius-2); flex: none; background: var(--sigillo); display: flex; align-items: center; justify-content: center; color: var(--paper-raised); }
