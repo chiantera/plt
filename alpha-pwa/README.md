@@ -26,7 +26,7 @@ Pushes to `main` trigger the Netlify frontend deploy. Backend deploys are handle
 - AI merge flow that updates analyzed case state without intentionally overwriting local edits.
 - Resilient background analysis: analyses run as backend jobs (`POST/GET /api/analyze-jobs`) driven by `frontend/src/analysis/analysisManager.ts`, so they survive navigating away, opening another case, locking the phone, or a refresh; the case list shows an "Analisi in corso…" pill and refreshes on completion.
 - Optional pre-flight "istruzioni per GiulIA" steering before Analizza / Pro / Ri-analizza / Crea bozza (`AnalyzeRequest.user_instructions`); never a source of facts, deadlines, or precedents.
-- App-lock: a 4-digit PIN (+ optional WebAuthn biometric unlock) gating the app on cold start and after idle/background, protecting the local-only case data on a lost/shared device. PIN stored as a PBKDF2 hash only; recovery via re-login (the Supabase password stays the root). Managed from Profilo.
+- App-lock: a 4-digit PIN (+ optional WebAuthn biometric unlock, offered only where a platform authenticator exists) gating the app on cold start and after idle/background, protecting the local-only case data on a lost/shared device. PIN stored as a PBKDF2 hash only; recovery via re-login (the Supabase password stays the root). Managed from Profilo.
 - GiulIA assistant with case context and quick actions.
 - Draft workspace for memoria, ricorso Cassazione, eccezione, controesame, strategy memo, and client note.
 - Strict ban on invented Cassazione citations across all AI prompts (DIVIETO ASSOLUTO pattern); `DA VERIFICARE` post-processing as safety net.

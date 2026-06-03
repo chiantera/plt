@@ -38,7 +38,7 @@ The app is live for limited colleague testing. See [`CURRENT-TASK.md`](./CURRENT
 - Runs analysis as a resilient background job that survives navigating away, opening another case, locking the phone, or a refresh.
 - Lets the lawyer add optional steering instructions before an analysis or draft (pre-flight modal), without overriding the no-inventing guardrails.
 - Gates login behind a responsibility/privacy disclaimer + mandatory checkbox, with a first-run welcome panel and account controls (Profilo + quick logout).
-- Protects the local-only case data with an optional app-lock: a 4-digit PIN (PBKDF2) plus optional WebAuthn biometric, required on cold start and after idle.
+- Protects the local-only case data with an optional app-lock: a 4-digit PIN (PBKDF2) plus optional WebAuthn biometric (offered only where a platform authenticator exists), required on cold start and after idle.
 - Generates draft work products: memoria, ricorso Cassazione, eccezione, controesame, strategy memo, client note.
 - Enforces a strict ban on invented Cassazione citations across all AI prompts; flags any slip-through as `DA VERIFICARE`.
 - Supports privacy workflows through redaction, anonymization, local case storage, and export/import.

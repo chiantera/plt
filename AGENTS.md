@@ -1,6 +1,6 @@
 # CLAUDE.md — Pocket Legal Triage
 
-> Mirrors `AGENT.md` / `AGENTS.md`. Claude Code auto-loads this file; keep all three synchronized.
+> Mirrors `AGENT.md` / `AGENTS.md`. Claude Code auto-loads this file. **After ANY edit to this file, re-clone it verbatim to `AGENT.md` and `AGENTS.md` in the same commit — all three must stay byte-identical.**
 
 You are working in `/home/deckard/projects/plt`, the Pocket Legal Triage (PLT) workspace.
 
@@ -194,8 +194,9 @@ Before saying work is complete:
 6. Run `git diff --check` before commit.
 7. **Aggiorna `07-prompts/2026-05-26-plt-ai-prompts-map.md`** se il slice cambia prompt, wording, policy Flash/Pro, o guardrail Cassazione. È il source-of-truth vivo dei prompt AI.
 8. **Aggiorna `CURRENT-TASK.md`** con lo stato del slice completato e il backlog aggiornato a ogni commit significativo.
-9. **Aggiorna `README.md` e `alpha-pwa/README.md`** se cambia l'architettura, le feature principali, o le istruzioni di setup.
-10. Se aggiungi o modifichi un prompt AI: verifica che includa il pattern DIVIETO ASSOLUTO per citazioni Cassazione (vedi P18 in `07-prompts/2026-05-26-plt-ai-prompts-map.md` come gold standard).
+9. **Tieni la documentazione aggiornata a ogni slice — soprattutto i README** (`README.md` e `alpha-pwa/README.md`: feature list, albero del codebase, endpoint, comandi di verifica), ma anche gli altri `.md` (`CURRENT-TASK.md`, spec in `docs/`, prompt map). Se cambia architettura/feature/setup, aggiornali nello stesso commit: è parte del "fatto", non un'attività separata da ricordare.
+10. **Dopo aver modificato `CLAUDE.md`, ri-clonalo identico in `AGENT.md` e `AGENTS.md` nello stesso commit** (devono restare byte-identici).
+11. Se aggiungi o modifichi un prompt AI: verifica che includa il pattern DIVIETO ASSOLUTO per citazioni Cassazione (vedi P18 in `07-prompts/2026-05-26-plt-ai-prompts-map.md` come gold standard).
 
 ---
 

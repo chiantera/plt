@@ -133,4 +133,4 @@ Il `fetch('${API}/api/health').catch(()=>{})` in `useEffect([])` in cima ad `App
 ### Note operative emerse
 
 - La credenziale biometrica è legata al **dominio** (rp.id = dominio corrente). Su dominio custom futuro gli utenti dovranno ri-registrare la biometria.
-- Su desktop senza autenticatore di piattaforma l'attivazione biometrica può fallire/annullarsi: previsto, resta il PIN. La UI mostra l'opzione su `isBiometricSupported()` (sync); un gating più fine su `isPlatformAuthenticatorAvailable()` (async) è un miglioramento possibile.
+- Su desktop senza autenticatore di piattaforma l'opzione biometrica **non viene mostrata affatto**: la UI è gata su `isPlatformAuthenticatorAvailable()` (async, via hook `usePlatformAuthenticator()`), non sul più permissivo `isBiometricSupported()` sync. ✅ _Fatto 2026-06-03 (PLT `70b7d9e8`, SchedaPRO `d74c833cd`)._
