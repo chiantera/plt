@@ -12,6 +12,7 @@
     "test:draft-workspace": "node --experimental-strip-types scripts/check-draft-workspace.mjs",
     "test:draft-workspace-ui": "node scripts/check-draft-workspace-ui.mjs",
     "test:app-lock": "node --experimental-strip-types scripts/check-app-lock.mjs",
+    "test:session-expiry": "node --experimental-strip-types scripts/check-session-expiry.mjs",
     "doctor": "npx react-doctor@latest"
   },
   "type": "module",

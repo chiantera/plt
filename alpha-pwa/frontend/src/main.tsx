@@ -16,6 +16,7 @@ import AccountControls from './components/AccountControls';
 import { resumePersistedAnalyses, runningAnalysisCount, getAnalysisState, useAnalysisTick } from './analysis/analysisManager';
 import LockGate from './lock/LockGate';
 import './lock/lock.css';
+import { recordAcceptance, ensureAcceptanceTs, isSessionExpired, clearAcceptance } from './auth/sessionExpiry';
 import OnboardingWizard from './onboarding/OnboardingWizard';
 import { wizardBus, isOnboardingActive } from './onboarding/wizardBus';
 import './tokens.css';
@@ -261,9 +262,11 @@ function AuthScreen() {
       if (tab === 'login') {
         const { error: err } = await supabase.auth.signInWithPassword({ email, password });
         if (err) throw err;
+        recordAcceptance(); // ha appena spuntato l'avviso: avvia la finestra di 72h
       } else {
         const { error: err } = await supabase.auth.signUp({ email, password });
         if (err) throw err;
+        recordAcceptance();
         setInfo('Account creato. Puoi accedere subito.');
       }
     } catch (err: unknown) {
@@ -616,6 +619,21 @@ function App() {
   // cold-start in ~30-50s). Fire-and-forget so nothing blocks; by the time the
   // user reads the disclaimer, logs in, and opens a case, the backend is awake.
   useEffect(() => { fetch(`${API}/api/health`).catch(() => {}); }, []);
+  // Logout forzato ogni 72h: l'utente deve ri-accettare l'avviso. Quando c'è una
+  // sessione, se l'ultima accettazione è scaduta sloggiamo (→ torna al login con
+  // la checkbox); altrimenti innestiamo il timestamp per le sessioni preesistenti.
+  // Ricontrolliamo quando l'app torna in primo piano.
+  useEffect(() => {
+    if (!session) return;
+    const check = () => {
+      if (isSessionExpired()) { clearAcceptance(); supabase.auth.signOut(); }
+      else ensureAcceptanceTs();
+    };
+    check();
+    const onVis = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [session]);
   const [view, setView] = useState<View>('cases');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [activeCaseData, setActiveCaseData] = useState<CaseAnalysis | null>(null);

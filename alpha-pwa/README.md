@@ -122,6 +122,8 @@ npm run test:local-case-scope
 npm run test:case-merge
 npm run test:draft-workspace
 npm run test:draft-workspace-ui
+npm run test:app-lock
+npm run test:session-expiry
 ```
 
 Backend:
@@ -195,6 +197,9 @@ frontend/
       LockGate.tsx        Gate: setup prompt → lock screen → app; cold-start + idle triggers
       LockScreen.tsx      4-digit PIN pad + biometric unlock
       LockSetup.tsx       First-run "proteggi con PIN" prompt + reusable PinSetForm
+
+    auth/
+      sessionExpiry.ts    72h session TTL: forces re-acceptance of the warning (auto-logout)
 
     onboarding/
       OnboardingWizard.tsx  First-run spotlight tour (login → crea → carica → analizza)

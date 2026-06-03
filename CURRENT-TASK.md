@@ -4,6 +4,12 @@ _Last updated: 2026-06-03 by Claude_
 
 ---
 
+## ✅ DONE — Logout forzato ogni 72h su PLT e SchedaPRO (2026-06-03)
+
+L'utente deve ri-accettare il riquadro di avviso (e rifare login) almeno ogni 72h. La sessione Supabase non scade da sola, quindi forziamo noi il `signOut()` quando l'ultima accettazione supera il TTL. `src/auth/sessionExpiry.ts` (TTL 72h, `recordAcceptance` al login in `AuthScreen.handleSubmit`, `isSessionExpired`/`ensureAcceptanceTs` nell'effetto di `App`, ricontrollo su `visibilitychange`). Test: `npm run test:session-expiry`. Sessioni preesistenti senza timestamp → innestate da adesso (nessun logout a sorpresa). ⏳ Da verificare live su Netlify dopo deploy.
+
+---
+
 ## ✅ DONE — App-lock (PIN + biometria) su PLT e SchedaPRO (2026-06-03)
 
 Cancello locale sopra la sessione Supabase persistente, per proteggere i dati local-only su device perso/condiviso. **PIN a 4 cifre** (hash PBKDF2, mai in chiaro) + **biometria WebAuthn opzionale**; blocco all'avvio e dopo inattività/background; recupero via re-login (nessuna cifratura at-rest → nessun rischio di perdita dati); gestione da Profilo. Warm-up ping del backend invariato (parte prima del cancello). Design + note operative: [`docs/superpowers/specs/2026-06-03-app-lock-pin-design.md`](docs/superpowers/specs/2026-06-03-app-lock-pin-design.md). Commit: Fase 1 `b4948537`, Fase 2 `ff2eceb5` (SchedaPRO: `bdae9f4d3`, `fa9228fd0`). Test: `npm run test:app-lock`.
