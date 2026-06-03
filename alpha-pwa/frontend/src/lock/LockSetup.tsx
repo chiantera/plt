@@ -3,8 +3,8 @@
  * PinSetForm (enter + confirm) used here and by the Profilo management panel.
  */
 import { useRef, useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
-import { setPin, dismissSetup } from './appLock';
+import { Fingerprint, ShieldCheck } from 'lucide-react';
+import { setPin, dismissSetup, isBiometricSupported, registerBiometric } from './appLock';
 
 const PIN_LEN = 4;
 
@@ -58,7 +58,23 @@ export function PinSetForm({ onSubmit, submitLabel, onCancel }: {
 }
 
 export default function LockSetup({ userId, onDone }: { userId: string; onDone: () => void }) {
-  const [step, setStep] = useState<'intro' | 'set'>('intro');
+  const [step, setStep] = useState<'intro' | 'set' | 'bio'>('intro');
+
+  if (step === 'bio') {
+    return (
+      <div className="lock-screen">
+        <div className="lock-card">
+          <div className="lock-icon"><Fingerprint size={22} /></div>
+          <h1 className="lock-title">Sblocco biometrico</h1>
+          <p className="lock-sub">Vuoi sbloccare anche con Face ID / impronta? Il PIN resta come alternativa.</p>
+          <div className="lock-form-actions lock-form-actions--stack">
+            <button type="button" className="primary-button" onClick={async () => { await registerBiometric(userId, userId); onDone(); }}>Attiva biometria</button>
+            <button type="button" className="ghost-button" onClick={onDone}>Solo PIN</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (step === 'set') {
     return (
@@ -70,7 +86,7 @@ export default function LockSetup({ userId, onDone }: { userId: string; onDone: 
           <PinSetForm
             submitLabel="Attiva il blocco"
             onCancel={() => setStep('intro')}
-            onSubmit={async (pin) => { await setPin(userId, pin); onDone(); }}
+            onSubmit={async (pin) => { await setPin(userId, pin); if (isBiometricSupported()) setStep('bio'); else onDone(); }}
           />
         </div>
       </div>

@@ -13,6 +13,7 @@ globalThis.localStorage = {
 const {
   loadConfig, isLockEnabled, setPin, verifyPin, dismissSetup, clearLock,
   markActivity, idleExceeded,
+  isBiometricSupported, hasBiometric, registerBiometric, unlockWithBiometric,
 } = await import('../src/lock/appLock.ts');
 
 const UID = 'user-123';
@@ -55,6 +56,14 @@ assert.equal(idleExceeded(5), false, 'just-active is not idle');
 store.set('plt:applock:lastActive', String(Date.now() - 6 * 60_000));
 assert.equal(idleExceeded(5), true, '6 min ago exceeds a 5-min timeout');
 
+// biometric degrades gracefully where WebAuthn is unavailable (e.g. Node)
+assert.equal(isBiometricSupported(), false, 'no WebAuthn in Node → unsupported');
+await setPin(UID, '1111');
+assert.equal(hasBiometric(UID), false, 'no biometric set initially');
+assert.equal(await registerBiometric(UID, 'x'), false, 'register no-ops without WebAuthn');
+assert.equal(await unlockWithBiometric(UID), false, 'unlock no-ops without WebAuthn');
+clearLock(UID);
+
 // ── static wiring checks ─────────────────────────────────────────────────────
 const main = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
 const gate = readFileSync(new URL('../src/lock/LockGate.tsx', import.meta.url), 'utf8');
@@ -71,6 +80,10 @@ assert.match(gate, /clearLock\(userId\)/, 'recovery clears local config');
 assert.match(gate, /signOut\(\)/, 'recovery signs out');
 assert.match(screen, /verifyPin/, 'lock screen verifies the PIN');
 assert.match(screen, /PIN_LEN = 4/, '4-digit PIN');
+assert.match(screen, /unlockWithBiometric/, 'lock screen offers biometric unlock');
+assert.match(lockMod, /navigator\.credentials\.create/, 'WebAuthn register');
+assert.match(lockMod, /navigator\.credentials\.get/, 'WebAuthn unlock');
 assert.match(account, /LockManager/, 'Profilo exposes lock management');
+assert.match(account, /registerBiometric/, 'Profilo can enable biometric');
 
 console.log('app-lock checks passed');

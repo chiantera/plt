@@ -4,8 +4,8 @@
  * Never destroys data. "PIN dimenticato?" delegates to the host (re-login flow).
  */
 import { useEffect, useState } from 'react';
-import { Delete, Lock } from 'lucide-react';
-import { verifyPin, unlock, registerWrongAttempt, useLockState } from './appLock';
+import { Delete, Fingerprint, Lock } from 'lucide-react';
+import { verifyPin, unlock, registerWrongAttempt, useLockState, hasBiometric, isBiometricSupported, unlockWithBiometric } from './appLock';
 
 const PIN_LEN = 4;
 
@@ -13,7 +13,9 @@ export default function LockScreen({ userId, onForgot }: { userId: string; onFor
   const [entry, setEntry] = useState('');
   const [shake, setShake] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [bioError, setBioError] = useState(false);
   const { attempts, cooldownUntil } = useLockState();
+  const [bioAvailable] = useState(() => hasBiometric(userId) && isBiometricSupported());
 
   const cooling = cooldownUntil != null && cooldownUntil > now;
   const secondsLeft = cooling ? Math.ceil((cooldownUntil! - now) / 1000) : 0;
@@ -42,6 +44,12 @@ export default function LockScreen({ userId, onForgot }: { userId: string; onFor
   };
   const back = () => { if (!cooling) setEntry(e => e.slice(0, -1)); };
 
+  const tryBiometric = async () => {
+    setBioError(false);
+    const ok = await unlockWithBiometric(userId);
+    if (!ok) setBioError(true);
+  };
+
   return (
     <div className="lock-screen" role="dialog" aria-modal="true" aria-label="App bloccata">
       <div className="lock-card">
@@ -69,6 +77,13 @@ export default function LockScreen({ userId, onForgot }: { userId: string; onFor
           <button type="button" className="lock-key" onClick={() => press('0')} disabled={cooling}>0</button>
           <button type="button" className="lock-key lock-key--util" onClick={back} disabled={cooling} aria-label="Cancella"><Delete size={20} /></button>
         </div>
+
+        {bioAvailable && (
+          <button type="button" className="lock-bio" onClick={() => void tryBiometric()}>
+            <Fingerprint size={18} /> Sblocca con biometria
+          </button>
+        )}
+        {bioError && <p className="lock-error" role="alert">Sblocco biometrico non riuscito. Usa il PIN.</p>}
 
         <button type="button" className="lock-forgot" onClick={onForgot}>PIN dimenticato?</button>
       </div>

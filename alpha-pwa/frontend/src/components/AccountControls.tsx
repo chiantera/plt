@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { type Session } from '@supabase/supabase-js';
-import { LogOut, ShieldCheck, ShieldOff, User, X } from 'lucide-react';
+import { Fingerprint, LogOut, ShieldCheck, ShieldOff, User, X } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import type { UserProfile } from '../domain/types';
-import { useLockConfig, setPin, dismissSetup } from '../lock/appLock';
+import { useLockConfig, setPin, dismissSetup, isBiometricSupported, hasBiometric, registerBiometric, disableBiometric } from '../lock/appLock';
 import { PinSetForm } from '../lock/LockSetup';
 
 /** Profilo panel: enable / change / disable the PIN app-lock. */
@@ -48,6 +48,14 @@ function LockManager({ userId }: { userId: string }) {
           <button type="button" className="lock-manage-btn" onClick={() => setEditing(true)}>Attiva</button>
         )}
       </div>
+      {enabled && isBiometricSupported() && (
+        <div className="lock-manage-row" style={{ marginTop: 4 }}>
+          <div className="lock-manage-title" style={{ fontWeight: 600 }}><Fingerprint size={15} /> Sblocco biometrico</div>
+          {hasBiometric(userId)
+            ? <button type="button" className="lock-manage-btn lock-manage-btn--danger" onClick={() => disableBiometric(userId)}>Disattiva</button>
+            : <button type="button" className="lock-manage-btn" onClick={async () => { const ok = await registerBiometric(userId, userId); if (!ok) alert('Attivazione biometria non riuscita su questo dispositivo.'); }}>Attiva</button>}
+        </div>
+      )}
     </div>
   );
 }

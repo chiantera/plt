@@ -46,7 +46,9 @@
 .lock-key:disabled { opacity: 0.4; cursor: not-allowed; }
 .lock-key--util { font-size: 1rem; color: var(--ink-3); background: transparent; border-color: transparent; }
 
-.lock-forgot { margin-top: 20px; background: none; border: none; color: var(--ink-3); font-family: inherit; font-size: 0.82rem; text-decoration: underline; cursor: pointer; }
+.lock-bio { margin-top: 18px; display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; border: 1px solid var(--rule-strong); background: var(--paper-sunken); color: var(--ink-1); font-family: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; transition: border-color var(--dur-1); }
+.lock-bio:hover { border-color: var(--sigillo); }
+.lock-forgot { margin-top: 14px; background: none; border: none; color: var(--ink-3); font-family: inherit; font-size: 0.82rem; text-decoration: underline; cursor: pointer; }
 .lock-forgot:hover { color: var(--ink-1); }
 
 /* setup / change-PIN form */

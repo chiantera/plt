@@ -122,6 +122,77 @@ export function setIdleTimeout(userId: string, minutes: number) {
   saveConfig(userId, { ...c, idleTimeoutMin: minutes });
 }
 
+// ── biometric unlock (WebAuthn, optional, Phase 2) ───────────────────────────
+// A *local* gate, not a server-verified auth: we create a platform credential
+// at enable time and treat a successful get() (device biometric / device PIN)
+// as an unlock. No assertion is verified server-side. Degrades to PIN-only
+// wherever WebAuthn or a platform authenticator is unavailable.
+const RP_NAME = 'Pocket Legal Triage';
+
+export function isBiometricSupported(): boolean {
+  return typeof window !== 'undefined' && !!window.PublicKeyCredential && !!navigator.credentials?.create;
+}
+
+/** True if the device has a usable platform authenticator (Face ID / fingerprint / Hello). */
+export async function isPlatformAuthenticatorAvailable(): Promise<boolean> {
+  try {
+    return isBiometricSupported() && await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch { return false; }
+}
+
+export function hasBiometric(userId: string): boolean {
+  return !!loadConfig(userId)?.biometric;
+}
+
+export async function registerBiometric(userId: string, label: string): Promise<boolean> {
+  if (!isBiometricSupported()) return false;
+  const cfg = loadConfig(userId);
+  if (!cfg || !cfg.enabled || !cfg.pinHash) return false; // PIN must exist first
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const userIdBytes = new TextEncoder().encode(userId).slice(0, 64);
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: RP_NAME },           // rp.id defaults to the current domain
+        user: { id: userIdBytes, name: label || userId, displayName: label || userId },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+        timeout: 60_000,
+        attestation: 'none',
+      },
+    }) as PublicKeyCredential | null;
+    if (!cred) return false;
+    saveConfig(userId, { ...cfg, biometric: { credId: toB64(cred.rawId) } });
+    return true;
+  } catch { return false; }
+}
+
+export async function unlockWithBiometric(userId: string): Promise<boolean> {
+  const cfg = loadConfig(userId);
+  if (!cfg?.biometric || !isBiometricSupported()) return false;
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{ type: 'public-key', id: fromB64(cfg.biometric.credId) }],
+        userVerification: 'required',
+        timeout: 60_000,
+      },
+    });
+    if (!assertion) return false;
+    unlock();
+    return true;
+  } catch { return false; }
+}
+
+export function disableBiometric(userId: string) {
+  const c = loadConfig(userId);
+  if (!c) return;
+  saveConfig(userId, { ...c, biometric: null });
+}
+
 // ── idle bookkeeping ─────────────────────────────────────────────────────────
 export function markActivity() {
   try { localStorage.setItem(LAST_ACTIVE_KEY, String(Date.now())); } catch { /* ignore */ }
