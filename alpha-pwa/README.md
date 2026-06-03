@@ -138,12 +138,12 @@ If the full backend suite hangs in this local harness after printing successful 
 
 ```text
 backend/
-  app/main.py             FastAPI routes (upload, analyze, chat, transcribe, fetch-url)
-  app/ai_service.py       Provider routing · Flash/Pro policy · prompt assembly
-  app/models.py           Pydantic contracts (CaseAnalysis, ChatRequest, …)
+  app/main.py             FastAPI routes (upload, analyze-text, analyze-jobs, chat, transcribe, fetch-url, export-brief, health)
+  app/ai_service.py       Provider routing · Flash/Pro policy · prompt assembly (incl. user_instructions)
+  app/models.py           Pydantic contracts (CaseAnalysis, AnalyzeRequest, AnalyzeJob*, ChatRequest, …)
   app/ocr_adapter.py      Mistral OCR boundary
   app/demo_data.py        Demo case fixture
-  tests/                  Backend contract tests (pytest)
+  tests/                  Backend contract tests (pytest) — incl. test_user_instructions, test_analysis_jobs
 
 frontend/
   public/
@@ -156,8 +156,9 @@ frontend/
   src/
     tokens.css            Carta & Inchiostro design tokens (load before styles.css)
     styles.css            Mobile-first component styles
-    main.tsx              App shell · CaseListView · routing
+    main.tsx              App shell · CaseListView · auth gate · LockGate · warm-up ping · routing
     config.ts             Shared API base URL
+    supabaseClient.ts     Shared Supabase client (auth) + env-var guard
     db.ts                 IndexedDB persistence
     pltExport.ts          Encrypted .plt export/import
     draftArtifacts.ts     Draft wrapper · Cassazione guardrail · export
@@ -181,7 +182,19 @@ frontend/
     components/
       GiuliaPromptBar.tsx
       ChatPanel.tsx       ChatDrawer · FloatingChatButton · FabRestoreButton
+      AccountControls.tsx Profilo + quick logout + PIN/biometric management
+      AiInstructionsModal.tsx  Pre-flight "istruzioni per GiulIA" steering modal
       MultiFileUploadDrawer.tsx  (lazy-loaded chunk)
+
+    analysis/
+      analysisManager.ts        App-level background-analysis jobs (POST + poll + resume + merge)
+      AnalysisProgressBanner.tsx  Non-blocking progress banner + abort
+
+    lock/
+      appLock.ts          App-lock state + PBKDF2 PIN + WebAuthn biometric + idle/recovery
+      LockGate.tsx        Gate: setup prompt → lock screen → app; cold-start + idle triggers
+      LockScreen.tsx      4-digit PIN pad + biometric unlock
+      LockSetup.tsx       First-run "proteggi con PIN" prompt + reusable PinSetForm
 
     onboarding/
       OnboardingWizard.tsx  First-run spotlight tour (login → crea → carica → analizza)
