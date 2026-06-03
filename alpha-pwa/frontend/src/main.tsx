@@ -281,6 +281,7 @@ function AuthScreen() {
           <div className="auth-disclaimer auth-disclaimer--card" role="note">
             <p><strong>Importante:</strong> PLT aiuta a organizzare fascicoli, bozze e checklist. Non sostituisce il giudizio dell'avvocato: ogni termine, fonte, precedente o citazione resta da verificare prima dell'uso.</p>
             <p><strong>Privacy:</strong> carica solo materiali che puoi trattare. Usa anonimizzazione o pseudonimi quando opportuno; le chiamate AI/OCR/STT sono superfici di trasferimento dati esterne.</p>
+            <p><strong>💬 Feedback.</strong> Per domande, osservazioni o suggerimenti scriva a <strong>studiolegale.ai@gmail.com</strong> — può allegare screenshot se aiutano a spiegare. Ogni segnalazione è benvenuta.</p>
             <label className="auth-accept">
               <input
                 type="checkbox"
