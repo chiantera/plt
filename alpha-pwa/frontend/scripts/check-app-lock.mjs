@@ -13,7 +13,7 @@ globalThis.localStorage = {
 const {
   loadConfig, isLockEnabled, setPin, verifyPin, dismissSetup, clearLock,
   markActivity, idleExceeded,
-  isBiometricSupported, hasBiometric, registerBiometric, unlockWithBiometric,
+  isBiometricSupported, isPlatformAuthenticatorAvailable, hasBiometric, registerBiometric, unlockWithBiometric,
 } = await import('../src/lock/appLock.ts');
 
 const UID = 'user-123';
@@ -58,6 +58,7 @@ assert.equal(idleExceeded(5), true, '6 min ago exceeds a 5-min timeout');
 
 // biometric degrades gracefully where WebAuthn is unavailable (e.g. Node)
 assert.equal(isBiometricSupported(), false, 'no WebAuthn in Node → unsupported');
+assert.equal(await isPlatformAuthenticatorAvailable(), false, 'no platform authenticator in Node');
 await setPin(UID, '1111');
 assert.equal(hasBiometric(UID), false, 'no biometric set initially');
 assert.equal(await registerBiometric(UID, 'x'), false, 'register no-ops without WebAuthn');
@@ -85,5 +86,9 @@ assert.match(lockMod, /navigator\.credentials\.create/, 'WebAuthn register');
 assert.match(lockMod, /navigator\.credentials\.get/, 'WebAuthn unlock');
 assert.match(account, /LockManager/, 'Profilo exposes lock management');
 assert.match(account, /registerBiometric/, 'Profilo can enable biometric');
+// biometric UI is gated on a real platform authenticator (hidden on desktops w/o reader)
+const setup = readFileSync(new URL('../src/lock/LockSetup.tsx', import.meta.url), 'utf8');
+assert.match(account, /usePlatformAuthenticator/, 'Profilo gates biometric on platform authenticator');
+assert.match(setup, /isPlatformAuthenticatorAvailable/, 'setup offers biometric only if a platform authenticator exists');
 
 console.log('app-lock checks passed');

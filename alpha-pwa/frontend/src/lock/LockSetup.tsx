@@ -4,7 +4,7 @@
  */
 import { useRef, useState } from 'react';
 import { Fingerprint, ShieldCheck } from 'lucide-react';
-import { setPin, dismissSetup, isBiometricSupported, registerBiometric } from './appLock';
+import { setPin, dismissSetup, isPlatformAuthenticatorAvailable, registerBiometric } from './appLock';
 
 const PIN_LEN = 4;
 
@@ -86,7 +86,7 @@ export default function LockSetup({ userId, onDone }: { userId: string; onDone: 
           <PinSetForm
             submitLabel="Attiva il blocco"
             onCancel={() => setStep('intro')}
-            onSubmit={async (pin) => { await setPin(userId, pin); if (isBiometricSupported()) setStep('bio'); else onDone(); }}
+            onSubmit={async (pin) => { await setPin(userId, pin); if (await isPlatformAuthenticatorAvailable()) setStep('bio'); else onDone(); }}
           />
         </div>
       </div>

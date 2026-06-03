@@ -3,13 +3,14 @@ import { type Session } from '@supabase/supabase-js';
 import { Fingerprint, LogOut, ShieldCheck, ShieldOff, User, X } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import type { UserProfile } from '../domain/types';
-import { useLockConfig, setPin, dismissSetup, isBiometricSupported, hasBiometric, registerBiometric, disableBiometric } from '../lock/appLock';
+import { useLockConfig, setPin, dismissSetup, usePlatformAuthenticator, hasBiometric, registerBiometric, disableBiometric } from '../lock/appLock';
 import { PinSetForm } from '../lock/LockSetup';
 
 /** Profilo panel: enable / change / disable the PIN app-lock. */
 function LockManager({ userId }: { userId: string }) {
   const cfg = useLockConfig(userId);
   const enabled = !!(cfg && cfg.enabled && cfg.pinHash);
+  const platformAuth = usePlatformAuthenticator();
   const [editing, setEditing] = useState(false);
 
   if (editing) {
@@ -48,7 +49,7 @@ function LockManager({ userId }: { userId: string }) {
           <button type="button" className="lock-manage-btn" onClick={() => setEditing(true)}>Attiva</button>
         )}
       </div>
-      {enabled && isBiometricSupported() && (
+      {enabled && platformAuth && (
         <div className="lock-manage-row" style={{ marginTop: 4 }}>
           <div className="lock-manage-title" style={{ fontWeight: 600 }}><Fingerprint size={15} /> Sblocco biometrico</div>
           {hasBiometric(userId)

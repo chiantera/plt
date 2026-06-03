@@ -15,7 +15,7 @@
  * Pure config + crypto live here and are testable without React; the lock-state
  * machine is a tiny pub/sub store consumed via useSyncExternalStore.
  */
-import { useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
 export interface LockConfig {
   enabled: boolean;
@@ -244,4 +244,17 @@ export function useLockState(): LockState {
 export function useLockConfig(userId: string): LockConfig | null {
   useSyncExternalStore(subscribe, () => configTick);
   return loadConfig(userId);
+}
+
+/** Resolves to true only once a usable platform authenticator (Face ID /
+ *  fingerprint / Hello) is confirmed available — false until then. Use this to
+ *  gate biometric UI so it never appears on desktops without a reader. */
+export function usePlatformAuthenticator(): boolean {
+  const [ok, setOk] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    isPlatformAuthenticatorAvailable().then(v => { if (mounted) setOk(v); });
+    return () => { mounted = false; };
+  }, []);
+  return ok;
 }
