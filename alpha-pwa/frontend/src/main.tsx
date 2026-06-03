@@ -609,6 +609,10 @@ type View = 'cases' | 'case';
 
 function App() {
   const session = useAuth();
+  // Warm up the Render backend the moment the app loads (free-tier instances
+  // cold-start in ~30-50s). Fire-and-forget so nothing blocks; by the time the
+  // user reads the disclaimer, logs in, and opens a case, the backend is awake.
+  useEffect(() => { fetch(`${API}/api/health`).catch(() => {}); }, []);
   const [view, setView] = useState<View>('cases');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [activeCaseData, setActiveCaseData] = useState<CaseAnalysis | null>(null);
