@@ -14,6 +14,8 @@ import { ChatDrawer, FloatingChatButton, FabRestoreButton } from './components/C
 import GiuliaPromptBar from './components/GiuliaPromptBar';
 import AccountControls from './components/AccountControls';
 import { resumePersistedAnalyses, runningAnalysisCount, getAnalysisState, useAnalysisTick } from './analysis/analysisManager';
+import LockGate from './lock/LockGate';
+import './lock/lock.css';
 import OnboardingWizard from './onboarding/OnboardingWizard';
 import { wizardBus, isOnboardingActive } from './onboarding/wizardBus';
 import './tokens.css';
@@ -780,7 +782,7 @@ function App() {
   return (
     <>
       {session ? (
-        <>
+        <LockGate session={session}>
           {/* Keep both views mounted; hide the inactive one so background analysis survives navigation */}
           <div style={view === 'case' ? { display: 'none' } : undefined}>
             <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onOpenChat={openChat} />
@@ -804,7 +806,7 @@ function App() {
             onClear={() => setChat(prev => ({ ...prev, messages: [] }))}
             streaming={chatStreaming}
           />
-        </>
+        </LockGate>
       ) : (
         <AuthScreen />
       )}

@@ -1,0 +1,74 @@
+/* ── App-lock (PIN) ──────────────────────────────────────────────────────── */
+.lock-screen {
+  position: fixed; inset: 0; z-index: 11000;
+  display: grid; place-items: center; padding: 22px;
+  background: var(--paper);
+}
+.lock-card {
+  width: min(100%, 360px);
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center;
+  background: var(--paper-raised); border: 1px solid var(--rule);
+  border-radius: var(--radius-4); padding: 30px 24px; box-shadow: var(--shadow-3);
+}
+.lock-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: grid; place-items: center; margin-bottom: 14px;
+  background: var(--sigillo); color: var(--paper-raised);
+}
+.lock-title { margin: 0 0 4px; font-family: var(--font-display); font-size: 1.3rem; color: var(--ink-1); letter-spacing: -0.02em; }
+.lock-sub { margin: 0 0 18px; font-size: 0.86rem; line-height: 1.45; color: var(--ink-3); }
+.lock-sub strong { color: var(--ink-2); }
+
+.lock-dots { display: flex; gap: 14px; margin: 4px 0 10px; }
+.lock-dots--shake { animation: lock-shake 0.4s; }
+.lock-dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--rule-strong); background: transparent; transition: background var(--dur-1), border-color var(--dur-1); }
+.lock-dot--on { background: var(--sigillo); border-color: var(--sigillo); }
+@keyframes lock-shake {
+  0%,100% { transform: translateX(0); }
+  20%,60% { transform: translateX(-8px); }
+  40%,80% { transform: translateX(8px); }
+}
+
+.lock-error { margin: 0 0 14px; min-height: 1.1em; font-size: 0.8rem; font-weight: 600; color: var(--critical, #ef4444); }
+.lock-error--placeholder { color: transparent; }
+
+.lock-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-width: 260px; }
+.lock-key {
+  aspect-ratio: 1 / 1; border-radius: 50%;
+  border: 1px solid var(--rule); background: var(--paper-sunken);
+  color: var(--ink-1); font-size: 1.4rem; font-family: inherit; cursor: pointer;
+  display: grid; place-items: center;
+  transition: background var(--dur-1), border-color var(--dur-1), transform var(--dur-1);
+}
+.lock-key:hover:not(:disabled) { border-color: var(--sigillo); }
+.lock-key:active:not(:disabled) { transform: scale(0.94); background: var(--sigillo); color: var(--paper-raised); }
+.lock-key:disabled { opacity: 0.4; cursor: not-allowed; }
+.lock-key--util { font-size: 1rem; color: var(--ink-3); background: transparent; border-color: transparent; }
+
+.lock-forgot { margin-top: 20px; background: none; border: none; color: var(--ink-3); font-family: inherit; font-size: 0.82rem; text-decoration: underline; cursor: pointer; }
+.lock-forgot:hover { color: var(--ink-1); }
+
+/* setup / change-PIN form */
+.lock-form { width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.lock-field-label { font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); margin-top: 8px; }
+.lock-input {
+  width: 100%; padding: 12px 14px; border-radius: var(--radius-2);
+  border: 1px solid var(--rule-strong); background: var(--paper-sunken); color: var(--ink-1);
+  font: inherit; font-size: 1.3rem; letter-spacing: 0.4em; text-align: center; outline: none;
+  transition: border-color var(--dur-1);
+}
+.lock-input:focus { border-color: var(--sigillo); }
+.lock-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; width: 100%; }
+.lock-form-actions--stack { flex-direction: column; }
+.lock-form-actions--stack .primary-button, .lock-form-actions--stack .ghost-button { width: 100%; }
+
+/* Profilo management section */
+.lock-manage { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; margin-top: 6px; border-top: 1px solid var(--rule); }
+.lock-manage-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lock-manage-title { font-size: 0.84rem; font-weight: 700; color: var(--ink-1); display: flex; align-items: center; gap: 8px; }
+.lock-manage-sub { font-size: 0.76rem; color: var(--ink-3); line-height: 1.4; }
+.lock-manage-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.lock-manage-btn { padding: 9px 12px; border-radius: var(--radius-2); border: 1px solid var(--rule); background: transparent; color: var(--ink-2); font-family: inherit; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: border-color var(--dur-1), color var(--dur-1); }
+.lock-manage-btn:hover { border-color: var(--sigillo); color: var(--ink-1); }
+.lock-manage-btn--danger:hover { border-color: var(--critical, #ef4444); color: var(--critical, #ef4444); }
