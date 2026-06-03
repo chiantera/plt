@@ -127,5 +127,10 @@ Il `fetch('${API}/api/health').catch(()=>{})` in `useEffect([])` in cima ad `App
 
 ## Fasaggio implementazione
 
-1. **Fase 1 (must):** `appLock.ts` (config + PBKDF2 + state machine), `LockGate`, `LockScreen` (solo PIN), `LockSetup` (prompt + Profilo), triggers avvio/idle, recupero. Test + build. Porta su entrambe le app.
-2. **Fase 2 (fast-follow):** ramo biometria WebAuthn (register/unlock + degrado), bottone nel `LockScreen` e toggle in Profilo.
+1. **Fase 1 — ✅ SHIPPED (2026-06-03):** `appLock.ts` (config + PBKDF2 + state machine), `LockGate`, `LockScreen` (solo PIN), `LockSetup` (prompt + Profilo), triggers avvio/idle, recupero. Test (`test:app-lock`) + build. Su entrambe le app. _PLT `b4948537`, SchedaPRO `bdae9f4d3`._ Verificato live su SchedaPRO Netlify (PIN a 4 cifre funzionante).
+2. **Fase 2 — ✅ SHIPPED (2026-06-03):** biometria WebAuthn (register/unlock + degrado), bottone nel `LockScreen`, step opzionale nel setup, toggle in Profilo. _PLT `ff2eceb5`, SchedaPRO `fa9228fd0`._
+
+### Note operative emerse
+
+- La credenziale biometrica è legata al **dominio** (rp.id = dominio corrente). Su dominio custom futuro gli utenti dovranno ri-registrare la biometria.
+- Su desktop senza autenticatore di piattaforma l'attivazione biometrica può fallire/annullarsi: previsto, resta il PIN. La UI mostra l'opzione su `isBiometricSupported()` (sync); un gating più fine su `isPlatformAuthenticatorAvailable()` (async) è un miglioramento possibile.
