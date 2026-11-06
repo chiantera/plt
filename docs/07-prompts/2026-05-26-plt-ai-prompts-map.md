@@ -70,7 +70,14 @@ File: `alpha-pwa/backend/app/ai_service.py`
 - `/api/chat` streaming default: `_CHAT_MAX_TOKENS = 32768` (env: `PLT_CHAT_MAX_TOKENS`). Previously hardcoded 4096 — raised 2026-05-28.
 - Per-request override: `ChatRequest.max_tokens_override` (int | None). If set, overrides the module default for that call only.
 - Cassazione bozza uses `max_tokens_override: 131072` and `mode: 'pro'` (frontend `fetchChatFull` opts).
-- Anthropic and DeepSeek streaming paths both accept the override via the `max_tokens` parameter to `_deepseek_stream` / `_anthropic_stream`.
+- Anthropic and DeepSeek streaming paths both accept the override via the `max_tokens` parameter to `_deepseek_stream` / `_anthropic_stream`. Anthropic caps it at the model limit (64K Haiku 4.5, 128K Opus 4.7).
+
+### Provider failover
+
+File: `alpha-pwa/backend/app/ai_service.py`
+Section: `_call_llm`
+
+Prompts are provider-neutral: the same system prompt and messages go to a free model on Nous Portal when a DeepSeek call fails and `NOUS_API_KEY` is set. Failover never changes `mode`, so Pro still requires the lawyer's confirmation. Details and limits: `docs/04-technical/model-routing.md`.
 
 ### SSE keepalive for reasoning models
 
@@ -79,7 +86,7 @@ Section: `_deepseek_stream`
 
 DeepSeek V4 Flash and Pro are reasoning models that emit `reasoning_content` tokens internally before producing `content` tokens. During that silent phase no SSE data reaches the browser, causing the Vite HTTP proxy (and any other proxy) to drop the connection for inactivity and truncate the output mid-word.
 
-Fix (2026-05-28): `_deepseek_stream` now yields `": ping\n\n"` whenever a chunk carries `reasoning_content` but no `content`. SSE comments are silently discarded by the browser `EventSource` / manual `ReadableStream` reader — they have no effect on output but keep the socket alive.
+Fix (2026-05-28): each chunk that carries `reasoning_content` now produces `": ping\n\n"` (`_deepseek_stream` yields `None`, and `_call_llm` sends the comment). SSE comments are silently discarded by the browser `EventSource` / manual `ReadableStream` reader — they have no effect on output but keep the socket alive.
 
 Companion fix: `vite.config.ts` proxy `timeout` and `proxyTimeout` raised to 600 s.
 

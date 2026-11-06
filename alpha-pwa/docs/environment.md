@@ -14,7 +14,8 @@ are what the code falls back to when the var is unset.
 | Var | Required | Default | Purpose |
 |---|---|---|---|
 | `DEEPSEEK_API_KEY` | **yes** | — | Primary AI (extraction, analysis, chat, drafts). If missing, AI features fail / fall back to Anthropic if configured. |
-| `ANTHROPIC_API_KEY` | optional | — | Fallback provider (Claude) when DeepSeek isn't available. |
+| `NOUS_API_KEY` | optional | — | Runtime failover to a free model on Nous Portal when a DeepSeek call fails. Case material can then reach Nous and its backends. See the data-transfer note in `docs/04-technical/model-routing.md` before setting it. |
+| `ANTHROPIC_API_KEY` | optional | — | Adds Claude as a further failover step. Case material can then reach Anthropic too. |
 | `GROQ_API_KEY` | for voice | — | Speech-to-text (Whisper) for "Nota vocale". Missing → `/api/transcribe` returns 503; invalid → 502. |
 | `MISTRAL_API_KEY` | for OCR | `""` | OCR of scanned PDFs / images (`ocr_adapter.py`). |
 
@@ -47,6 +48,11 @@ Render env var; the app never stores them in code.
 | `PLT_FLASH_MAX_ANALYSIS_CHARS` | `1000000` | Max input chars, Flash (falls back to `PLT_MAX_ANALYSIS_CHARS`). |
 | `PLT_PRO_MAX_ANALYSIS_CHARS` | `1000000` | Max input chars, Pro. |
 | `PLT_MAX_ANALYSIS_CHARS` | `1000000` | Legacy fallback for the Flash char budget. |
+| `PLT_FALLBACK_MODEL` | `meituan/longcat-2.5:free` | Nous Portal model used for failover. It must work on Nous's Messages route. |
+| `PLT_FALLBACK_MAX_TOKENS` | `64000` | Output cap for the failover model. |
+| `PLT_LLM_READ_TIMEOUT_SECONDS` | `120` | Longest silence between bytes before an LLM call counts as stalled and fails over. |
+| `PLT_LLM_CONNECT_TIMEOUT_SECONDS` | `10` | LLM connection timeout. |
+| `PLT_LLM_MAX_RETRIES` | `1` | SDK retries on the same provider before failing over. |
 
 > Token budgets are **generated output**, not total context; input+output must still fit the model window.
 
@@ -55,7 +61,7 @@ Render env var; the app never stores them in code.
 |---|---|---|
 | `PLT_MAX_UPLOAD_BYTES` | `52428800` (50 MB) | Max upload size per file. |
 | `ALLOWED_ORIGINS` | `""` | Comma-separated **extra** CORS origins, appended to the built-in defaults (Netlify + localhost). |
-| `PLT_PROMPT_LOG` | `1` (on) | Set `0` to disable prompt logging. Never commit the log file. |
+| `PLT_PROMPT_LOG` | unset (off) | Set `1` on a local machine only to write full prompts, including case material, to `prompt_log.jsonl`. Never set it on a deployed service or commit the file. |
 
 ## Frontend — Netlify (build-time, `VITE_*`)
 

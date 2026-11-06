@@ -1,10 +1,23 @@
 # CURRENT TASK — PLT alpha handoff and backlog
 
-_Last updated: 2026-11-06 by Codex_
+_Last updated: 2026-11-06 by Claude Code_
 
 ---
 
 The [Vercel homepage](https://plt-phi.vercel.app/) opens the guest workspace. The toolbar links to the [signed-in workspace](https://plt-phi.vercel.app/?view=workspace). Guest cases are stored in this browser separately from signed-in cases. Switch languages from the workspace toolbar.
+
+## LLM failover and observability (2026-11-06, branch `feat/llm-failover-observability`, not merged)
+
+A failed DeepSeek call now retries on a free model through Nous Portal when `NOUS_API_KEY` is set, on background jobs, SSE analysis and chat. Chat can fail over only until its first visible token. Every call is recorded as structured logs on `plt.llm`, with a sink hook for a tracing backend. Case titles and raw model output no longer reach the logs, and `PLT_PROMPT_LOG` is now opt-in. Design and limits: [`docs/04-technical/model-routing.md`](docs/04-technical/model-routing.md).
+
+**Verified:** backend `pytest` passes with the real SDKs over a fake HTTP transport. Italian, English and German chat, and a German background analysis, were run in a browser against the real frontend with fake providers.
+
+**Not done:**
+- Live evidence is partial: one DeepSeek chat, and one blocking analysis that failed over from a real 401 to the free model. Status table and repeat command: model-routing doc.
+- `NOUS_API_KEY` is not declared in `render.yaml`. Decide whether real case material may go to a free model before setting it on Render.
+- Check how a mid-stream break behaves through the Vercel rewrite and Render's edge. Through the Vite dev proxy the browser read hangs.
+- DeepSeek now lists `deepseek-flash` and treats `deepseek-v4-flash` as a retired alias that is still accepted. `docs/03-business/pricing-unit-economics.md` still has the old prices.
+- The German UI still shows Italian for the `Analizza con AI` button and the `Testo incollato` label.
 
 ## Localization first slice (2026-11-06)
 

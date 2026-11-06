@@ -5,11 +5,16 @@ import logging
 import os
 import re
 import sys
+import time
+from dataclasses import dataclass
 from datetime import date, datetime
 from collections.abc import Generator
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from .api_messages import translate_error
+from .llm_telemetry import LLMCallTracker, LLMFailoverEvent, emit, new_call_id
 from .models import (
     AnalyzeRequest,
     CaseAnalysis,
@@ -21,14 +26,14 @@ logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 # ── Prompt logger (local dev only) ───────────────────────────────────────────
-# Writes one JSON record per API call to prompt_log.jsonl in the backend dir.
-# Set PLT_PROMPT_LOG=0 to disable. Never commit the log file.
-_PROMPT_LOG_ENABLED = os.environ.get("PLT_PROMPT_LOG", "1") != "0"
+# Writes full prompts, including case material, to prompt_log.jsonl in the backend
+# dir. Opt-in for that reason: set PLT_PROMPT_LOG=1 on a local machine only, never
+# on a deployed service. Never commit the log file.
 _PROMPT_LOG_PATH = Path(__file__).parent.parent / "prompt_log.jsonl"
 
 
 def _log_prompt(*, endpoint: str, model: str, system: str, user: str, mode: str = "") -> None:
-    if not _PROMPT_LOG_ENABLED:
+    if os.environ.get("PLT_PROMPT_LOG") != "1":
         return
     record = {
         "ts": datetime.utcnow().isoformat(timespec="seconds") + "Z",
@@ -46,12 +51,37 @@ def _log_prompt(*, endpoint: str, model: str, system: str, user: str, mode: str 
     except OSError as e:
         logger.warning("_log_prompt: could not write to %s: %s", _PROMPT_LOG_PATH, e)
 
-# ── Provider selection ────────────────────────────────────────────────────────
-# Set DEEPSEEK_API_KEY to use DeepSeek (OpenAI-compatible, ~100x cheaper).
-# Falls back to Anthropic if only ANTHROPIC_API_KEY is set.
+# ── Provider routing ──────────────────────────────────────────────────────────
+# DeepSeek (OpenAI-compatible, much cheaper) is primary when DEEPSEEK_API_KEY is set.
+# When NOUS_API_KEY is set, a free model on Nous Portal is the runtime failover target.
+# ANTHROPIC_API_KEY adds Anthropic as a further optional step, and Anthropic also serves
+# alone when no other key is set. `mode` is never changed by failover, so it can never
+# start a Pro run the lawyer did not confirm.
+
+@dataclass(frozen=True)
+class _Route:
+    provider: str
+    model: str
+
 
 def _use_deepseek() -> bool:
     return bool(os.environ.get("DEEPSEEK_API_KEY"))
+
+
+def _client_limits(sdk) -> dict:
+    """Bound stalls and retries so a hung provider fails over within minutes.
+
+    The SDK defaults allow up to three 10-minute attempts. The read timeout is the
+    longest silent gap between bytes, not a limit on the whole response: provider
+    keepalives and reasoning tokens reset it, so long analyses are not cut short.
+    """
+    return {
+        "timeout": sdk.Timeout(
+            float(os.environ.get("PLT_LLM_READ_TIMEOUT_SECONDS", "120")),
+            connect=float(os.environ.get("PLT_LLM_CONNECT_TIMEOUT_SECONDS", "10")),
+        ),
+        "max_retries": int(os.environ.get("PLT_LLM_MAX_RETRIES", "1")),
+    }
 
 
 def _get_openai_client():  # returns openai.OpenAI
@@ -59,28 +89,69 @@ def _get_openai_client():  # returns openai.OpenAI
     return openai.OpenAI(
         api_key=os.environ["DEEPSEEK_API_KEY"],
         base_url="https://api.deepseek.com",
+        **_client_limits(openai),
     )
 
 
 def _get_anthropic_client():
     import anthropic
-    return anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+    return anthropic.Anthropic(
+        api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+        **_client_limits(anthropic),
+    )
 
 
-def _flash_model() -> str:
-    if _use_deepseek():
+def _get_nous_client():
+    """Nous Portal's Anthropic-compatible Messages route, used through the Anthropic SDK."""
+    import anthropic
+    key = os.environ["NOUS_API_KEY"]
+    return anthropic.Anthropic(
+        api_key=key,
+        default_headers={"Authorization": f"Bearer {key}"},
+        base_url="https://inference-api.nousresearch.com",
+        **_client_limits(anthropic),
+    )
+
+
+def _deepseek_model(mode: str) -> str:
+    if mode == "flash":
         return os.environ.get("DEEPSEEK_DEFAULT_MODEL", "deepseek-v4-flash")
-    return "claude-haiku-4-5-20251001"
+    return os.environ.get("DEEPSEEK_PRO_MODEL", "deepseek-v4-pro")
 
 
-def _pro_model() -> str:
+def _anthropic_model(mode: str) -> str:
+    return "claude-haiku-4-5-20251001" if mode == "flash" else "claude-opus-4-7"
+
+
+def _routes(mode: str) -> list[_Route]:
+    """Providers to try for this mode, in order. Never empty."""
+    routes: list[_Route] = []
     if _use_deepseek():
-        return os.environ.get("DEEPSEEK_PRO_MODEL", "deepseek-v4-pro")
-    return "claude-opus-4-7"
+        routes.append(_Route("deepseek", _deepseek_model(mode)))
+    if os.environ.get("NOUS_API_KEY"):
+        routes.append(_Route("nous", os.environ.get("PLT_FALLBACK_MODEL", "meituan/longcat-2.5:free")))
+    if os.environ.get("ANTHROPIC_API_KEY") or not routes:
+        routes.append(_Route("anthropic", _anthropic_model(mode)))
+    return routes
 
 
 def _model(mode: str) -> str:
-    return _flash_model() if mode == "flash" else _pro_model()
+    return _routes(mode)[0].model
+
+
+# PLT's output budgets are sized for DeepSeek and exceed what Claude accepts.
+_ANTHROPIC_MAX_OUTPUT_TOKENS = {
+    "claude-haiku-4-5-20251001": 64000,
+    "claude-opus-4-7": 128000,
+}
+
+
+def _provider_max_tokens(route: _Route, requested: int) -> int:
+    if route.provider == "nous":
+        return min(requested, int(os.environ.get("PLT_FALLBACK_MAX_TOKENS", "64000")))
+    if route.provider == "anthropic":
+        return min(requested, _ANTHROPIC_MAX_OUTPUT_TOKENS.get(route.model, requested))
+    return requested
 
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
@@ -399,7 +470,7 @@ def _finalize_analysis(
         raw = re.sub(r"```(?:json)?\s*", "", raw).replace("```", "").strip()
     match = re.search(r"\{[\s\S]*\}", raw)
     if not match:
-        logger.error("No JSON object found. Raw response preview: %s", raw[:500])
+        logger.error("analyze: no JSON object in AI response (%d chars, finish=%s)", len(raw), finish_reason)
         if finish_reason == "length":
             next_step = (
                 "Prova a caricare meno documenti alla volta o aumenta PLT_PRO_MAX_TOKENS."
@@ -410,7 +481,7 @@ def _finalize_analysis(
                 f"L'analisi è stata troncata prima di produrre JSON valido (limite: {max_tok} token). "
                 f"{next_step}"
             )
-        raise ValueError(f"No JSON object found in AI response. Raw start: {raw[:200]!r}")
+        raise ValueError("No JSON object found in AI response.")
     raw = match.group(0)
 
     try:
@@ -427,7 +498,7 @@ def _finalize_analysis(
                 )
                 data = repaired
             else:
-                logger.error("JSON decode failed and repair found nothing. Raw preview: %s", raw[:1000])
+                logger.error("analyze: JSON decode failed and repair found nothing (%d chars)", len(raw))
                 next_step = (
                     "Prova a caricare meno documenti alla volta o aumenta PLT_PRO_MAX_TOKENS."
                     if mode == "pro"
@@ -438,8 +509,7 @@ def _finalize_analysis(
                     f"{next_step}"
                 ) from exc
         else:
-            logger.error("JSON decode failed. Raw preview: %s", raw[:1000])
-            logger.error("JSON error: %s", exc)
+            logger.error("analyze: JSON decode failed (%d chars): %s", len(raw), exc)
             raise
 
     data.setdefault("usage_estimate", {})
@@ -451,82 +521,48 @@ def _finalize_analysis(
     })
     data["usage_estimate"].setdefault("pages", n_materials)
     data["usage_estimate"].setdefault("audio_minutes", 0)
-    case = CaseAnalysis.model_validate(data)
+    try:
+        case = CaseAnalysis.model_validate(data)
+    except ValidationError as exc:
+        # The default message quotes the offending values, which are case content.
+        fields = sorted({".".join(str(part) for part in err["loc"]) for err in exc.errors(include_input=False, include_url=False)})
+        raise ValueError(f"AI response failed schema validation: {exc.error_count()} errors in {fields[:10]}") from None
     return case.model_copy(update={"pro_recommendation": _build_pro_recommendation(case, mode)})
 
 
 def analyze_case(request: AnalyzeRequest) -> CaseAnalysis:
-    """Produce a full CaseAnalysis JSON (blocking). Used by tests and Anthropic path."""
+    """Produce a full CaseAnalysis JSON (blocking). Used by the background job path."""
     model, user_message, max_tok = _build_analysis_prompt(request)
-    logger.info("analyze_case: title=%s, materials=%d, prompt_chars=%d, max_tokens=%d",
-                request.case_title, len(request.materials), len(user_message), max_tok)
+    logger.info("analyze_case: materials=%d, prompt_chars=%d, max_tokens=%d",
+                len(request.materials), len(user_message), max_tok)
     _log_prompt(endpoint="analyze_case", model=model, system=_SYSTEM_PROMPT, user=user_message, mode=request.mode)
-    if _use_deepseek():
-        raw, usage, finish_reason = _deepseek_complete(model, _SYSTEM_PROMPT, user_message, max_tok)
-    else:
-        raw, usage, finish_reason = _anthropic_complete(model, _SYSTEM_PROMPT, user_message, max_tok)
-    logger.info("analyze_case: AI response=%d chars, input_tokens=%d, output_tokens=%d, finish=%s",
-                len(raw), usage["input"], usage["output"], finish_reason)
-    return _finalize_analysis(raw, finish_reason, max_tok, request.mode, model, usage, len(request.materials))
+    served = _drain(
+        _call_llm("analyze_case", request.mode, _SYSTEM_PROMPT, [{"role": "user", "content": user_message}], max_tok, buffered=True)
+    )
+    return _finalize_analysis(served.text, served.finish_reason, served.max_tokens, request.mode, served.model, served.usage, len(request.materials))
 
 
 def stream_analyze_case(request: AnalyzeRequest) -> Generator[str, None, None]:
     """Stream the analysis as SSE.
 
-    During DeepSeek's reasoning phase the model emits no content tokens —
-    the TCP connection is idle.  Chrome (and other browsers) apply a 300-second
-    idle-read timeout to fetch() calls and silently close the connection.
-    This generator fixes that by yielding SSE comment pings (": ping") for
-    every reasoning chunk received, then emitting the final JSON as a single
-    data event.  The Anthropic path has no reasoning silence so it runs
-    synchronously and emits the result directly.
+    The model output stays on the server and goes out as one final data event, so
+    every earlier frame is an SSE comment (": ping"). Those keep the connection busy
+    while the model is silent or the text is being buffered: Chrome and other
+    browsers apply a 300-second idle-read timeout to fetch() calls and silently
+    close the connection.
     """
     try:
         model, user_message, max_tok = _build_analysis_prompt(request)
         logger.info(
-            "stream_analyze_case: title=%s, materials=%d, prompt_chars=%d, max_tokens=%d",
-            request.case_title, len(request.materials), len(user_message), max_tok,
+            "stream_analyze_case: materials=%d, prompt_chars=%d, max_tokens=%d",
+            len(request.materials), len(user_message), max_tok,
         )
         _log_prompt(endpoint="stream_analyze_case", model=model, system=_SYSTEM_PROMPT, user=user_message, mode=request.mode)
 
-        if _use_deepseek():
-            client = _get_openai_client()
-            stream = client.chat.completions.create(
-                model=model,
-                max_tokens=max_tok,
-                messages=[
-                    {"role": "system", "content": _SYSTEM_PROMPT},
-                    {"role": "user", "content": user_message},
-                ],
-                stream=True,
-            )
-            chunks: list[str] = []
-            finish_reason = "stop"
-            usage: dict = {"input": 0, "output": 0}
-            for chunk in stream:
-                choice = chunk.choices[0] if chunk.choices else None
-                if choice:
-                    delta = choice.delta
-                    if getattr(delta, "reasoning_content", None):
-                        yield ": ping\n\n"
-                    if delta.content:
-                        chunks.append(delta.content)
-                    if choice.finish_reason:
-                        finish_reason = choice.finish_reason
-                if getattr(chunk, "usage", None):
-                    usage = {
-                        "input": chunk.usage.prompt_tokens,
-                        "output": chunk.usage.completion_tokens,
-                    }
-            raw = "".join(chunks)
-        else:
-            raw, usage, finish_reason = _anthropic_complete(model, _SYSTEM_PROMPT, user_message, max_tok)
-
-        logger.info(
-            "stream_analyze_case: AI response=%d chars, input_tokens=%d, output_tokens=%d, finish=%s",
-            len(raw), usage["input"], usage["output"], finish_reason,
+        served = yield from _call_llm(
+            "stream_analyze_case", request.mode, _SYSTEM_PROMPT, [{"role": "user", "content": user_message}], max_tok, buffered=True
         )
-        case = _finalize_analysis(raw, finish_reason, max_tok, request.mode, model, usage, len(request.materials))
+        case = _finalize_analysis(served.text, served.finish_reason, served.max_tokens, request.mode, served.model, served.usage, len(request.materials))
         yield f"data: {json.dumps({'status': 'done', 'analysis': case.model_dump()})}\n\n"
 
     except Exception as exc:
@@ -534,8 +570,8 @@ def stream_analyze_case(request: AnalyzeRequest) -> Generator[str, None, None]:
         logger.error("stream_analyze_case error: %s", exc, exc_info=True)
         yield f"data: {json.dumps({'status': 'error', 'detail': detail})}\n\n"
 
-    finally:
-        yield "data: [DONE]\n\n"
+    # Not in a `finally`: yielding while the client disconnects raises RuntimeError.
+    yield "data: [DONE]\n\n"
 
 
 def _repair_truncated_json(raw: str) -> dict | None:
@@ -592,29 +628,195 @@ def _repair_truncated_json(raw: str) -> dict | None:
     return None
 
 
-def _deepseek_complete(model: str, system: str, user: str, max_tokens: int) -> tuple[str, dict, str]:
+# ── Provider calls and failover ───────────────────────────────────────────────
+
+_KEEPALIVE = ": ping\n\n"
+_BUFFERED_PING_SECONDS = 15.0
+# DeepSeek reports these inside a successful HTTP 200 stream.
+_DEEPSEEK_INTERRUPTED_FINISH_REASONS = {"insufficient_system_resource", "aborted"}
+
+
+class ProviderInterrupted(Exception):
+    """A provider stream ended without completing. The message holds no content."""
+
+
+class LLMCallFailed(Exception):
+    """No provider could complete the call.
+
+    Raised `from None` with a content-free message: provider exception text can
+    echo request data, and this error reaches tracebacks and server logs.
+    """
+
+
+@dataclass(frozen=True)
+class _Served:
+    provider: str
+    model: str
+    text: str
+    usage: dict
+    finish_reason: str
+    max_tokens: int
+
+
+def _drain(frames: Generator[str, None, _Served]) -> _Served:
+    """Run a call to completion, discarding SSE frames, and return its result."""
+    while True:
+        try:
+            next(frames)
+        except StopIteration as done:
+            return done.value
+
+
+def _call_llm(
+    endpoint: str,
+    mode: str,
+    system: str,
+    messages: list,
+    max_tokens: int,
+    *,
+    buffered: bool,
+) -> Generator[str, None, _Served]:
+    """Run one logical LLM call along `_routes(mode)`, yielding SSE frames.
+
+    buffered=True (analysis): text stays on the server, so a failure at any point
+    restarts cleanly on the next provider. Only keepalive frames are yielded.
+
+    buffered=False (chat): text reaches the client as it arrives, so failover stops
+    at the first visible token. A switch after that would duplicate or splice legal
+    text, and the client has no way to discard what it already rendered. The stream
+    then ends abnormally, which is how the frontend detects an incomplete reply.
+    """
+    routes = _routes(mode)
+    call_id = new_call_id()
+    failures: list[str] = []
+    for index, route in enumerate(routes):
+        limit = _provider_max_tokens(route, max_tokens)
+        call = LLMCallTracker(
+            call_id=call_id, endpoint=endpoint, attempt=index + 1,
+            provider=route.provider, model=route.model, mode=mode,
+        )
+        parts: list[str] = []
+        text_sent = False
+        last_ping = time.monotonic()
+        try:
+            with call:
+                for piece in _provider_stream(route, system, messages, limit, call):
+                    if piece is None:
+                        yield _KEEPALIVE
+                        continue
+                    call.mark_first_token()
+                    if not buffered:
+                        text_sent = True
+                        yield f"data: {json.dumps({'text': piece})}\n\n"
+                        continue
+                    parts.append(piece)
+                    if time.monotonic() - last_ping >= _BUFFERED_PING_SECONDS:
+                        last_ping = time.monotonic()
+                        yield _KEEPALIVE
+        except Exception:
+            failures.append(f"{route.provider}={call.error_kind}/{call.http_status}")
+            next_route = routes[index + 1] if index + 1 < len(routes) else None
+            skip_reason = None
+            if next_route is None:
+                skip_reason = "no_further_provider"
+            elif text_sent:
+                skip_reason = "text_already_streamed"
+            emit(LLMFailoverEvent(
+                call_id=call_id, endpoint=endpoint, mode=mode,
+                outcome="skipped" if skip_reason else "switched",
+                from_provider=route.provider, from_model=route.model,
+                reason=call.error_kind, http_status=call.http_status,
+                to_provider=None if skip_reason else next_route.provider,
+                to_model=None if skip_reason else next_route.model,
+                skip_reason=skip_reason,
+            ))
+            if skip_reason:
+                raise LLMCallFailed(f"{endpoint} failed: {' '.join(failures)} ({skip_reason})") from None
+            yield _KEEPALIVE
+            continue
+        return _Served(
+            provider=route.provider,
+            model=route.model,
+            text="".join(parts),
+            usage={"input": call.input_tokens or 0, "output": call.output_tokens or 0},
+            finish_reason=call.finish_reason or "stop",
+            max_tokens=limit,
+        )
+    raise AssertionError("_routes() returned no providers")
+
+
+def _deepseek_stream(model: str, system: str, messages: list, max_tokens: int, call: LLMCallTracker) -> Generator[str | None, None, None]:
+    """Yield text deltas, or None for a reasoning chunk that carries no text.
+
+    Reasoning models emit reasoning_content before content. During that phase no
+    text flows to the client, which can make HTTP proxies drop the connection for
+    inactivity, so `_call_llm` turns each None into an SSE comment (": ping") that
+    the frontend reader ignores.
+    """
     client = _get_openai_client()
-    resp = client.chat.completions.create(
+    finish_reason = None
+    with client.chat.completions.create(
         model=model,
         max_tokens=max_tokens,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-    )
-    text = resp.choices[0].message.content or ""
-    usage = {"input": resp.usage.prompt_tokens, "output": resp.usage.completion_tokens}
-    finish = resp.choices[0].finish_reason or "stop"
-    return text, usage, finish
+        messages=[{"role": "system", "content": system}, *messages],
+        stream=True,
+        stream_options={"include_usage": True},
+    ) as stream:
+        for chunk in stream:
+            usage = getattr(chunk, "usage", None)
+            if usage:
+                call.set_usage(usage.prompt_tokens, usage.completion_tokens, getattr(usage, "prompt_cache_hit_tokens", None))
+            choice = chunk.choices[0] if chunk.choices else None
+            if choice is None:
+                continue
+            if getattr(choice.delta, "reasoning_content", None):
+                yield None
+            if choice.delta.content:
+                yield choice.delta.content
+            if choice.finish_reason:
+                finish_reason = choice.finish_reason
+    call.finish_reason = finish_reason
+    if finish_reason is None or finish_reason in _DEEPSEEK_INTERRUPTED_FINISH_REASONS:
+        raise ProviderInterrupted(f"deepseek stream ended with finish_reason={finish_reason}")
 
 
-def _anthropic_complete(model: str, system: str, user: str, max_tokens: int) -> tuple[str, dict, str]:
-    client = _get_anthropic_client()
-    msg = client.messages.create(
-        model=model, max_tokens=max_tokens, system=system,
-        messages=[{"role": "user", "content": user}],
-    )
-    text = msg.content[0].text
-    usage = {"input": msg.usage.input_tokens, "output": msg.usage.output_tokens}
-    finish = msg.stop_reason or "stop"
-    return text, usage, finish
+def _anthropic_messages(messages: list) -> list:
+    """Remove history shapes the Messages API rejects with a 400 but DeepSeek accepts.
+
+    These are empty turns (the UI's assistant placeholder after an aborted reply), a
+    leading assistant turn, and a trailing assistant turn, which Claude Opus 4.7
+    treats as an unsupported prefill.
+    """
+    cleaned = [m for m in messages if m["content"].strip()]
+    while cleaned and cleaned[0]["role"] != "user":
+        cleaned.pop(0)
+    while cleaned and cleaned[-1]["role"] != "user":
+        cleaned.pop()
+    return cleaned
+
+
+def _provider_stream(route: _Route, system: str, messages: list, max_tokens: int, call: LLMCallTracker) -> Generator[str | None, None, None]:
+    if route.provider == "deepseek":
+        return _deepseek_stream(route.model, system, messages, max_tokens, call)
+    get_client = _get_nous_client if route.provider == "nous" else _get_anthropic_client
+    return _anthropic_stream(get_client, route.model, system, messages, max_tokens, call)
+
+
+def _anthropic_stream(get_client, model: str, system: str, messages: list, max_tokens: int, call: LLMCallTracker) -> Generator[str | None, None, None]:
+    """Yield text deltas from any Messages API provider.
+
+    Always streams: the Anthropic SDK refuses large non-streaming requests.
+    """
+    client = get_client()
+    with client.messages.stream(
+        model=model, max_tokens=max_tokens, system=system, messages=_anthropic_messages(messages),
+    ) as stream:
+        yield from stream.text_stream
+        final = stream.get_final_message()
+    call.set_usage(final.usage.input_tokens, final.usage.output_tokens)
+    # `_finalize_analysis` recognises truncation by DeepSeek's "length" value.
+    truncated = final.stop_reason in ("max_tokens", "model_context_window_exceeded")
+    call.finish_reason = "length" if truncated else (final.stop_reason or "stop")
 
 
 # ── Chat (streaming SSE) ──────────────────────────────────────────────────────
@@ -639,44 +841,8 @@ nomi, norme e riferimenti. La lingua non cambia la giurisdizione applicabile.
     last_user = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
     _log_prompt(endpoint="stream_chat", model=model, system=system, user=last_user, mode=request.mode)
 
-    if _use_deepseek():
-        yield from _deepseek_stream(model, system, messages, max_tok)
-    else:
-        yield from _anthropic_stream(model, system, messages, max_tok)
+    yield from _call_llm("stream_chat", request.mode, system, messages, max_tok, buffered=False)
+    yield "data: [DONE]\n\n"
 
 
 _CHAT_MAX_TOKENS = int(os.environ.get("PLT_CHAT_MAX_TOKENS", "32768"))
-
-
-def _deepseek_stream(model: str, system: str, messages: list, max_tokens: int = _CHAT_MAX_TOKENS) -> Generator[str, None, None]:
-    client = _get_openai_client()
-    stream = client.chat.completions.create(
-        model=model,
-        max_tokens=max_tokens,
-        messages=[{"role": "system", "content": system}, *messages],
-        stream=True,
-    )
-    for chunk in stream:
-        delta = chunk.choices[0].delta
-        # Reasoning models emit reasoning_content tokens before content tokens.
-        # During that phase no content flows to the client, which can cause the
-        # Vite proxy (and any other HTTP proxy) to drop the connection due to
-        # inactivity. Send an SSE comment (": ping") to keep the socket alive.
-        # SSE comments are silently ignored by the frontend EventSource/reader.
-        if getattr(delta, "reasoning_content", None):
-            yield ": ping\n\n"
-        text = delta.content or ""
-        if text:
-            yield f"data: {json.dumps({'text': text})}\n\n"
-    yield "data: [DONE]\n\n"
-
-
-def _anthropic_stream(model: str, system: str, messages: list, max_tokens: int = _CHAT_MAX_TOKENS) -> Generator[str, None, None]:
-    import anthropic
-    client = _get_anthropic_client()
-    with client.messages.stream(
-        model=model, max_tokens=max_tokens, system=system, messages=messages,
-    ) as stream:
-        for text in stream.text_stream:
-            yield f"data: {json.dumps({'text': text})}\n\n"
-    yield "data: [DONE]\n\n"
