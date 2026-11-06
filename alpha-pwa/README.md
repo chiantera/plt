@@ -18,7 +18,7 @@ The repository-root `vercel.json` deploys Vite and FastAPI together using Vercel
 
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the existing Supabase project's URL and publishable key in Vercel. Leave `VITE_API_URL` unset for same-origin routing. The Netlify and Android configurations keep their own backend URLs.
 
-The [public Caso Bianchi demo](https://plt-phi.vercel.app/?demo=bianchi) opens a read-only view of the fictional fixture, including source excerpts, Aula mode, and the brief. The regular workspace requires sign-in.
+The [public Caso Bianchi demo](https://plt-phi.vercel.app/) opens a read-only view of the fictional fixture, including source excerpts, Aula mode, and the brief. The regular workspace requires sign-in.
 
 ## What Is Built
 

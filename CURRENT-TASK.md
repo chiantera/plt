@@ -4,9 +4,13 @@ _Last updated: 2026-11-06 by Codex_
 
 ---
 
+## Showcase homepage and repository layout (2026-11-06)
+
+The Vercel homepage opens Caso Bianchi. The workspace uses `?view=workspace`, and existing `?demo=bianchi` links still work. The numbered project documents now live under `docs/`.
+
 ## Public Caso Bianchi demo (2026-11-06)
 
-The [Vercel demo link](https://plt-phi.vercel.app/?demo=bianchi) opens the fictional Bianchi fixture directly in the case viewer. Guests can explore the case, inspect sources, enter Aula mode, and export the sample brief. Editing, uploading, drafting, and AI chat stay in the signed-in workspace.
+The [Vercel demo link](https://plt-phi.vercel.app/) opens the fictional Bianchi fixture directly in the case viewer. Guests can explore the case, inspect sources, enter Aula mode, and export the sample brief. Editing, uploading, drafting, and AI chat stay in the signed-in workspace.
 
 ## Vercel showcase (2026-11-06)
 
@@ -163,7 +167,7 @@ Latest commits:
 - **`src/styles.css`:** Added `.analysis-banner` block (sticky, flex, spinner, bar, button variants `--danger`); added `.draft-generating-bar` with `max-width: 320px`.
 
 **Docs:**
-- `07-prompts/2026-05-26-plt-ai-prompts-map.md`: updated date to 2026-05-28; SSE keepalive section; P11 major update with CASSAZIONE_GUIDE details; P27 new entry; P19 Cassazione exception documented; hotspot #6 marked RESOLVED; chat token budget 32768 documented.
+- `docs/07-prompts/2026-05-26-plt-ai-prompts-map.md`: updated date to 2026-05-28; SSE keepalive section; P11 major update with CASSAZIONE_GUIDE details; P27 new entry; P19 Cassazione exception documented; hotspot #6 marked RESOLVED; chat token budget 32768 documented.
 
 **All tests pass:**
 - `npm run test:plt-export` ✓
@@ -340,7 +344,7 @@ Il chunk CaseDetailView (97.9 KB) si carica solo al primo click su un fascicolo.
 
 **Markdowns:**
 
-- `07-prompts/2026-05-26-plt-ai-prompts-map.md` aggiornato: P01, P02, P03, P07, P08, P13, P15, sezione hotspot Cassazione.
+- `docs/07-prompts/2026-05-26-plt-ai-prompts-map.md` aggiornato: P01, P02, P03, P07, P08, P13, P15, sezione hotspot Cassazione.
 - `AGENTS.md` e `AGENT.md`: bullet Cassazione rafforzato; aggiunto reminder esplicito per aggiornare prompt map + CURRENT-TASK + READMEs a fine slice.
 - `CLAUDE.md`: Verification discipline esteso con passi 7-10 (prompt map, CURRENT-TASK, READMEs, guardrail Cassazione check).
 - `README.md` e `alpha-pwa/README.md`: aggiornati da "warns" a "strict ban".

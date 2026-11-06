@@ -2257,7 +2257,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     <main className="app-shell loading-shell">
       <AlertTriangle /><h1>Errore</h1><p>{error}</p>
       {isDemo
-        ? <a className="ghost-button" href="./">Vai all’accesso</a>
+        ? <a className="ghost-button" href="./?view=workspace">Vai all’accesso</a>
         : <button title="Azione secondaria" className="ghost-button" onClick={onBack}>← Torna ai fascicoli</button>}
     </main>
   );
@@ -2301,7 +2301,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         ) : (
           <>
             <span className="eyebrow">Demo pubblica · Caso fittizio</span>
-            <a className="back-button" href="./">Accedi a PLT <ArrowRight size={15} /></a>
+            <a className="back-button" href="./?view=workspace">Accedi a PLT <ArrowRight size={15} /></a>
           </>
         )}
       </div>
