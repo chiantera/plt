@@ -390,7 +390,7 @@ async def upload_file(request: Request, file: UploadFile = File(...)) -> dict[st
 # ── URL fetch ─────────────────────────────────────────────────────────────────
 
 @app.post("/api/fetch-url")
-async def fetch_url_content(request: FetchUrlRequest) -> dict[str, Any]:
+async def fetch_url_content(request: FetchUrlRequest, http_request: Request) -> dict[str, Any]:
     """Fetch a URL and extract its text content for use as a case material."""
     import re as _re
     url = request.url.strip()
@@ -403,6 +403,8 @@ async def fetch_url_content(request: FetchUrlRequest) -> dict[str, Any]:
         resp = await run_in_threadpool(
             _fetch_url_text, url, label
         )
+        language = http_request.headers.get("accept-language", "")
+        resp["warnings"] = [translate_error(warning, language) for warning in resp["warnings"]]
         return resp
     except HTTPException:
         raise

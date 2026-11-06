@@ -1,4 +1,4 @@
-import { apiFetch } from '../locale';
+import { apiError, apiFetch, t } from '../locale';
 /**
  * analysisManager — owns the lifecycle of background AI analyses, independent of
  * which screen is mounted. Analyses run as backend *jobs*: we POST once, store
@@ -82,10 +82,10 @@ async function pollOnce(rec: JobRecord) {
     const r = await apiFetch(`${API}/api/analyze-jobs/${rec.jobId}`);
     if (r.status === 404) { // lost to a server cold start
       removeJob(rec.caseId);
-      setState(rec.caseId, { status: 'error', startedAt: rec.startedAt, error: 'Analisi interrotta sul server. Riprova.' });
+      setState(rec.caseId, { status: 'error', startedAt: rec.startedAt, error: t('Analisi interrotta sul server. Riprova.') });
       return;
     }
-    if (!r.ok) throw new Error(`${r.status}`);
+    if (!r.ok) throw await apiError(r);
     const body = await r.json() as { status: AnalysisStatus; result: CaseAnalysis | null; error: string | null };
     if (body.status === 'running') { schedule(rec); return; }
     if (body.status === 'done' && body.result) {
@@ -95,7 +95,7 @@ async function pollOnce(rec: JobRecord) {
       return;
     }
     removeJob(rec.caseId);
-    setState(rec.caseId, { status: 'error', startedAt: rec.startedAt, error: body.error ?? 'Errore durante l\'analisi.' });
+    setState(rec.caseId, { status: 'error', startedAt: rec.startedAt, error: body.error ?? t("Errore durante l'analisi.") });
   } catch {
     schedule(rec); // transient network/throttle — keep trying
   }
@@ -123,7 +123,7 @@ export async function startAnalysis(opts: StartAnalysisOptions): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(opts.body),
     });
-    if (!r.ok) throw new Error(`${r.status}`);
+    if (!r.ok) throw await apiError(r);
     const { job_id } = await r.json() as { job_id: string };
     const rec: JobRecord = { jobId: job_id, ownerId: opts.ownerId, caseId: opts.caseId, analyzedDocIds: opts.analyzedDocIds, mode: opts.mode, startedAt };
     putJob(rec);
