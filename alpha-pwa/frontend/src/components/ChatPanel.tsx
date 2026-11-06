@@ -1,3 +1,4 @@
+import { t } from '../locale';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   FileText, Loader2, MessageSquare, Scale, Send, ShieldAlert,
@@ -56,12 +57,12 @@ export function ChatDrawer({
   };
 
   const QUICK_ACTIONS = [
-    { key: 'strategy',    label: 'Strategia del caso',    icon: Sparkles },
-    { key: 'memoria',     label: 'Memoria difensiva',     icon: FileText },
-    { key: 'cassazione',  label: 'Ricorso Cassazione',    icon: Scale },
-    { key: 'eccezione',   label: 'Eccezione procedurale', icon: ShieldAlert },
-    { key: 'crossExam',   label: 'Controesame testimoni', icon: Users },
-    { key: 'clienteNote', label: 'Nota per il cliente',   icon: MessageSquare },
+    { key: 'strategy',    label: t("Strategia del caso"),    icon: Sparkles },
+    { key: 'memoria',     label: t("Memoria difensiva"),     icon: FileText },
+    { key: 'cassazione',  label: t("Ricorso Cassazione"),    icon: Scale },
+    { key: 'eccezione',   label: t("Eccezione procedurale"), icon: ShieldAlert },
+    { key: 'crossExam',   label: t("Controesame testimoni"), icon: Users },
+    { key: 'clienteNote', label: t("Nota per il cliente"),   icon: MessageSquare },
   ] as const;
 
   const isEmpty = state.messages.length === 0;
@@ -74,23 +75,23 @@ export function ChatDrawer({
             <div className="chat-header-icon"><Sparkles size={16} /></div>
             <div>
               <div className="chat-header-name">GiulIA</div>
-              {state.caseContext && <div className="chat-header-sub">Conosce il fascicolo</div>}
+              {state.caseContext && <div className="chat-header-sub">{t("Conosce il fascicolo")}</div>}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {state.messages.length > 0 && (
-              <button className="chat-close-btn" onClick={onClear} title="Pulisci cronologia" style={{ opacity: 0.5 }}>
+              <button className="chat-close-btn" onClick={onClear} title={t("Pulisci cronologia")} style={{ opacity: 0.5 }}>
                 <Trash2 size={16} />
               </button>
             )}
-            <button className="chat-close-btn" onClick={onClose} title="Chiudi pannello"><X size={20} /></button>
+            <button className="chat-close-btn" onClick={onClose} title={t("Chiudi pannello")}><X size={20} /></button>
           </div>
         </div>
 
         {state.caseContext && (
           <div className="chat-quick-bar">
             {QUICK_ACTIONS.map(({ key, label, icon: Icon }) => (
-              <button key={key} className="chat-quick-chip" title="Esegui prompt rapido" onClick={() => onQuickAction(key)} disabled={streaming}>
+              <button key={key} className="chat-quick-chip" title={t("Esegui prompt rapido")} onClick={() => onQuickAction(key)} disabled={streaming}>
                 <Icon size={13} /> {label}
               </button>
             ))}
@@ -103,8 +104,8 @@ export function ChatDrawer({
               <div className="chat-empty-icon"><Sparkles size={32} /></div>
               <h3>GiulIA</h3>
               {state.caseContext
-                ? <p>Buongiorno, Collega. Ho letto il fascicolo. Posso redigere memorie, ricorsi, eccezioni, prepararti al controesame — o semplicemente ragionare insieme sulla strategia. Come posso aiutarti?</p>
-                : <p>Buongiorno, Collega. Sono GiulIA, avvocata penalista. Conosco il Codice Penale, il c.p.p. e la giurisprudenza della Cassazione. Apri un fascicolo per lavorare su un caso specifico.</p>
+                ? <p>{t("Buongiorno, Collega. Ho letto il fascicolo. Posso redigere memorie, ricorsi, eccezioni, prepararti al controesame — o semplicemente ragionare insieme sulla strategia. Come posso aiutarti?")}</p>
+                : <p>{t("Buongiorno, Collega. Sono GiulIA, avvocata penalista. Conosco il Codice Penale, il c.p.p. e la giurisprudenza della Cassazione. Apri un fascicolo per lavorare su un caso specifico.")}</p>
               }
             </div>
           )}
@@ -128,12 +129,12 @@ export function ChatDrawer({
             ref={inputRef}
             className="chat-input"
             rows={1}
-            placeholder={state.caseContext ? 'Chiedi qualcosa sul fascicolo, o richiedi un atto…' : 'Domanda di diritto penale italiano…'}
+            placeholder={state.caseContext ? t("Chiedi qualcosa sul fascicolo, o richiedi un atto…") : t("Domanda di diritto penale italiano…")}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
           />
-          <button className="chat-send-btn" title="Invia messaggio" onClick={submit} disabled={!input.trim() || streaming}>
+          <button className="chat-send-btn" title={t("Invia messaggio")} onClick={submit} disabled={!input.trim() || streaming}>
             {streaming ? <Loader2 size={18} className="spin" /> : <Send size={18} />}
           </button>
         </div>
@@ -242,8 +243,8 @@ export function FloatingChatButton({
         onPointerUp={onUp}
         onPointerCancel={onCancel}
         onContextMenu={e => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY }); }}
-        aria-label="Apri GiulIA"
-        title="Apri GiulIA"
+        aria-label={t("Apri GiulIA")}
+        title={t("Apri GiulIA")}
         style={style}
       >
         <MessageSquare size={26} />
@@ -253,7 +254,7 @@ export function FloatingChatButton({
       {ctxMenu && (
         <div className="fab-ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }} onPointerDown={e => e.stopPropagation()}>
           <button className="fab-ctx-item" onClick={() => { setCtxMenu(null); onHide(); }}>
-            Nascondi
+            {t("Nascondi")}
           </button>
         </div>
       )}
@@ -263,7 +264,7 @@ export function FloatingChatButton({
 
 export function FabRestoreButton({ onRestore }: { onRestore: () => void }) {
   return (
-    <button className="fab-restore" onClick={onRestore} aria-label="Mostra GiulIA">
+    <button className="fab-restore" onClick={onRestore} aria-label={t("Mostra GiulIA")}>
       <MessageSquare size={14} />
       <span>GiulIA</span>
     </button>

@@ -40,7 +40,8 @@ import {
   type DraftArtifactType,
 } from './draftArtifacts';
 import { isAuthError, type Session } from '@supabase/supabase-js';
-import { authCopy, readSignInLanguage, saveSignInLanguage, signInLanguages, type SignInLanguage } from './auth/authCopy';
+import { authCopy, signInLanguages, type SignInLanguage } from './auth/authCopy';
+import { getLanguage, t, setLanguage as setWorkspaceLanguage } from './locale';
 import { supabase } from './supabaseClient';
 import { DOC_PROMPTS } from './prompts/documentDrafts';
 import { REDACT_APPLY_PROMPT, REDACT_DETECT_PROMPT } from './prompts/redaction';
@@ -84,35 +85,35 @@ if (import.meta.env.VITE_MOCK_DATA === 'true') installMockApi();
 function NewCaseDrawer({ onClose, onCreate, clientNameMode = false }: { onClose: () => void; onCreate: (title: string) => void; clientNameMode?: boolean }) {
   const [value, setValue] = useState('');
   // In onboarding, ask for the client name and derive the case title "Caso <nome>".
-  const titleFor = (v: string) => clientNameMode ? `Caso ${v.trim()}` : v.trim();
+  const titleFor = (v: string) => clientNameMode ? `${t('Caso')} ${v.trim()}` : v.trim();
   const submit = () => { if (value.trim()) onCreate(titleFor(value)); };
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <aside className="source-drawer upload-drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div><p className="eyebrow">Fascicolo</p><h2>Nuovo fascicolo</h2></div>
-          <button title="Chiudi o annulla" onClick={onClose} className="ghost-button"><X size={18} /></button>
+          <div><p className="eyebrow">{t("Fascicolo")}</p><h2>{t("Nuovo fascicolo")}</h2></div>
+          <button title={t("Chiudi o annulla")} onClick={onClose} className="ghost-button"><X size={18} /></button>
         </div>
         <div className="upload-field">
-          <label>{clientNameMode ? 'Nome del cliente' : 'Titolo del caso'}</label>
+          <label>{clientNameMode ? t("Nome del cliente") : t("Titolo del caso")}</label>
           <input
             className="upload-input"
             data-tour={clientNameMode ? 'client-name' : undefined}
-            placeholder={clientNameMode ? 'es. Sig. Rossi (anche pseudonimo o soprannome)' : 'es. Caso Rossi — Furto aggravato'}
+            placeholder={clientNameMode ? t("es. Sig. Rossi (anche pseudonimo o soprannome)") : t("es. Caso Rossi — Furto aggravato")}
             value={value}
             autoFocus
             onChange={e => setValue(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') submit(); }}
           />
           {clientNameMode && value.trim() && (
-            <p className="muted" style={{ marginTop: 6, fontSize: '0.82rem' }}>Il fascicolo si chiamerà «Caso {value.trim()}».</p>
+            <p className="muted" style={{ marginTop: 6, fontSize: '0.82rem' }}>{t("Il fascicolo si chiamerà «Caso") + " "}{value.trim()}».</p>
           )}
         </div>
         <div className="upload-actions">
-          <button className="ghost-button" onClick={onClose} title="Annulla operazione">Annulla</button>
-          <button title="Conferma operazione principale" className="primary-button" disabled={!value.trim()} onClick={submit}>
-            <FolderPlus size={15} /> Crea fascicolo
+          <button className="ghost-button" onClick={onClose} title={t("Annulla operazione")}>{t("Annulla")}</button>
+          <button title={t("Conferma operazione principale")} className="primary-button" disabled={!value.trim()} onClick={submit}>
+            <FolderPlus size={15} />{" " + t("Crea fascicolo")}
           </button>
         </div>
       </aside>
@@ -134,22 +135,22 @@ function HomepageStats({ cases }: { cases: CaseSummary[] }) {
     <div className="home-stats">
       <div className="home-stat">
         <span className="home-stat-value">{cases.length}</span>
-        <span className="home-stat-label">fascicoli</span>
+        <span className="home-stat-label">{t("fascicoli")}</span>
       </div>
       <div className="home-stat-divider" />
       <div className="home-stat">
         <span className="home-stat-value" style={{ color: critical > 0 ? 'var(--critical)' : 'var(--success)' }}>{critical}</span>
-        <span className="home-stat-label">alto rischio</span>
+        <span className="home-stat-label">{t("alto rischio")}</span>
       </div>
       <div className="home-stat-divider" />
       <div className="home-stat">
         <span className="home-stat-value" style={{ color: upcoming > 0 ? 'var(--warning)' : 'var(--ink-4)' }}>{upcoming}</span>
-        <span className="home-stat-label">scadenze attive</span>
+        <span className="home-stat-label">{t("scadenze attive")}</span>
       </div>
       <div className="home-stat-divider" />
       <div className="home-stat">
         <span className="home-stat-value" style={{ color: totalContradictions > 0 ? 'var(--warning)' : 'var(--ink-4)' }}>{totalContradictions}</span>
-        <span className="home-stat-label">contraddizioni</span>
+        <span className="home-stat-label">{t("contraddizioni")}</span>
       </div>
     </div>
   );
@@ -258,11 +259,11 @@ function AuthTour({ language, onLanguageChange }: { language: SignInLanguage; on
 }
 
 function AuthScreen() {
-  const [language, setLanguage] = useState(readSignInLanguage);
+  const [language, setLanguage] = useState(getLanguage);
   const copy = authCopy[language];
   const changeLanguage = (next: SignInLanguage) => {
     setLanguage(next);
-    saveSignInLanguage(next);
+    setWorkspaceLanguage(next);
   };
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
@@ -419,7 +420,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
         setWarming(false);
       } catch {
         setWarming(false);
-        if (localSummaries.length === 0) setError('Backend non raggiungibile e nessun fascicolo locale');
+        if (localSummaries.length === 0) setError(t("Backend non raggiungibile e nessun fascicolo locale"));
       }
     })();
   }, [localOwnerId]);
@@ -427,7 +428,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
   const handleCreate = useCallback(async (title: string) => {
     const newCase: CaseAnalysis = {
       case_id: crypto.randomUUID(), case_title: title, is_pending: true, raw_documents: [],
-      language: 'it', case_summary: '', materials: [], timeline: [], people: [],
+      language: getLanguage(), case_summary: '', materials: [], timeline: [], people: [],
       evidence: [], open_questions: [], missing_documents: [], contradictions: [],
       procedural_deadlines: [], brief_markdown: '', usage_estimate: { pages: 0, audio_minutes: 0, flash_input_tokens: 0, flash_output_tokens: 0, pro_used: false, model_route: '' }, legal_analysis: null,
     };
@@ -453,7 +454,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
 
   const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Eliminare il fascicolo? I dati sono conservati solo sul tuo dispositivo.')) return;
+    if (!confirm(t("Eliminare il fascicolo? I dati sono conservati solo sul tuo dispositivo."))) return;
     await dbDelete(localOwnerId, id);
     setCases(prev => prev?.filter(c => c.case_id !== id) ?? null);
     setLocalIds(prev => { const n = new Set(prev); n.delete(id); return n; });
@@ -469,13 +470,13 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
             <div className="home-brand-icon"><Gavel size={22} /></div>
             <div>
               <div className="home-brand-name">Pocket Legal Triage</div>
-              <div className="home-brand-tagline">{profileTagline ?? 'Il tuo studio'}</div>
+              <div className="home-brand-tagline">{profileTagline ?? t('Il tuo studio')}</div>
             </div>
           </div>
           <AccountControls session={session} />
         </div>
         <h1 className="home-headline">
-          I miei <span className="home-headline-accent">fascicoli</span>
+          {t("I miei") + " "}<span className="home-headline-accent">{t("fascicoli")}</span>
         </h1>
         {cases && <HomepageStats cases={cases} />}
       </header>
@@ -490,18 +491,18 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
             <Search size={15} className="cases-search-icon" />
             <input
               className="cases-search"
-              placeholder="Cerca cliente, accuse…"
+              placeholder={t("Cerca cliente, accuse…")}
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
-            {search && <button className="cases-search-clear" title="Azzera ricerca" onClick={() => setSearch('')}><X size={14} /></button>}
+            {search && <button className="cases-search-clear" title={t("Azzera ricerca")} onClick={() => setSearch('')}><X size={14} /></button>}
           </div>
         )}
-        <button className="primary-button home-new-btn" data-tour="new-case" title="Crea un nuovo fascicolo vuoto" onClick={openNewCase}>
-          <Plus size={15} /> Nuovo fascicolo
+        <button className="primary-button home-new-btn" data-tour="new-case" title={t("Crea un nuovo fascicolo vuoto")} onClick={openNewCase}>
+          <Plus size={15} />{" " + t("Nuovo fascicolo")}
         </button>
-        <button title="Esegui azione" className="secondary-button" onClick={() => document.getElementById('import-file-input')?.click()}>
-          <Upload size={14} /> Importa
+        <button title={t("Esegui azione")} className="secondary-button" onClick={() => document.getElementById('import-file-input')?.click()}>
+          <Upload size={14} />{" " + t("Importa")}
         </button>
         <input
           id="import-file-input"
@@ -519,7 +520,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
                 if (!password) throw new Error('Importazione annullata');
                 data = await decryptPltContainer<CaseAnalysis>(parsed.container, password);
               } else {
-                if (!confirm('Questo .plt non è protetto da password. Importalo solo se proviene da una fonte affidabile.\n\nContinuare?')) {
+                if (!confirm(t("Questo .plt non è protetto da password. Importalo solo se proviene da una fonte affidabile.\n\nContinuare?"))) {
                   throw new Error('Importazione annullata');
                 }
                 data = parsed.caseData;
@@ -548,7 +549,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
       {analyzing && (
         <div className="analyzing-banner">
           <Loader2 className="spin" size={18} />
-          Analisi AI in corso — attendere…
+          {t("Analisi AI in corso — attendere…")}
         </div>
       )}
 
@@ -557,7 +558,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
       {warming && (
         <div className="warming-banner">
           <Loader2 className="spin" size={16} />
-          Sto svegliando il server — può richiedere qualche secondo…
+          {t("Sto svegliando il server — può richiedere qualche secondo…")}
         </div>
       )}
 
@@ -569,35 +570,35 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
       <div className="cases-grid">
         {filtered.length === 0 && cases && cases.length > 0 && (
           <p className="muted" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '32px 0' }}>
-            Nessun fascicolo corrisponde a &ldquo;{search}&rdquo;
+            {t("Nessun fascicolo corrisponde a “")}{search}&rdquo;
           </p>
         )}
         {cases && cases.length === 0 && (
           <div className="empty-state empty-state-placeholder lg" style={{ gridColumn: '1/-1' }}>
             <FolderOpen size={48} style={{ color: 'var(--ink-5)', marginBottom: 16 }} />
-            <h3 style={{ fontSize: '1.2rem', color: 'var(--ink-1)', marginBottom: 8 }}>Nessun fascicolo presente</h3>
+            <h3 style={{ fontSize: '1.2rem', color: 'var(--ink-1)', marginBottom: 8 }}>{t("Nessun fascicolo presente")}</h3>
             <p className="muted" style={{ maxWidth: 400, margin: '0 auto 24px', lineHeight: 1.5 }}>
-              Inizia creando un nuovo fascicolo vuoto per analizzare documenti, oppure importa un file <code>.plt</code> protetto.
+              {t("Inizia creando un nuovo fascicolo vuoto per analizzare documenti, oppure importa un file") + " "}<code>.plt</code>{" " + t("protetto.")}
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button className="primary-button" data-tour="new-case" onClick={openNewCase} title="Crea un nuovo fascicolo vuoto">
-                <Plus size={15} /> Nuovo Fascicolo
+              <button className="primary-button" data-tour="new-case" onClick={openNewCase} title={t("Crea un nuovo fascicolo vuoto")}>
+                <Plus size={15} />{" " + t("Nuovo Fascicolo")}
               </button>
             </div>
           </div>
         )}
         {filtered.map(c => (
-          <button key={c.case_id} title="Apri il fascicolo per visualizzare dettagli e documenti" className={`case-card${localIds.has(c.case_id) ? ' case-card-local' : ''}`} onClick={() => onSelect(c.case_id)}>
+          <button key={c.case_id} title={t("Apri il fascicolo per visualizzare dettagli e documenti")} className={`case-card${localIds.has(c.case_id) ? ' case-card-local' : ''}`} onClick={() => onSelect(c.case_id)}>
             <div className="case-card-header">
               <div className="case-card-risk" style={{ background: riskColor(c.risk_level) + '22', border: `1px solid ${riskColor(c.risk_level)}55` }}>
                 <span style={{ color: riskColor(c.risk_level) }}>{riskIcon(c.risk_level)} {riskLabel(c.risk_level)}</span>
               </div>
               <div className="case-card-actions">
                 {localIds.has(c.case_id) && (
-                  <span className="case-local-badge">locale</span>
+                  <span className="case-local-badge">{t("locale")}</span>
                 )}
                 {localIds.has(c.case_id) && (
-                  <button className="case-delete-btn" onClick={e => handleDelete(c.case_id, e)} title="Elimina fascicolo" type="button">
+                  <button className="case-delete-btn" onClick={e => handleDelete(c.case_id, e)} title={t("Elimina fascicolo")} type="button">
                     <Trash2 size={14} />
                   </button>
                 )}
@@ -606,19 +607,19 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
             </div>
             <h3 className="case-card-title">{c.case_title}</h3>
             {getAnalysisState(c.case_id)?.status === 'running' && (
-              <span className="case-analyzing-pill"><Loader2 size={12} className="spin" /> Analisi in corso…</span>
+              <span className="case-analyzing-pill"><Loader2 size={12} className="spin" />{" " + t("Analisi in corso…")}</span>
             )}
             <p className="case-card-charges">{c.charge_summary}</p>
             <p className="case-card-summary">{c.case_summary}</p>
             <div className="case-card-footer">
               <div className="case-card-meta">
                 {c.next_deadline_date && (
-                  <span><CalendarClock size={13} /> {formatShortDate(c.next_deadline_date)}</span>
+                  <span><CalendarClock size={13} /> {formatShortDate(c.next_deadline_date, getLanguage())}</span>
                 )}
-                <span><AlertTriangle size={13} /> {c.contradiction_count} contraddizioni</span>
-                <span><FileText size={13} /> {c.material_count} materiali</span>
+                <span><AlertTriangle size={13} /> {c.contradiction_count}{" " + t("contraddizioni")}</span>
+                <span><FileText size={13} /> {c.material_count}{" " + t("materiali")}</span>
               </div>
-              <span className="case-card-open">Apri <ChevronRight size={14} /></span>
+              <span className="case-card-open">{t("Apri") + " "}<ChevronRight size={14} /></span>
             </div>
           </button>
         ))}
@@ -758,9 +759,10 @@ function App() {
 
     try {
       const caseCtx = activeCaseData ? buildCaseContext(activeCaseData) : null;
+      const languageHint = `Lingua di fallback dell'interfaccia: ${getLanguage()}.`;
       const systemWithCtx = caseCtx
-        ? `${SYSTEM_PROMPT_IT}\n\n---\n${caseCtx}`
-        : SYSTEM_PROMPT_IT;
+        ? `${SYSTEM_PROMPT_IT}\n\n${languageHint}\n\n---\n${caseCtx}`
+        : `${SYSTEM_PROMPT_IT}\n\n${languageHint}`;
 
       const res = await fetch(`${API}/api/chat`, {
         method: 'POST',
@@ -768,6 +770,7 @@ function App() {
         body: JSON.stringify({
           messages: messages.map(m => ({ role: m.role, content: m.content })),
           system_override: systemWithCtx,
+          language: getLanguage(),
           mode: 'flash',
         }),
       });
@@ -855,10 +858,12 @@ function App() {
   );
 }
 
+document.documentElement.lang = getLanguage();
+
 const isBianchiDemo = new URLSearchParams(window.location.search).get('demo') === 'bianchi';
 
 createRoot(document.getElementById('root')!).render(isBianchiDemo ? (
-  <Suspense fallback={<main className="app-shell loading-shell"><Loader2 className="spin" size={40} /><p>Carico il caso demo…</p></main>}>
+  <Suspense fallback={<main className="app-shell loading-shell"><Loader2 className="spin" size={40} /><p>{t("Carico il caso demo…")}</p></main>}>
     <CaseDetailView caseId="demo-furto-aggravato-roma-2026" session={null} />
   </Suspense>
 ) : <App />);

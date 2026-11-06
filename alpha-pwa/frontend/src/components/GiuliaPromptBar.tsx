@@ -1,3 +1,4 @@
+import { t } from '../locale';
 import React from 'react';
 import { Send, Sparkles } from 'lucide-react';
 
@@ -23,7 +24,7 @@ export default function GiuliaPromptBar({ onOpenChat }: { onOpenChat: (msg?: str
       <textarea
         ref={textareaRef}
         className="giulia-prompt-input"
-        placeholder="Sono GiulIA e sono qui per rispondere alle tue domande. Chiedimi qualcosa..."
+        placeholder={t("Sono GiulIA e sono qui per rispondere alle tue domande. Chiedimi qualcosa...")}
         value={val}
         onChange={handleInput}
         rows={2}
@@ -35,7 +36,7 @@ export default function GiuliaPromptBar({ onOpenChat }: { onOpenChat: (msg?: str
           }
         }}
       />
-      <button title="Invia domanda a GiulIA" className="giulia-prompt-send" onClick={submit} tabIndex={-1} aria-label="Invia" style={{ marginBottom: 2 }}>
+      <button title={t("Invia domanda a GiulIA")} className="giulia-prompt-send" onClick={submit} tabIndex={-1} aria-label={t("Invia")} style={{ marginBottom: 2 }}>
         <Send size={14} />
       </button>
     </div>

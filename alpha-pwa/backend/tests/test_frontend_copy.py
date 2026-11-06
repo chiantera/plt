@@ -14,7 +14,7 @@ def _frontend_source() -> str:
         SRC / "components" / "MultiFileUploadDrawer.tsx",
         SRC / "analysis" / "analysisManager.ts",
     ]
-    return "\n".join(f.read_text() for f in files)
+    return "\n".join(f.read_text(encoding="utf-8") for f in files)
 
 
 def test_mobile_navigation_uses_product_language_not_raw_model_names():
@@ -30,7 +30,7 @@ def test_mobile_navigation_uses_product_language_not_raw_model_names():
 
     # Key UI copy
     assert "Prossima priorità" in source
-    assert "<span>priorità</span>" in source
+    assert '<span>{t("priorità")}</span>' in source
     assert "<span>prossima</span>" not in source
 
     # Legal analysis features present
@@ -41,7 +41,7 @@ def test_mobile_navigation_uses_product_language_not_raw_model_names():
 
 def test_dashboard_cards_and_navigation_links_are_wired():
     source = _frontend_source()
-    styles = STYLES.read_text()
+    styles = STYLES.read_text(encoding="utf-8")
 
     # Home stats wired; case tabs switchable
     assert "className=\"home-stats\"" in source

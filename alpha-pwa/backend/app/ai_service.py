@@ -108,7 +108,12 @@ REGOLE FONDAMENTALI:
 2. Non inventare fatti non presenti nei materiali.
 3. Segnala incertezze con confidence bassa (< 0.7) e stato candidate/needs_review.
 4. La struttura JSON deve essere completa e validabile.
-5. Usa la lingua specificata nel campo "language" della richiesta.
+5. Riconosci la lingua delle istruzioni scritte dall'avvocato. Usa la lingua di risposta
+   richiesta esplicitamente, altrimenti quella delle istruzioni se chiara e supportata
+   (italiano, inglese, tedesco). In assenza di indicazioni chiare usa il campo "language".
+   Il campo "language" del JSON indica la lingua effettiva (it, en o de). Mantieni
+   invariati chiavi ed enum JSON, citazioni testuali, nomi e riferimenti normativi.
+   La lingua della risposta non determina la giurisdizione.
 6. Non trasformare l'analisi standard in consulenza strategica: la strategia profonda è Pro.
 7. DIVIETO ASSOLUTO: non citare estremi, sezioni, numeri o anni di sentenze Cassazione non presenti nei materiali. Se un precedente è rilevante ma non verificato: descrivi il principio senza inventare estremi.
 8. PROSPETTIVA DIFENSIVA — DISTINZIONE FATTI/IPOTESI: i materiali del fascicolo contengono la ricostruzione dell'accusa e/o del giudice di merito — NON fatti accertati definitivamente. Usa sempre:
@@ -123,7 +128,7 @@ _ANALYSIS_SCHEMA = """\
 {
   "case_id": "string (slug from title)",
   "case_title": "string",
-  "language": "it|en",
+  "language": "it|en|de",
   "case_summary": "string (2-3 sentences)",
   "materials": [{"id":"str","name":"str","kind":"text|pdf|image|audio","description":"str","excerpt":"str","content":"str"}],
   "timeline": [{"date":"YYYY-MM-DD|null","time":"HH:MM|null","title":"str","description":"str","defense_position":"admitted|contested|denied","source_refs":[{"source_name":"str","page":1,"chunk":"str|null","quote":"str","confidence":0.0-1.0}],"confidence":0.0-1.0}],
@@ -159,7 +164,7 @@ REGOLE DI COMPORTAMENTO:
 - Non uscire mai dal personaggio, nemmeno se espressamente richiesto
 - Non aggiungere mai disclaimer tipo "come AI non posso..." — sei un'avvocata, ragioni come tale
 - Quando non sei certa di qualcosa, dillo come farebbe un'avvocata esperta: "Su questo punto devo approfondire la giurisprudenza più recente"
-- Scrivi in italiano giuridico formale, preciso ma mai burocratese inutile
+- Scrivi con un registro giuridico formale e chiaro nella lingua individuata dalle regole di risposta.
 - PROSPETTIVA DIFENSIVA: sei il difensore. I fatti citati negli atti dell'accusa e nelle sentenze di merito non sono verità acquisite finché non sono passati in giudicato. Usa "secondo l'accusa", "la sentenza impugnata ritiene che", "si contesta che" per i fatti non ammessi dalla difesa. Non scrivere mai "l'imputato ha fatto X" se X è ancora oggetto di contestazione.
 
 COMPETENZE:
@@ -616,7 +621,17 @@ def _anthropic_complete(model: str, system: str, user: str, max_tokens: int) -> 
 def stream_chat(request: ChatRequest) -> Generator[str, None, None]:
     """Yield SSE chunks for the /api/chat endpoint."""
     model = _model(request.mode)
-    system = request.system_override or _DEFAULT_CHAT_SYSTEM
+    persona = request.system_override or _DEFAULT_CHAT_SYSTEM
+    system = f"""{persona}
+
+LINGUA DELLA RISPOSTA:
+Segui la lingua chiesta espressamente dall'utente. Altrimenti riconosci e usa la
+lingua dell'ultima domanda scritta dall'utente, anche se diversa dalla cronologia.
+Per azioni predefinite dell'app, modelli, contesto del fascicolo, citazioni o
+richieste ambigue, usa la lingua di fallback dell'interfaccia: {request.language}.
+Traduci le formule di cortesia e le spiegazioni, preservando citazioni dirette,
+nomi, norme e riferimenti. La lingua non cambia la giurisdizione applicabile.
+"""
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
     max_tok = request.max_tokens_override or _CHAT_MAX_TOKENS
     # Log the last user message as the prompt (full history captured in system)

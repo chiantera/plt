@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { type Session } from '@supabase/supabase-js';
 import { API } from '../config';
+import { getLanguage, t } from '../locale';
 import { wizardBus } from '../onboarding/wizardBus';
 import AnalysisProgressBanner from '../analysis/AnalysisProgressBanner';
 import { formatDate, formatDateFull, formatShortDate } from '../dateUtils';
@@ -67,15 +68,15 @@ const MultiFileUploadDrawer = React.lazy(() => import('../components/MultiFileUp
 
 function pct(v: number) { return `${Math.round(v * 100)}%`; }
 
-function deadlineTypeLabel(t: ProceduralDeadline['deadline_type']) {
-  return ({ hearing: 'udienza', defense_brief: 'memoria difensiva', filing: 'deposito', investigation: 'indagine difensiva', other: 'altro' })[t];
+function deadlineTypeLabel(type: ProceduralDeadline['deadline_type']) {
+  return t(({ hearing: 'udienza', defense_brief: 'memoria difensiva', filing: 'deposito', investigation: 'indagine difensiva', other: 'altro' })[type]);
 }
 
 function elementStatusColor(s: ChargeElement['status']) {
   return ({ proven: '#ef4444', disputed: '#f97316', weak: '#eab308', missing: '#22c55e' })[s];
 }
 function elementStatusLabel(s: ChargeElement['status']) {
-  return ({ proven: 'provato', disputed: 'contestato', weak: 'debole', missing: 'mancante' })[s];
+  return t(({ proven: 'provato', disputed: 'contestato', weak: 'debole', missing: 'mancante' })[s]);
 }
 
 function witnessRoleLabel(r: WitnessAssessment['role']) {
@@ -163,7 +164,7 @@ function ToastNotification({ message, type, onDismiss }: { message: string; type
 
 function SourceBadge({ refItem, onSelect }: { refItem: SourceRef; onSelect: (s: SourceRef) => void }) {
   return (
-    <button className="source-badge" title="Visualizza il documento sorgente" onClick={() => onSelect(refItem)}>
+    <button className="source-badge" title={t("Visualizza il documento sorgente")} onClick={() => onSelect(refItem)}>
       <FileText size={12} /> {refItem.source_name} · {pct(refItem.confidence)}
     </button>
   );
@@ -263,7 +264,7 @@ function Editable({ value, onChange, placeholder, multiline, className, readOnly
       role="button"
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditing(true); } }}
-      title="Tocca per modificare"
+      title={t("Tocca per modificare")}
     >
       {display}
     </span>
@@ -276,7 +277,7 @@ function RowDelete({ onClick, label }: { onClick: () => void; label?: string }) 
     <button
       className="row-delete-btn"
       onClick={e => { e.stopPropagation(); if (confirm(label ? `Eliminare "${label}"?` : 'Eliminare questa voce?')) onClick(); }}
-      title="Elimina voce"
+      title={t("Elimina voce")}
     >
       <Trash2 size={13} />
     </button>
@@ -286,7 +287,7 @@ function RowDelete({ onClick, label }: { onClick: () => void; label?: string }) 
 function AddRowButton({ label, onClick }: { label: string; onClick: () => void }) {
   if (React.useContext(ReadOnlyCase)) return null;
   return (
-    <button title="Aggiungi nuova riga" className="add-row-btn" onClick={onClick}>
+    <button title={t("Aggiungi nuova riga")} className="add-row-btn" onClick={onClick}>
       <Plus size={14} /> {label}
     </button>
   );
@@ -299,7 +300,7 @@ function EditableSelect<T extends string>({ value, options, onChange, className 
   className?: string;
 }) {
   if (React.useContext(ReadOnlyCase)) {
-    return <span className={className}>{options.find(option => option.value === value)?.label ?? value}</span>;
+    return <span className={className}>{t(options.find(option => option.value === value)?.label ?? value)}</span>;
   }
   return (
     <select
@@ -308,7 +309,7 @@ function EditableSelect<T extends string>({ value, options, onChange, className 
       onChange={e => onChange(e.target.value as T)}
       onClick={e => e.stopPropagation()}
     >
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      {options.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
     </select>
   );
 }
@@ -357,7 +358,7 @@ function EditablePercent({ value, onChange, className }: {
       onClick={e => { e.stopPropagation(); setEditing(true); }}
       role="button"
       tabIndex={0}
-      title="Tocca per modificare"
+      title={t("Tocca per modificare")}
     >
       {Math.round(value * 100)}%
     </span>
@@ -375,7 +376,7 @@ function EditableStringList({ items, onChange, placeholder, itemClass, addLabel,
   return (
     <>
       <ul className="editable-string-list">
-        {items.length === 0 && <li className="muted">Nessuna voce.</li>}
+        {items.length === 0 && <li className="muted">{t("Nessuna voce.")}</li>}
         {items.map((item, i) => (
           <li key={i} className={itemClass}>
             {icon}
@@ -405,14 +406,14 @@ function SourceDrawer({ source, onClose }: { source: SourceRef | null; onClose: 
       <aside className="source-drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div><p className="eyebrow">Fonte collegata</p><h2>{source.source_name}</h2></div>
-          <button onClick={onClose} className="ghost-button" title="Chiudi la finestra corrente">Chiudi</button>
+          <div><p className="eyebrow">{t("Fonte collegata")}</p><h2>{source.source_name}</h2></div>
+          <button onClick={onClose} className="ghost-button" title={t("Chiudi la finestra corrente")}>{t("Chiudi")}</button>
         </div>
         <blockquote>&ldquo;{source.quote}&rdquo;</blockquote>
         <div className="drawer-meta">
-          <span>Pagina {source.page ?? 1}</span>
+          <span>{t("Pagina") + " "}{source.page ?? 1}</span>
           <span>Chunk {source.chunk ?? 'demo'}</span>
-          <span>Confidenza {pct(source.confidence)}</span>
+          <span>{t("Confidenza") + " "}{pct(source.confidence)}</span>
         </div>
       </aside>
     </div>
@@ -426,13 +427,13 @@ function MaterialDrawer({ material, onClose }: { material: Material | null; onCl
       <aside className="source-drawer material-drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div><p className="eyebrow">Documento</p><h2>{material.name}</h2></div>
-          <button onClick={onClose} className="ghost-button" title="Chiudi la finestra corrente">Chiudi</button>
+          <div><p className="eyebrow">{t("Documento")}</p><h2>{material.name}</h2></div>
+          <button onClick={onClose} className="ghost-button" title={t("Chiudi la finestra corrente")}>{t("Chiudi")}</button>
         </div>
         <div className="material-content">
           {material.content
             ? material.content.split('\n').map((l, i) => <p key={i}>{l || ' '}</p>)
-            : <p className="muted">Contenuto non disponibile per {material.kind.toUpperCase()}.</p>}
+            : <p className="muted">{t("Contenuto non disponibile per") + " "}{material.kind.toUpperCase()}.</p>}
         </div>
       </aside>
     </div>
@@ -448,14 +449,14 @@ function RawDocDrawer({ doc, onClose, onDelete }: { doc: RawDocument | null; onC
         <div className="drawer-header">
           <div><p className="eyebrow">{doc.name}</p><h2>{doc.description || doc.name}</h2></div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {onDelete && <button title="Esegui azione" onClick={() => { onDelete(doc.doc_id); onClose(); }} className="ghost-button" style={{ color: 'var(--critical)' }}><Trash2 size={16} /></button>}
-            <button onClick={onClose} className="ghost-button" title="Chiudi la finestra corrente">Chiudi</button>
+            {onDelete && <button title={t("Esegui azione")} onClick={() => { onDelete(doc.doc_id); onClose(); }} className="ghost-button" style={{ color: 'var(--critical)' }}><Trash2 size={16} /></button>}
+            <button onClick={onClose} className="ghost-button" title={t("Chiudi la finestra corrente")}>{t("Chiudi")}</button>
           </div>
         </div>
         <div className="material-content">
           {doc.text
             ? doc.text.split('\n').map((l, i) => <p key={i}>{l || ' '}</p>)
-            : <p className="muted">Nessun testo disponibile.</p>}
+            : <p className="muted">{t("Nessun testo disponibile.")}</p>}
         </div>
       </aside>
     </div>
@@ -504,32 +505,32 @@ function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClos
   return (
     <div className="aula-overlay" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       <div className="aula-header">
-        <div className="aula-brand"><Gavel size={13} /> AULA MODE</div>
+        <div className="aula-brand"><Gavel size={13} />{" " + t("AULA MODE")}</div>
         <div className="aula-clock"><Clock size={12} /> {time.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
-        <button title="Chiudi o annulla" className="aula-close" onClick={onClose}><X size={19} /></button>
+        <button title={t("Chiudi o annulla")} className="aula-close" onClick={onClose}><X size={19} /></button>
       </div>
 
       <div className="aula-dots">
         {Array.from({ length: AULA_SLIDES }, (_, i) => (
-          <button title="Esegui azione" key={i} className={`aula-dot${slide === i ? ' active' : ''}`} onClick={() => setSlide(i)} />
+          <button title={t("Esegui azione")} key={i} className={`aula-dot${slide === i ? ' active' : ''}`} onClick={() => setSlide(i)} />
         ))}
       </div>
 
       <div className="aula-content">
         {slide === 0 && (
           <div className="aula-slide">
-            <div className="aula-slide-label">01 — Il caso</div>
+            <div className="aula-slide-label">{t("01 — Il caso")}</div>
             <h2 className="aula-case-title">{caseData.case_title}</h2>
             {nextDeadline && (
               <div className="aula-hearing-box">
-                <div className="aula-hearing-label">Prossima udienza / scadenza</div>
-                <div className="aula-hearing-date">{formatDateFull(nextDeadline.due_date)}{nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''}</div>
+                <div className="aula-hearing-label">{t("Prossima udienza / scadenza")}</div>
+                <div className="aula-hearing-date">{formatDateFull(nextDeadline.due_date, getLanguage())}{nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''}</div>
                 <div className="aula-hearing-desc">{nextDeadline.title}</div>
               </div>
             )}
             {la && (
               <div className="aula-risk-box" style={{ borderColor: riskColor(la.risk_level) + '88', background: riskColor(la.risk_level) + '18' }}>
-                {riskIcon(la.risk_level)} <span style={{ color: riskColor(la.risk_level), fontWeight: 800 }}>Rischio {riskLabel(la.risk_level)}</span>
+                {riskIcon(la.risk_level)} <span style={{ color: riskColor(la.risk_level), fontWeight: 800 }}>{t("Rischio") + " "}{riskLabel(la.risk_level)}</span>
               </div>
             )}
           </div>
@@ -537,7 +538,7 @@ function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClos
 
         {slide === 1 && (
           <div className="aula-slide">
-            <div className="aula-slide-label">02 — Strategia principale</div>
+            <div className="aula-slide-label">{t("02 — Strategia principale")}</div>
             {primaryStrategy ? (
               <>
                 <h3 className="aula-strategy-title">{primaryStrategy.title}</h3>
@@ -550,13 +551,13 @@ function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClos
                   <div className="aula-risk-note"><AlertTriangle size={13} /> {primaryStrategy.risks[0]}</div>
                 )}
               </>
-            ) : <p className="aula-empty">Nessuna strategia disponibile</p>}
+            ) : <p className="aula-empty">{t("Nessuna strategia disponibile")}</p>}
           </div>
         )}
 
         {slide === 2 && (
           <div className="aula-slide">
-            <div className="aula-slide-label">03 — Contraddizioni da usare</div>
+            <div className="aula-slide-label">{t("03 — Contraddizioni da usare")}</div>
             {caseData.contradictions.length > 0 ? (
               <ul className="aula-contradictions">
                 {caseData.contradictions.slice(0, 3).map((c, i) => (
@@ -566,13 +567,13 @@ function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClos
                   </li>
                 ))}
               </ul>
-            ) : <p className="aula-empty">Nessuna contraddizione rilevata</p>}
+            ) : <p className="aula-empty">{t("Nessuna contraddizione rilevata")}</p>}
           </div>
         )}
 
         {slide === 3 && (
           <div className="aula-slide">
-            <div className="aula-slide-label">04 — Testimoni chiave</div>
+            <div className="aula-slide-label">{t("04 — Testimoni chiave")}</div>
             {la?.witness_assessments.length ? (
               <div className="aula-witnesses">
                 {la.witness_assessments.map((w, i) => (
@@ -587,30 +588,30 @@ function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClos
                   </div>
                 ))}
               </div>
-            ) : <p className="aula-empty">Nessuna valutazione testimone disponibile</p>}
+            ) : <p className="aula-empty">{t("Nessuna valutazione testimone disponibile")}</p>}
           </div>
         )}
 
         {slide === 4 && (
           <div className="aula-slide">
-            <div className="aula-slide-label">05 — Azioni ora</div>
+            <div className="aula-slide-label">{t("05 — Azioni ora")}</div>
             {la?.immediate_actions.length ? (
               <ul className="aula-actions">
                 {la.immediate_actions.slice(0, 5).map((a, i) => (
                   <li key={i}><CheckCircle2 size={14} /><span>{a}</span></li>
                 ))}
               </ul>
-            ) : <p className="aula-empty">Nessuna azione urgente definita</p>}
+            ) : <p className="aula-empty">{t("Nessuna azione urgente definita")}</p>}
           </div>
         )}
       </div>
 
       <div className="aula-nav">
-        <button title="Scorri diapositive" className="aula-nav-btn" onClick={() => setSlide(s => Math.max(s - 1, 0))} disabled={slide === 0}>
+        <button title={t("Scorri diapositive")} className="aula-nav-btn" onClick={() => setSlide(s => Math.max(s - 1, 0))} disabled={slide === 0}>
           <ArrowLeft size={22} />
         </button>
         <span className="aula-nav-counter">{slide + 1} / {AULA_SLIDES}</span>
-        <button title="Scorri diapositive" className="aula-nav-btn" onClick={() => setSlide(s => Math.min(s + 1, AULA_SLIDES - 1))} disabled={slide === AULA_SLIDES - 1}>
+        <button title={t("Scorri diapositive")} className="aula-nav-btn" onClick={() => setSlide(s => Math.min(s + 1, AULA_SLIDES - 1))} disabled={slide === AULA_SLIDES - 1}>
           <ArrowRight size={22} />
         </button>
       </div>
@@ -679,8 +680,8 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
     onUpdate(la => ({ ...la, evidence_balance: { ...(la.evidence_balance ?? evidenceBalance), ...patch } }));
 
   const RISK_OPTIONS: Array<{ value: 'low' | 'medium' | 'high' | 'critical'; label: string }> = [
-    { value: 'low', label: 'Basso' }, { value: 'medium', label: 'Medio' },
-    { value: 'high', label: 'Alto' }, { value: 'critical', label: 'Critico' },
+    { value: 'low', label: t("Basso") }, { value: 'medium', label: t("Medio") },
+    { value: 'high', label: t("Alto") }, { value: 'critical', label: t("Critico") },
   ];
   const ELEMENT_STATUS_OPTIONS: Array<{ value: ChargeElement['status']; label: string }> = [
     { value: 'proven', label: 'Provato' }, { value: 'disputed', label: 'Contestato' },
@@ -690,10 +691,10 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
     { value: 'primary', label: 'Primaria' }, { value: 'secondary', label: 'Secondaria' }, { value: 'fallback', label: 'Fallback' },
   ];
   const SEVERITY_OPTIONS: Array<{ value: ConstitutionalIssue['severity']; label: string }> = [
-    { value: 'critical', label: 'Critico' }, { value: 'significant', label: 'Significativo' }, { value: 'minor', label: 'Minore' },
+    { value: 'critical', label: t("Critico") }, { value: 'significant', label: 'Significativo' }, { value: 'minor', label: 'Minore' },
   ];
   const WITNESS_ROLE_OPTIONS: Array<{ value: WitnessAssessment['role']; label: string }> = [
-    { value: 'prosecution', label: 'Accusa' }, { value: 'defense', label: 'Difesa' },
+    { value: 'prosecution', label: t("Accusa") }, { value: 'defense', label: 'Difesa' },
     { value: 'neutral', label: 'Neutro' }, { value: 'expert', label: 'Esperto' },
   ];
 
@@ -703,7 +704,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
       {/* Risk banner */}
       <div className="risk-banner" style={{ borderColor: riskColor(la.risk_level) + '66', background: riskColor(la.risk_level) + '11' }}>
         <div className="risk-banner-label" style={{ color: riskColor(la.risk_level) }}>
-          {riskIcon(la.risk_level)} Rischio{' '}
+          {riskIcon(la.risk_level)}{" " + t("Rischio")}{' '}
           <EditableSelect
             value={la.risk_level}
             options={RISK_OPTIONS}
@@ -714,7 +715,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
           <Editable
             value={la.risk_summary}
             onChange={v => onUpdate(la => ({ ...la, risk_summary: v }))}
-            placeholder="Sintesi del rischio…"
+            placeholder={t("Sintesi del rischio…")}
             multiline
           />
         </p>
@@ -722,24 +723,24 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
 
       {/* Immediate actions */}
       <div className="legal-section">
-        <h2><Zap size={16} /> Azioni immediate</h2>
+        <h2><Zap size={16} />{" " + t("Azioni immediate")}</h2>
         <EditableStringList
           items={la.immediate_actions}
           onChange={items => onUpdate(la => ({ ...la, immediate_actions: items }))}
-          placeholder="Azione immediata…"
+          placeholder={t("Azione immediata…")}
           itemClass="action-item"
           icon={<CheckCircle2 size={14} />}
-          addLabel="Aggiungi azione"
+          addLabel={t("Aggiungi azione")}
         />
       </div>
 
       {/* Charges */}
       <div className="legal-section">
-        <h2><Scale size={16} /> Analisi delle accuse</h2>
+        <h2><Scale size={16} />{" " + t("Analisi delle accuse")}</h2>
         {la.charges.map((charge, ci) => (
           <div key={ci} className="charge-card">
             <div className="charge-card-header">
-              <button className="charge-card-toggle" title="Espandi o riduci i dettagli del capo di imputazione" onClick={() => setExpandedCharge(expandedCharge === ci ? null : ci)}>
+              <button className="charge-card-toggle" title={t("Espandi o riduci i dettagli del capo di imputazione")} onClick={() => setExpandedCharge(expandedCharge === ci ? null : ci)}>
                 {expandedCharge === ci ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </button>
               <div className="charge-card-content">
@@ -748,7 +749,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
                     <Editable value={charge.charge_code} onChange={v => updateCharge(ci, { charge_code: v })} placeholder="art." />
                   </span>
                   <span className="charge-name">
-                    <Editable value={charge.charge_name} onChange={v => updateCharge(ci, { charge_name: v })} placeholder="Nome Reato" />
+                    <Editable value={charge.charge_name} onChange={v => updateCharge(ci, { charge_name: v })} placeholder={t("Nome Reato")} />
                   </span>
                 </div>
                 <div className="charge-card-meta-row">
@@ -756,7 +757,7 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
                     <div className="strength-mini-fill" style={{ width: `${charge.prosecution_strength * 100}%`, background: `hsl(${(1 - charge.prosecution_strength) * 120}, 70%, 50%)` }} />
                   </div>
                   <span className="charge-strength-label">
-                    Accusa{' '}
+                    {t("Accusa")}{' '}
                     <EditablePercent value={charge.prosecution_strength} onChange={v => updateCharge(ci, { prosecution_strength: v })} />
                   </span>
                 </div>
@@ -766,10 +767,10 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
             {expandedCharge === ci && (
               <div className="charge-card-body">
                 <p className="charge-sentence">
-                  <strong>Pena massima:</strong>{' '}
-                  <Editable value={charge.max_sentence} onChange={v => updateCharge(ci, { max_sentence: v })} placeholder="es. anni 6" />
+                  <strong>{t("Pena massima:")}</strong>{' '}
+                  <Editable value={charge.max_sentence} onChange={v => updateCharge(ci, { max_sentence: v })} placeholder={t("es. anni 6")} />
                 </p>
-                <h4>Elementi costitutivi</h4>
+                <h4>{t("Elementi costitutivi")}</h4>
                 <div className="elements-table">
                   {charge.elements_required.map((el, ei) => (
                     <div key={ei} className="element-row">
@@ -777,15 +778,15 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
                       <div className="element-body" style={{ flex: 1 }}>
                         <div className="editable-row-head">
                           <strong>
-                            <Editable value={el.element} onChange={v => updateElement(ci, ei, { element: v })} placeholder="Elemento…" />
+                            <Editable value={el.element} onChange={v => updateElement(ci, ei, { element: v })} placeholder={t("Elemento…")} />
                           </strong>
                           <RowDelete onClick={() => deleteElement(ci, ei)} label={el.element} />
                         </div>
                         <p>
-                          <Editable value={el.description} onChange={v => updateElement(ci, ei, { description: v })} placeholder="Descrizione…" multiline />
+                          <Editable value={el.description} onChange={v => updateElement(ci, ei, { description: v })} placeholder={t("Descrizione…")} multiline />
                         </p>
                         <p className="element-notes">
-                          <Editable value={el.notes} onChange={v => updateElement(ci, ei, { notes: v })} placeholder="Note…" multiline />
+                          <Editable value={el.notes} onChange={v => updateElement(ci, ei, { notes: v })} placeholder={t("Note…")} multiline />
                         </p>
                         <EditableSelect
                           value={el.status}
@@ -797,34 +798,34 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
                       </div>
                     </div>
                   ))}
-                  <AddRowButton label="Aggiungi elemento" onClick={() => addElement(ci)} />
+                  <AddRowButton label={t("Aggiungi elemento")} onClick={() => addElement(ci)} />
                 </div>
-                <h4>Difese disponibili</h4>
+                <h4>{t("Difese disponibili")}</h4>
                 <EditableStringList
                   items={charge.available_defenses}
                   onChange={items => updateCharge(ci, { available_defenses: items })}
-                  placeholder="Difesa…"
-                  addLabel="Aggiungi difesa"
+                  placeholder={t("Difesa…")}
+                  addLabel={t("Aggiungi difesa")}
                 />
-                <h4>Note</h4>
+                <h4>{t("Note")}</h4>
                 <p className="charge-notes">
-                  <Editable value={charge.notes} onChange={v => updateCharge(ci, { notes: v })} placeholder="Note sull'accusa…" multiline />
+                  <Editable value={charge.notes} onChange={v => updateCharge(ci, { notes: v })} placeholder={t("Note sull'accusa…")} multiline />
                 </p>
                 <SourceRow refs={charge.source_refs} onSelect={onSelectSource} />
               </div>
             )}
           </div>
         ))}
-        <AddRowButton label="Aggiungi accusa" onClick={addCharge} />
+        <AddRowButton label={t("Aggiungi accusa")} onClick={addCharge} />
       </div>
 
       {/* Defense strategies */}
       <div className="legal-section">
-        <h2><ShieldCheck size={16} /> Strategie difensive</h2>
+        <h2><ShieldCheck size={16} />{" " + t("Strategie difensive")}</h2>
         {la.strategies.map((s, si) => (
           <div key={si} className={`strategy-card strategy-${s.priority}`}>
             <div className="strategy-header">
-              <button className="strategy-toggle" title="Mostra o nascondi i dettagli della strategia difensiva" onClick={() => setExpandedStrategy(expandedStrategy === si ? null : si)}>
+              <button className="strategy-toggle" title={t("Mostra o nascondi i dettagli della strategia difensiva")} onClick={() => setExpandedStrategy(expandedStrategy === si ? null : si)}>
                 {expandedStrategy === si ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
               </button>
               <div className="strategy-content">
@@ -836,11 +837,11 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
                     className={`priority-badge priority-${s.priority}`}
                   />
                   <span className="strategy-type-badge">
-                    <Editable value={s.strategy_type} onChange={v => updateStrategy(si, { strategy_type: v })} placeholder="tipo strategia" />
+                    <Editable value={s.strategy_type} onChange={v => updateStrategy(si, { strategy_type: v })} placeholder={t("tipo strategia")} />
                   </span>
                 </div>
                 <div className="strategy-title">
-                  <Editable value={s.title} onChange={v => updateStrategy(si, { title: v })} placeholder="Titolo strategia…" />
+                  <Editable value={s.title} onChange={v => updateStrategy(si, { title: v })} placeholder={t("Titolo strategia…")} />
                 </div>
               </div>
               <RowDelete onClick={() => deleteStrategy(si)} label={s.title} />
@@ -848,50 +849,50 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
             {expandedStrategy === si && (
               <div className="strategy-body">
                 <p>
-                  <Editable value={s.description} onChange={v => updateStrategy(si, { description: v })} placeholder="Descrizione…" multiline />
+                  <Editable value={s.description} onChange={v => updateStrategy(si, { description: v })} placeholder={t("Descrizione…")} multiline />
                 </p>
                 <div className="strategy-cols">
                   <div className="strategy-col">
-                    <h4>Punti di forza</h4>
+                    <h4>{t("Punti di forza")}</h4>
                     <EditableStringList
                       items={s.strengths}
                       onChange={items => updateStrategy(si, { strengths: items })}
-                      placeholder="Punto di forza…"
+                      placeholder={t("Punto di forza…")}
                       itemClass="pro-item"
-                      addLabel="Aggiungi"
+                      addLabel={t("Aggiungi")}
                     />
                   </div>
                   <div className="strategy-col">
-                    <h4>Rischi</h4>
+                    <h4>{t("Rischi")}</h4>
                     <EditableStringList
                       items={s.risks}
                       onChange={items => updateStrategy(si, { risks: items })}
-                      placeholder="Rischio…"
+                      placeholder={t("Rischio…")}
                       itemClass="risk-item"
-                      addLabel="Aggiungi"
+                      addLabel={t("Aggiungi")}
                     />
                   </div>
                 </div>
-                <h4>Prove necessarie</h4>
+                <h4>{t("Prove necessarie")}</h4>
                 <EditableStringList
                   items={s.required_evidence}
                   onChange={items => updateStrategy(si, { required_evidence: items })}
-                  placeholder="Prova necessaria…"
+                  placeholder={t("Prova necessaria…")}
                   icon={<Search size={12} />}
-                  addLabel="Aggiungi prova"
+                  addLabel={t("Aggiungi prova")}
                 />
                 <SourceRow refs={s.source_refs} onSelect={onSelectSource} />
               </div>
             )}
           </div>
         ))}
-        <AddRowButton label="Aggiungi strategia" onClick={addStrategy} />
+        <AddRowButton label={t("Aggiungi strategia")} onClick={addStrategy} />
       </div>
 
       {/* Constitutional issues */}
       <div className="legal-section">
-        <h2><ShieldAlert size={16} /> Problemi costituzionali / procedurali</h2>
-        {la.constitutional_issues.length === 0 && <p className="muted">Nessun problema costituzionale.</p>}
+        <h2><ShieldAlert size={16} />{" " + t("Problemi costituzionali / procedurali")}</h2>
+        {la.constitutional_issues.length === 0 && <p className="muted">{t("Nessun problema costituzionale.")}</p>}
         {la.constitutional_issues.map((issue, ii) => (
           <div key={ii} className={`issue-card issue-${issue.severity}`}>
             <div className="issue-header">
@@ -902,44 +903,44 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
                 className={`severity-badge severity-${issue.severity}`}
               />
               <span className="issue-type">
-                <Editable value={issue.issue_type} onChange={v => updateIssue(ii, { issue_type: v })} placeholder="tipo problema" />
+                <Editable value={issue.issue_type} onChange={v => updateIssue(ii, { issue_type: v })} placeholder={t("tipo problema")} />
               </span>
               <RowDelete onClick={() => deleteIssue(ii)} label={issue.title} />
             </div>
             <h3>
-              <Editable value={issue.title} onChange={v => updateIssue(ii, { title: v })} placeholder="Titolo…" />
+              <Editable value={issue.title} onChange={v => updateIssue(ii, { title: v })} placeholder={t("Titolo…")} />
             </h3>
             <p>
-              <Editable value={issue.description} onChange={v => updateIssue(ii, { description: v })} placeholder="Descrizione…" multiline />
+              <Editable value={issue.description} onChange={v => updateIssue(ii, { description: v })} placeholder={t("Descrizione…")} multiline />
             </p>
             <div className="issue-law">
               <BookOpen size={13} />{' '}
               <em>
-                <Editable value={issue.legal_basis} onChange={v => updateIssue(ii, { legal_basis: v })} placeholder="Base legale…" />
+                <Editable value={issue.legal_basis} onChange={v => updateIssue(ii, { legal_basis: v })} placeholder={t("Base legale…")} />
               </em>
             </div>
             <div className="issue-remedy">
               <ShieldCheck size={13} />
               <span>
-                <Editable value={issue.remedy} onChange={v => updateIssue(ii, { remedy: v })} placeholder="Rimedio…" />
+                <Editable value={issue.remedy} onChange={v => updateIssue(ii, { remedy: v })} placeholder={t("Rimedio…")} />
               </span>
             </div>
             <SourceRow refs={issue.source_refs} onSelect={onSelectSource} />
           </div>
         ))}
-        <AddRowButton label="Aggiungi problema" onClick={addIssue} />
+        <AddRowButton label={t("Aggiungi problema")} onClick={addIssue} />
       </div>
 
       {/* Witness assessments */}
       <div className="legal-section">
-        <h2><Users size={16} /> Valutazione testimoni</h2>
-        {la.witness_assessments.length === 0 && <p className="muted">Nessun testimone.</p>}
+        <h2><Users size={16} />{" " + t("Valutazione testimoni")}</h2>
+        {la.witness_assessments.length === 0 && <p className="muted">{t("Nessun testimone.")}</p>}
         {la.witness_assessments.map((w, wi) => (
           <div key={wi} className={`witness-card witness-${w.role}`}>
             <div className="witness-header">
               <div>
                 <strong>
-                  <Editable value={w.witness_name} onChange={v => updateWitness(wi, { witness_name: v })} placeholder="Nome testimone…" />
+                  <Editable value={w.witness_name} onChange={v => updateWitness(wi, { witness_name: v })} placeholder={t("Nome testimone…")} />
                 </strong>
                 <EditableSelect
                   value={w.role}
@@ -953,43 +954,43 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
               </div>
               <RowDelete onClick={() => deleteWitness(wi)} label={w.witness_name} />
             </div>
-            <StrengthBar value={w.credibility_score} label="Credibilità percepita" color={`hsl(${(1 - w.credibility_score) * 30}, 80%, 55%)`} />
+            <StrengthBar value={w.credibility_score} label={t("Credibilità percepita")} color={`hsl(${(1 - w.credibility_score) * 30}, 80%, 55%)`} />
             <p className="witness-testimony">&ldquo;
-              <Editable value={w.key_testimony} onChange={v => updateWitness(wi, { key_testimony: v })} placeholder="Testimonianza chiave…" multiline />
+              <Editable value={w.key_testimony} onChange={v => updateWitness(wi, { key_testimony: v })} placeholder={t("Testimonianza chiave…")} multiline />
             &rdquo;</p>
             <div className="witness-cols">
               <div>
-                <h4>Punti forti</h4>
+                <h4>{t("Punti forti")}</h4>
                 <EditableStringList
                   items={w.strengths}
                   onChange={items => updateWitness(wi, { strengths: items })}
-                  placeholder="Punto forte…"
+                  placeholder={t("Punto forte…")}
                   itemClass="pro-item"
-                  addLabel="Aggiungi"
+                  addLabel={t("Aggiungi")}
                 />
               </div>
               <div>
-                <h4>Vulnerabilità</h4>
+                <h4>{t("Vulnerabilità")}</h4>
                 <EditableStringList
                   items={w.vulnerabilities}
                   onChange={items => updateWitness(wi, { vulnerabilities: items })}
-                  placeholder="Vulnerabilità…"
+                  placeholder={t("Vulnerabilità…")}
                   itemClass="risk-item"
-                  addLabel="Aggiungi"
+                  addLabel={t("Aggiungi")}
                 />
               </div>
             </div>
-            <h4>Domande cross-examination</h4>
+            <h4>{t("Domande cross-examination")}</h4>
             <EditableStringList
               items={w.cross_examination_angles}
               onChange={items => updateWitness(wi, { cross_examination_angles: items })}
-              placeholder="Domanda…"
+              placeholder={t("Domanda…")}
               icon={<ArrowRight size={12} />}
-              addLabel="Aggiungi domanda"
+              addLabel={t("Aggiungi domanda")}
             />
             <SourceRow refs={w.source_refs} onSelect={onSelectSource} />
             {!isDemo && (
-              <button title="Esegui azione"
+              <button title={t("Esegui azione")}
                 className="giulia-ctx-btn"
                 onClick={() => onOpenDraft(
                   'witnessCrossExam',
@@ -997,68 +998,68 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
                   `Preparami una sequenza di controesame per ${w.witness_name} (${w.role}, credibilità ${Math.round(w.credibility_score * 100)}%). Testimonianza chiave: "${w.key_testimony}". Vulnerabilità note: ${w.vulnerabilities.join('; ') || 'da sviluppare'}. Usa domande chiuse sì/no per massimizzare l'impatto.`
                 )}
               >
-                <MessageSquare size={12} /> Prepara controesame con GiulIA
+                <MessageSquare size={12} />{" " + t("Prepara controesame con GiulIA")}
               </button>
             )}
           </div>
         ))}
-        <AddRowButton label="Aggiungi testimone" onClick={addWitness} />
+        <AddRowButton label={t("Aggiungi testimone")} onClick={addWitness} />
       </div>
 
       {/* Evidence balance */}
       <div className="legal-section">
-        <h2><Scale size={16} /> Equilibrio probatorio</h2>
+        <h2><Scale size={16} />{" " + t("Equilibrio probatorio")}</h2>
         <div className="balance-card">
           <div className="balance-bars">
             <div>
-              <span className="muted" style={{ fontSize: '0.78rem' }}>Forza accusa:{' '}
+              <span className="muted" style={{ fontSize: '0.78rem' }}>{t("Forza accusa:")}{' '}
                 <EditablePercent value={evidenceBalance.prosecution_strength} onChange={v => updateBalance({ prosecution_strength: v })} />
               </span>
-              <StrengthBar value={evidenceBalance.prosecution_strength} label="Forza accusa" color="#ef4444" />
+              <StrengthBar value={evidenceBalance.prosecution_strength} label={t("Forza accusa")} color="#ef4444" />
             </div>
             <div>
-              <span className="muted" style={{ fontSize: '0.78rem' }}>Forza difesa:{' '}
+              <span className="muted" style={{ fontSize: '0.78rem' }}>{t("Forza difesa:")}{' '}
                 <EditablePercent value={evidenceBalance.defense_strength} onChange={v => updateBalance({ defense_strength: v })} />
               </span>
-              <StrengthBar value={evidenceBalance.defense_strength} label="Forza difesa" color="#22c55e" />
+              <StrengthBar value={evidenceBalance.defense_strength} label={t("Forza difesa")} color="#22c55e" />
             </div>
           </div>
           <div className="balance-cols">
             <div>
-              <h4>Prove accusa</h4>
+              <h4>{t("Prove accusa")}</h4>
               <EditableStringList
                 items={evidenceBalance.key_prosecution_evidence}
                 onChange={items => updateBalance({ key_prosecution_evidence: items })}
-                placeholder="Prova accusa…"
+                placeholder={t("Prova accusa…")}
                 itemClass="risk-item"
-                addLabel="Aggiungi"
+                addLabel={t("Aggiungi")}
               />
             </div>
             <div>
-              <h4>Prove difesa</h4>
+              <h4>{t("Prove difesa")}</h4>
               <EditableStringList
                 items={evidenceBalance.key_defense_evidence}
                 onChange={items => updateBalance({ key_defense_evidence: items })}
-                placeholder="Prova difesa…"
+                placeholder={t("Prova difesa…")}
                 itemClass="pro-item"
-                addLabel="Aggiungi"
+                addLabel={t("Aggiungi")}
               />
             </div>
           </div>
           <div className="balance-gaps">
-            <h4><Search size={13} /> Lacune critiche</h4>
+            <h4><Search size={13} />{" " + t("Lacune critiche")}</h4>
             <EditableStringList
               items={evidenceBalance.critical_gaps}
               onChange={items => updateBalance({ critical_gaps: items })}
-              placeholder="Lacuna…"
-              addLabel="Aggiungi lacuna"
+              placeholder={t("Lacuna…")}
+              addLabel={t("Aggiungi lacuna")}
             />
           </div>
           <p className="balance-assessment">
             <Editable
               value={evidenceBalance.overall_assessment}
               onChange={v => updateBalance({ overall_assessment: v })}
-              placeholder="Valutazione complessiva…"
+              placeholder={t("Valutazione complessiva…")}
               multiline
             />
           </p>
@@ -1067,12 +1068,12 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
 
       {/* Client summary */}
       <div className="client-summary-box">
-        <h2><Users size={16} /> Sintesi per il cliente</h2>
+        <h2><Users size={16} />{" " + t("Sintesi per il cliente")}</h2>
         <p>
           <Editable
             value={la.client_summary}
             onChange={v => onUpdate(la => ({ ...la, client_summary: v }))}
-            placeholder="Sintesi per il cliente…"
+            placeholder={t("Sintesi per il cliente…")}
             multiline
           />
         </p>
@@ -1084,39 +1085,39 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode
           <div className="legal-drafting-header">
             <Sparkles size={16} />
             <div>
-              <div className="legal-drafting-title">Redazione atti con AI</div>
-              <div className="legal-drafting-sub">Memorie, ricorsi, eccezioni — ragionamento giuridico reale, non template</div>
+              <div className="legal-drafting-title">{t("Redazione atti con AI")}</div>
+              <div className="legal-drafting-sub">{t("Memorie, ricorsi, eccezioni — ragionamento giuridico reale, non template")}</div>
             </div>
-            <div className="mode-toggle" role="group" aria-label="Modello per le bozze" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+            <div className="mode-toggle" role="group" aria-label={t("Modello per le bozze")} style={{ marginLeft: 'auto', flexShrink: 0 }}>
               <button
                 className={`mode-toggle-btn${draftMode === 'flash' ? ' active' : ''}`}
                 onClick={() => onSetDraftMode('flash')}
-                title="Bozze Flash — veloce, ottimo per la maggior parte degli atti"
+                title={t("Bozze Flash — veloce, ottimo per la maggior parte degli atti")}
               >Flash</button>
               <button
                 className={`mode-toggle-btn mode-toggle-btn--pro${draftMode === 'pro' ? ' active' : ''}`}
                 onClick={() => onSetDraftMode('pro')}
-                title="Bozze Pro — ragionamento profondo, consigliato per Ricorso Cassazione"
+                title={t("Bozze Pro — ragionamento profondo, consigliato per Ricorso Cassazione")}
               >✦ Pro</button>
             </div>
           </div>
           <div className="legal-drafting-grid">
             {([
-              { key: 'memoria',    label: 'Memoria difensiva',     desc: 'Atto completo con IN FATTO, IN DIRITTO e CONCLUSIONI', icon: FileText },
-              { key: 'cassazione', label: 'Ricorso Cassazione',    desc: 'Motivi ex art. 606 c.p.p. con giurisprudenza', icon: Scale },
-              { key: 'eccezione',  label: 'Eccezione procedurale', desc: 'Nullità / inutilizzabilità / inammissibilità', icon: ShieldAlert },
-              { key: 'crossExam',  label: 'Controesame',           desc: 'Schema domande per ciascun testimone dell\'accusa', icon: Users },
-              { key: 'strategy',   label: 'Analisi strategica',    desc: 'Valutazione realistica di ogni linea difensiva', icon: Sparkles },
+              { key: 'memoria',    label: t("Memoria difensiva"),     desc: 'Atto completo con IN FATTO, IN DIRITTO e CONCLUSIONI', icon: FileText },
+              { key: 'cassazione', label: t("Ricorso Cassazione"),    desc: 'Motivi ex art. 606 c.p.p. con giurisprudenza', icon: Scale },
+              { key: 'eccezione',  label: t("Eccezione procedurale"), desc: 'Nullità / inutilizzabilità / inammissibilità', icon: ShieldAlert },
+              { key: 'crossExam',  label: t("Controesame"),           desc: 'Schema domande per ciascun testimone dell\'accusa', icon: Users },
+              { key: 'strategy',   label: t("Analisi strategica"),    desc: 'Valutazione realistica di ogni linea difensiva', icon: Sparkles },
             ] as const).map(({ key, label, desc, icon: Icon }) => (
-              <button key={key} className="legal-drafting-card" title="Apri una nuova bozza nel workspace" onClick={() => onOpenDraft(key, label)}>
+              <button key={key} className="legal-drafting-card" title={t("Apri una nuova bozza nel workspace")} onClick={() => onOpenDraft(key, label)}>
                 <div className="legal-drafting-card-icon"><Icon size={18} /></div>
                 <div className="legal-drafting-card-label">{label}</div>
-                <div className="legal-drafting-card-desc">{desc}</div>
+                <div className="legal-drafting-card-desc">{t(desc)}</div>
               </button>
             ))}
           </div>
           <p className="legal-drafting-note">
-            L'AI prepara bozze locali modificabili: l'avvocato resta in controllo e verifica fonti, norme e precedenti prima del deposito.
+            {t("L'AI prepara bozze locali modificabili: l'avvocato resta in controllo e verifica fonti, norme e precedenti prima del deposito.")}
           </p>
         </div>
       )}
@@ -1179,16 +1180,16 @@ function RedactionDrawer({
   const RuleList = ({ rules, onChange, title }: { rules: RedactionRule[]; onChange: (r: RedactionRule[]) => void; title: string }) => (
     <div className="redact-section">
       <p className="eyebrow">{title}</p>
-      {rules.length === 0 && <p className="muted" style={{ fontSize: '0.8rem', marginBottom: 8 }}>Nessuna regola.</p>}
+      {rules.length === 0 && <p className="muted" style={{ fontSize: '0.8rem', marginBottom: 8 }}>{t("Nessuna regola.")}</p>}
       {rules.map((r, i) => (
         <div key={r.id} className="redact-rule-item">
           <span className="redact-original">{r.original}</span>
           <span className="redact-arrow">→</span>
           <span className="redact-replacement">{r.replacement}</span>
-          <button className="redact-toggle-chip" title="Attiva o disattiva questa regola di anonimizzazione" onClick={() => onChange(rules.map((x, j) => j === i ? { ...x, enabled: !x.enabled } : x))}>
+          <button className="redact-toggle-chip" title={t("Attiva o disattiva questa regola di anonimizzazione")} onClick={() => onChange(rules.map((x, j) => j === i ? { ...x, enabled: !x.enabled } : x))}>
             {r.enabled ? <Eye size={12} /> : <EyeOff size={12} />}
           </button>
-          <button className="redact-delete-btn" title="Elimina definitivamente questa regola" onClick={() => onChange(rules.filter((_, j) => j !== i))}><X size={12} /></button>
+          <button className="redact-delete-btn" title={t("Elimina definitivamente questa regola")} onClick={() => onChange(rules.filter((_, j) => j !== i))}><X size={12} /></button>
         </div>
       ))}
     </div>
@@ -1199,48 +1200,48 @@ function RedactionDrawer({
       <aside className="source-drawer redact-drawer" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div><p className="eyebrow">Privacy</p><h2>Anonimizza dati sensibili</h2></div>
-          <button onClick={onClose} className="ghost-button" title="Chiudi la finestra corrente">Chiudi</button>
+          <div><p className="eyebrow">{t("Privacy")}</p><h2>{t("Anonimizza dati sensibili")}</h2></div>
+          <button onClick={onClose} className="ghost-button" title={t("Chiudi la finestra corrente")}>{t("Chiudi")}</button>
         </div>
 
         <div className="redact-add-form">
-          <p className="eyebrow">Aggiungi regola</p>
+          <p className="eyebrow">{t("Aggiungi regola")}</p>
           <div className="redact-add-row">
-            <input className="upload-input" placeholder="Parola originale (es. Mario Rossi)" value={origInput} onChange={e => setOrigInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRule('global')} />
+            <input className="upload-input" placeholder={t("Parola originale (es. Mario Rossi)")} value={origInput} onChange={e => setOrigInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRule('global')} />
             <span style={{ color: 'var(--ink-3)', flexShrink: 0 }}>→</span>
             <input className="upload-input" placeholder="[OMISSIS]" value={replInput} onChange={e => setReplInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addRule('global')} />
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('global')} title="Aggiungi regola a tutti i fascicoli" disabled={!origInput.trim()}>+ Globale</button>
-            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('case')} title="Aggiungi regola solo a questo fascicolo" disabled={!origInput.trim()}>+ Solo questo caso</button>
+            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('global')} title={t("Aggiungi regola a tutti i fascicoli")} disabled={!origInput.trim()}>{t("+ Globale")}</button>
+            <button className="ghost-button" style={{ fontSize: '0.8rem', padding: '8px 12px' }} onClick={() => addRule('case')} title={t("Aggiungi regola solo a questo fascicolo")} disabled={!origInput.trim()}>{t("+ Solo questo caso")}</button>
           </div>
         </div>
 
-        <RuleList rules={globalRules} onChange={setGlobalRules} title="Regole globali (tutti i fascicoli)" />
-        <RuleList rules={caseRules} onChange={setCaseRules} title="Regole per questo fascicolo" />
+        <RuleList rules={globalRules} onChange={setGlobalRules} title={t("Regole globali (tutti i fascicoli)")} />
+        <RuleList rules={caseRules} onChange={setCaseRules} title={t("Regole per questo fascicolo")} />
 
         <div className="redact-section">
-          <p className="eyebrow">Rilevamento AI</p>
-          <button title="Azione secondaria" className="ghost-button" style={{ width: '100%', justifyContent: 'center', gap: 8 }} onClick={handleDetect} disabled={detecting}>
-            {detecting ? <><Loader2 size={14} className="spin" /> Analisi in corso…</> : <><Sparkles size={14} /> Rileva dati sensibili con AI</>}
+          <p className="eyebrow">{t("Rilevamento AI")}</p>
+          <button title={t("Azione secondaria")} className="ghost-button" style={{ width: '100%', justifyContent: 'center', gap: 8 }} onClick={handleDetect} disabled={detecting}>
+            {detecting ? <><Loader2 size={14} className="spin" />{" " + t("Analisi in corso…")}</> : <><Sparkles size={14} />{" " + t("Rileva dati sensibili con AI")}</>}
           </button>
           {suggested.length > 0 && (
             <div className="redact-suggested">
-              <p className="eyebrow" style={{ marginTop: 12 }}>Suggeriti ({suggested.length})</p>
+              <p className="eyebrow" style={{ marginTop: 12 }}>{t("Suggeriti (")}{suggested.length})</p>
               {suggested.map(r => (
                 <div key={r.id} className="redact-rule-item">
                   <span className="redact-original">{r.original}</span>
                   <span className="redact-arrow">→</span>
                   <span className="redact-replacement">{r.replacement}</span>
-                  <button title="Azione secondaria" className="ghost-button" style={{ fontSize: '0.7rem', padding: '4px 8px', borderRadius: 6 }}
+                  <button title={t("Azione secondaria")} className="ghost-button" style={{ fontSize: '0.7rem', padding: '4px 8px', borderRadius: 6 }}
                     onClick={() => { setCaseRules([...caseRules, r]); setSuggested(suggested.filter(s => s.id !== r.id)); }}>
-                    + Aggiungi
+                    {t("+ Aggiungi")}
                   </button>
                 </div>
               ))}
-              <button title="Conferma operazione principale" className="primary-button" style={{ marginTop: 8, width: '100%', justifyContent: 'center' }}
+              <button title={t("Conferma operazione principale")} className="primary-button" style={{ marginTop: 8, width: '100%', justifyContent: 'center' }}
                 onClick={() => { setCaseRules([...caseRules, ...suggested]); setSuggested([]); }}>
-                Accetta tutte
+                {t("Accetta tutte")}
               </button>
             </div>
           )}
@@ -1257,13 +1258,13 @@ function AnonModal({ text, onClose }: { text: string; onClose: () => void }) {
       <aside className="source-drawer anon-modal" onClick={e => e.stopPropagation()}>
         <div className="drawer-handle" />
         <div className="drawer-header">
-          <div><p className="eyebrow">Versione anonimizzata</p><h2>Testo anonimizzato</h2></div>
+          <div><p className="eyebrow">{t("Versione anonimizzata")}</p><h2>{t("Testo anonimizzato")}</h2></div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button title="Azione secondaria" className="ghost-button" onClick={() => navigator.clipboard.writeText(text).catch(() => {})}><Copy size={15} /></button>
+            <button title={t("Azione secondaria")} className="ghost-button" onClick={() => navigator.clipboard.writeText(text).catch(() => {})}><Copy size={15} /></button>
             {typeof navigator.share === 'function' && (
-              <button title="Azione secondaria" className="ghost-button" onClick={() => navigator.share({ title: 'Testo anonimizzato', text }).catch(() => {})}><Share2 size={15} /></button>
+              <button title={t("Azione secondaria")} className="ghost-button" onClick={() => navigator.share({ title: t("Testo anonimizzato"), text }).catch(() => {})}><Share2 size={15} /></button>
             )}
-            <button className="ghost-button" onClick={onClose} title="Chiudi la finestra corrente">Chiudi</button>
+            <button className="ghost-button" onClick={onClose} title={t("Chiudi la finestra corrente")}>{t("Chiudi")}</button>
           </div>
         </div>
         <div className="material-content anon-content">
@@ -1273,7 +1274,7 @@ function AnonModal({ text, onClose }: { text: string; onClose: () => void }) {
                 if (line.startsWith('- ')) return <p className="bullet" key={i}>• {line.slice(2)}</p>;
                 return <p key={i}>{line.replaceAll('**', '')}</p>;
               })
-            : <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '40px 0' }}><Loader2 className="spin" size={28} /><p>Anonimizzazione in corso…</p></div>
+            : <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '40px 0' }}><Loader2 className="spin" size={28} /><p>{t("Anonimizzazione in corso…")}</p></div>
           }
         </div>
       </aside>
@@ -1321,57 +1322,57 @@ function ExportCaseDrawer({
         <div className="drawer-handle" />
         <div className="drawer-header">
           <div>
-            <p className="eyebrow">Condivisione locale</p>
-            <h2>Esporta fascicolo</h2>
+            <p className="eyebrow">{t("Condivisione locale")}</p>
+            <h2>{t("Esporta fascicolo")}</h2>
           </div>
-          <button className="ghost-button" onClick={onClose} title="Chiudi"><X size={16} /></button>
+          <button className="ghost-button" onClick={onClose} title={t("Chiudi")}><X size={16} /></button>
         </div>
 
         <p className="export-privacy-copy">
-          I fascicoli restano su questo dispositivo. L'esportazione crea un file .plt che puoi trasferire manualmente su un altro dispositivo o inviare a un collega.
+          {t("I fascicoli restano su questo dispositivo. L'esportazione crea un file .plt che puoi trasferire manualmente su un altro dispositivo o inviare a un collega.")}
         </p>
 
         <div className="export-mode-grid">
-          <button title="Seleziona questa modalità di esportazione" className={`export-mode-card${mode === 'protected' ? ' active' : ''}`} onClick={() => setMode('protected')}>
+          <button title={t("Seleziona questa modalità di esportazione")} className={`export-mode-card${mode === 'protected' ? ' active' : ''}`} onClick={() => setMode('protected')}>
             <ShieldCheck size={18} />
-            <strong>Proteggi con password — consigliato</strong>
-            <span>Il contenuto viene cifrato nel browser prima del download. PLT non salva il file e non conosce la password.</span>
+            <strong>{t("Proteggi con password — consigliato")}</strong>
+            <span>{t("Il contenuto viene cifrato nel browser prima del download. PLT non salva il file e non conosce la password.")}</span>
           </button>
-          <button title="Seleziona questa modalità di esportazione" className={`export-mode-card export-mode-card-warning${mode === 'plain' ? ' active' : ''}`} onClick={() => setMode('plain')}>
+          <button title={t("Seleziona questa modalità di esportazione")} className={`export-mode-card export-mode-card-warning${mode === 'plain' ? ' active' : ''}`} onClick={() => setMode('plain')}>
             <ShieldAlert size={18} />
-            <strong>Esporta senza password</strong>
-            <span>Solo per debug, archiviazione locale sicura o dopo aver anonimizzato i dati sensibili.</span>
+            <strong>{t("Esporta senza password")}</strong>
+            <span>{t("Solo per debug, archiviazione locale sicura o dopo aver anonimizzato i dati sensibili.")}</span>
           </button>
         </div>
 
         {mode === 'protected' ? (
           <div className="export-fields">
-            <label>Password <input type="password" value={password} onChange={e => setPassword(e.target.value)} /></label>
-            <label>Conferma password <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></label>
-            <p className="export-note">Chi riceve il file potrà aprirlo su un altro dispositivo, ma solo con questa password. Se la perdi, PLT non può recuperarla.</p>
-            <p className="export-note">Consiglio: invia la password con un canale diverso dal file.</p>
+            <label>{t("Password") + " "}<input type="password" value={password} onChange={e => setPassword(e.target.value)} /></label>
+            <label>{t("Conferma password") + " "}<input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></label>
+            <p className="export-note">{t("Chi riceve il file potrà aprirlo su un altro dispositivo, ma solo con questa password. Se la perdi, PLT non può recuperarla.")}</p>
+            <p className="export-note">{t("Consiglio: invia la password con un canale diverso dal file.")}</p>
           </div>
         ) : (
           <div className="export-warning-box">
-            <strong>File non protetto</strong>
-            <p>Il file .plt non protetto contiene i dati del fascicolo in chiaro. Prima di inviare un .plt non protetto, usa "Anonimizza" per sostituire nomi, indirizzi, numeri di procedimento e altri dati identificativi.</p>
+            <strong>{t("File non protetto")}</strong>
+            <p>{t("Il file .plt non protetto contiene i dati del fascicolo in chiaro. Prima di inviare un .plt non protetto, usa \"Anonimizza\" per sostituire nomi, indirizzi, numeri di procedimento e altri dati identificativi.")}</p>
             <label className="export-check-row">
               <input type="checkbox" checked={anonymized} disabled={!hasAnonymizationRules} onChange={e => setAnonymized(e.target.checked)} />
-              Esporta copia anonimizzata {hasAnonymizationRules ? '' : '(aggiungi prima regole da "Anonimizza")'}
+              {t("Esporta copia anonimizzata") + " "}{hasAnonymizationRules ? '' : '(aggiungi prima regole da "Anonimizza")'}
             </label>
           </div>
         )}
 
         <label className="export-check-row">
           <input type="checkbox" checked={includeDocs} onChange={e => setIncludeDocs(e.target.checked)} />
-          Includi documenti originali
+          {t("Includi documenti originali")}
         </label>
 
         {error && <p className="form-error">{error}</p>}
 
         <div className="drawer-actions">
-          <button className="ghost-button" onClick={onClose} title="Annulla operazione">Annulla</button>
-          <button title="Conferma operazione principale" className="primary-button" disabled={busy} onClick={submit}>
+          <button className="ghost-button" onClick={onClose} title={t("Annulla operazione")}>{t("Annulla")}</button>
+          <button title={t("Conferma operazione principale")} className="primary-button" disabled={busy} onClick={submit}>
             {busy ? <Loader2 className="spin" size={15} /> : <Share2 size={15} />}
             {mode === 'protected' ? 'Esporta .plt protetto' : 'Esporta comunque'}
           </button>
@@ -1410,8 +1411,8 @@ function DraftingWorkspace({
       <section className="panel draft-workspace-panel">
         <div className="draft-empty-state">
           <Sparkles size={24} />
-          <h2>Workspace redazione atti</h2>
-          <p className="muted">Clicca una card viola in "Analisi legale" per aprire una nuova bozza persistente. La chat resta solo per rifiniture e domande.</p>
+          <h2>{t("Workspace redazione atti")}</h2>
+          <p className="muted">{t("Clicca una card viola in \"Analisi legale\" per aprire una nuova bozza persistente. La chat resta solo per rifiniture e domande.")}</p>
         </div>
       </section>
     );
@@ -1424,23 +1425,23 @@ function DraftingWorkspace({
     <section className="panel draft-workspace-panel">
       <div className="draft-workspace-header">
         <div>
-          <p className="eyebrow">Workspace redazione atti</p>
+          <p className="eyebrow">{t("Workspace redazione atti")}</p>
           <h2>{caseTitle}</h2>
-          <p className="muted">Bozze locali del fascicolo. Ogni click su una card viola crea una nuova workspace tab.</p>
+          <p className="muted">{t("Bozze locali del fascicolo. Ogni click su una card viola crea una nuova workspace tab.")}</p>
         </div>
-        <button className="ghost-button" onClick={onOpenProtectedPltExport} title="Esporta l'intero fascicolo in .plt protetto">
-          <ShieldCheck size={14} /> .plt protetto
+        <button className="ghost-button" onClick={onOpenProtectedPltExport} title={t("Esporta l'intero fascicolo in .plt protetto")}>
+          <ShieldCheck size={14} />{" " + t(".plt protetto")}
         </button>
       </div>
 
-      <div className="draft-tabs" role="tablist" aria-label="Bozze del fascicolo">
+      <div className="draft-tabs" role="tablist" aria-label={t("Bozze del fascicolo")}>
         {drafts.map((draft, idx) => (
           <button
             key={draft.id}
             role="tab"
             className={`draft-tab${draft.id === activeDraft.id ? ' active' : ''}`}
             onClick={() => onSelectDraft(draft.id)}
-            title="Apri questa bozza"
+            title={t("Apri questa bozza")}
           >
             <span>{idx + 1}. {draft.title}</span>
             <small>{draft.status} · {new Date(draft.created_at).toLocaleString('it')}</small>
@@ -1451,7 +1452,7 @@ function DraftingWorkspace({
       <div className="draft-editor-grid">
         <div className="draft-editor-main">
           <label className="draft-title-field">
-            Titolo bozza
+            {t("Titolo bozza")}
             <input
               value={activeDraft.title}
               onChange={e => onUpdateDraft({ ...activeDraft, title: e.target.value })}
@@ -1459,26 +1460,26 @@ function DraftingWorkspace({
           </label>
           <div className="draft-toolbar">
             <label>
-              Stato
+              {t("Stato")}
               <select
                 value={activeDraft.status}
                 onChange={e => onUpdateDraft({ ...activeDraft, status: e.target.value as DraftArtifact['status'] })}
               >
-                <option value="draft">bozza</option>
-                <option value="reviewing">in revisione</option>
-                <option value="approved">approvata dall'avvocato</option>
-                <option value="archived">archiviata</option>
+                <option value="draft">{t("bozza")}</option>
+                <option value="reviewing">{t("in revisione")}</option>
+                <option value="approved">{t("approvata dall'avvocato")}</option>
+                <option value="archived">{t("archiviata")}</option>
               </select>
             </label>
-            <button className="ghost-button" onClick={() => onDeleteDraft(activeDraft.id)} title="Archivia/elimina questa workspace"><Trash2 size={13} /> Elimina</button>
+            <button className="ghost-button" onClick={() => onDeleteDraft(activeDraft.id)} title={t("Archivia/elimina questa workspace")}><Trash2 size={13} />{" " + t("Elimina")}</button>
           </div>
           {generatingDraftId === activeDraft.id ? (
             <div className="draft-generating-overlay">
-              <p className="draft-generating-text">Generazione bozza in corso…</p>
+              <p className="draft-generating-text">{t("Generazione bozza in corso…")}</p>
               <div className="analysis-overlay-bar draft-generating-bar">
                 <div className="analysis-overlay-bar-fill" />
               </div>
-              <p className="draft-generating-sub">La workspace è già salvata nel fascicolo locale.</p>
+              <p className="draft-generating-sub">{t("La workspace è già salvata nel fascicolo locale.")}</p>
             </div>
           ) : (
             <textarea
@@ -1486,7 +1487,7 @@ function DraftingWorkspace({
               value={activeDraft.content_markdown}
               onChange={e => onUpdateDraft({ ...activeDraft, content_markdown: e.target.value })}
               rows={24}
-              placeholder="La bozza generata comparirà qui. Puoi modificarla liberamente: resta salvata nel fascicolo locale."
+              placeholder={t("La bozza generata comparirà qui. Puoi modificarla liberamente: resta salvata nel fascicolo locale.")}
             />
           )}
         </div>
@@ -1494,24 +1495,24 @@ function DraftingWorkspace({
         <aside className="draft-side-panel">
           <div className="draft-guardrail-card">
             <ShieldAlert size={16} />
-            <strong>Divieto precedenti inventati</strong>
-            <p>Le citazioni Cassazione-like senza fonte sono marcate <strong>DA VERIFICARE</strong>. Prima del deposito verifica sempre banca dati, norme e fonti.</p>
+            <strong>{t("Divieto precedenti inventati")}</strong>
+            <p>{t("Le citazioni Cassazione-like senza fonte sono marcate") + " "}<strong>DA VERIFICARE</strong>{t(". Prima del deposito verifica sempre banca dati, norme e fonti.")}</p>
           </div>
 
           <div className="draft-check-card">
-            <h3>Verifiche</h3>
-            <p><strong>{verified}</strong> claim con fonte · <strong>{toCheck}</strong> da verificare/unsupported</p>
-            {activeDraft.claim_refs.length === 0 && <p className="muted">Nessuna citazione sospetta rilevata automaticamente.</p>}
+            <h3>{t("Verifiche")}</h3>
+            <p><strong>{verified}</strong>{" " + t("claim con fonte ·") + " "}<strong>{toCheck}</strong>{" " + t("da verificare/unsupported")}</p>
+            {activeDraft.claim_refs.length === 0 && <p className="muted">{t("Nessuna citazione sospetta rilevata automaticamente.")}</p>}
             {activeDraft.claim_refs.map(claim => (
               <div key={claim.id} className={`draft-claim draft-claim-${claim.status}`}>
-                <span>{claim.status === 'da_verificare' ? 'DA VERIFICARE' : claim.status}</span>
+                <span>{claim.status === 'da_verificare' ? t("DA VERIFICARE") : claim.status}</span>
                 <p>{claim.claim_text}</p>
               </div>
             ))}
           </div>
 
           <div className="draft-export-card">
-            <h3>Esporta bozza</h3>
+            <h3>{t("Esporta bozza")}</h3>
             <p className="export-note">{DRAFT_PLAINTEXT_EXPORT_WARNING}</p>
             <div className="draft-export-buttons">
               <button className="brief-action-btn" onClick={() => onExportDraft(activeDraft, 'md')}><FileText size={13} /> .md</button>
@@ -1519,8 +1520,8 @@ function DraftingWorkspace({
               <button className="brief-action-btn" onClick={() => onExportDraft(activeDraft, 'html')}><FileText size={13} /> .html</button>
               <button className="brief-action-btn" onClick={() => onExportDraft(activeDraft, 'docx')}><FileText size={13} /> .docx</button>
             </div>
-            <button className="primary-button draft-protected-export" onClick={onOpenProtectedPltExport} title="Proteggi tutto il fascicolo">
-              <ShieldCheck size={14} /> Proteggi tutto come .plt
+            <button className="primary-button draft-protected-export" onClick={onOpenProtectedPltExport} title={t("Proteggi tutto il fascicolo")}>
+              <ShieldCheck size={14} />{" " + t("Proteggi tutto come .plt")}
             </button>
           </div>
         </aside>
@@ -1614,9 +1615,9 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     if (!caseData) return;
     try {
       await navigator.clipboard.writeText(caseData.brief_markdown);
-      showToast('Promemoria copiato negli appunti!');
+      showToast(t("Promemoria copiato negli appunti!"));
     } catch {
-      showToast('Copia non riuscita', 'error');
+      showToast(t("Copia non riuscita"), 'error');
     }
   }, [caseData, showToast]);
 
@@ -1687,7 +1688,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           if (fresh.pro_recommendation?.recommended) {
             showToast('Analisi standard completata. GiulIA suggerisce un Approfondimento Pro: nessun addebito senza conferma.', 'info');
           } else {
-            showToast('Analisi completata.', 'info');
+            showToast(t("Analisi completata."), 'info');
           }
         }
         dismissAnalysis(caseId);
@@ -1946,7 +1947,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   }, [caseData, isDemo, localOwnerId]);
 
   const fetchChatFull = useCallback(async (userMessage: string, opts?: { maxTokens?: number; mode?: 'flash' | 'pro' }): Promise<string> => {
-    const body: Record<string, unknown> = { messages: [{ role: 'user', content: userMessage }], mode: opts?.mode ?? 'flash' };
+    const body: Record<string, unknown> = { messages: [{ role: 'user', content: userMessage }], mode: opts?.mode ?? 'flash', language: getLanguage() };
     if (opts?.maxTokens) body.max_tokens_override = opts.maxTokens;
     const res = await fetch(`${API}/api/chat`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2158,15 +2159,15 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       ownerId: localOwnerId,
       analyzedDocIds: docs.map(d => d.doc_id),
       mode,
-      body: { case_title: analysisBase.case_title, materials, mode, language: 'it', user_instructions: userInstructions.trim() || undefined },
+      body: { case_title: analysisBase.case_title, materials, mode, language: getLanguage(), user_instructions: userInstructions.trim() || undefined },
     });
   }, [caseData, localOwnerId, showToast, onCaseLoaded]);
 
   // Open the pre-flight "istruzioni per GiulIA" modal, then analyze with them.
   const requestAnalyze = useCallback((mode: 'flash' | 'pro' = 'flash') => {
     setPendingAi({
-      title: mode === 'pro' ? 'Approfondimento Pro con GiulIA' : 'Analizza con GiulIA',
-      actionLabel: mode === 'pro' ? 'Avvia Pro' : 'Analizza',
+      title: mode === 'pro' ? t("Approfondimento Pro con GiulIA") : t("Analizza con GiulIA"),
+      actionLabel: mode === 'pro' ? t("Avvia Pro") : t("Analizza"),
       run: (instr) => handleAnalyze(mode, instr),
     });
   }, [handleAnalyze]);
@@ -2176,8 +2177,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   // (the merge refreshes GiulIA's output around them).
   const requestReanalyze = useCallback(() => {
     setPendingAi({
-      title: 'Ri-analizza da capo',
-      actionLabel: 'Ri-analizza',
+      title: t("Ri-analizza da capo"),
+      actionLabel: t("Ri-analizza"),
       run: (instr) => handleAnalyze('flash', instr, { full: true }),
     });
   }, [handleAnalyze]);
@@ -2186,7 +2187,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const requestDraft = useCallback((type: DraftArtifactType, title?: string, extraInstruction = '') => {
     setPendingAi({
       title: `Bozza: ${title || draftTypeLabel(type)}`,
-      actionLabel: 'Crea bozza',
+      actionLabel: t("Crea bozza"),
       run: (instr) => handleOpenDraftWorkspace(type, title, extraInstruction, instr),
     });
   }, [handleOpenDraftWorkspace]);
@@ -2255,16 +2256,16 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
 
   if (error) return (
     <main className="app-shell loading-shell">
-      <AlertTriangle /><h1>Errore</h1><p>{error}</p>
+      <AlertTriangle /><h1>{t("Errore")}</h1><p>{error}</p>
       {isDemo
-        ? <a className="ghost-button" href="./?view=workspace">Vai all’accesso</a>
-        : <button title="Azione secondaria" className="ghost-button" onClick={onBack}>← Torna ai fascicoli</button>}
+        ? <a className="ghost-button" href="./?view=workspace">{t("Vai all’accesso")}</a>
+        : <button title={t("Azione secondaria")} className="ghost-button" onClick={onBack}>{t("← Torna ai fascicoli")}</button>}
     </main>
   );
 
   if (!caseData) return (
     <main className="app-shell loading-shell">
-      <Loader2 className="spin" size={40} /><p>Carico fascicolo…</p>
+      <Loader2 className="spin" size={40} /><p>{t("Carico fascicolo…")}</p>
     </main>
   );
 
@@ -2295,13 +2296,13 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       <div className="case-topbar">
         {session ? (
           <>
-            <button className="back-button" title="Torna alla lista principale dei fascicoli" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
+            <button className="back-button" title={t("Torna alla lista principale dei fascicoli")} onClick={onBack}><ArrowLeft size={15} />{" " + t("Fascicoli")}</button>
             <AccountControls session={session} />
           </>
         ) : (
           <>
-            <span className="eyebrow">Demo pubblica · Caso fittizio</span>
-            <a className="back-button" href="./?view=workspace">Accedi a PLT <ArrowRight size={15} /></a>
+            <span className="eyebrow">{t("Demo pubblica · Caso fittizio")}</span>
+            <a className="back-button" href="./?view=workspace">{t("Accedi a PLT") + " "}<ArrowRight size={15} /></a>
           </>
         )}
       </div>
@@ -2315,7 +2316,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             {la && (
               <div className="risk-pill" style={{ background: riskColor(la.risk_level) + '22', border: `1px solid ${riskColor(la.risk_level)}55`, color: riskColor(la.risk_level) }}>
-                {riskIcon(la.risk_level)} Rischio {riskLabel(la.risk_level)}
+                {riskIcon(la.risk_level)}{" " + t("Rischio") + " "}{riskLabel(la.risk_level)}
               </div>
             )}
             {!isDemo && (<>
@@ -2323,17 +2324,17 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 <button
                   className={`anonymize-action-btn${redactionActive ? ' anonymize-action-active' : ''}`}
                   onClick={() => setShowRedactionDrawer(true)}
-                  title="Anonimizza dati sensibili prima di condividere"
+                  title={t("Anonimizza dati sensibili prima di condividere")}
                 >
                   {redactionActive ? <EyeOff size={13} /> : <ShieldCheck size={13} />}
-                  {redactionActive ? 'Vista anonimizzata' : `Anonimizza${mergedRules.filter(r => r.enabled).length ? ` · ${mergedRules.filter(r => r.enabled).length}` : ''}`}
+                  {redactionActive ? t("Vista anonimizzata") : `Anonimizza${mergedRules.filter(r => r.enabled).length ? ` · ${mergedRules.filter(r => r.enabled).length}` : ''}`}
                 </button>
                 {mergedRules.some(r => r.enabled) && (
                   <button
                     className={`ghost-button redact-toggle-btn${redactionActive ? ' redact-toggle-active' : ''}`}
                     style={{ padding: '0 10px', height: 'auto', borderRadius: 999 }}
                     onClick={() => setRedactionActive(v => !v)}
-                    title={redactionActive ? 'Mostra dati originali' : 'Mostra vista anonimizzata'}
+                    title={redactionActive ? t("Mostra dati originali") : t("Mostra vista anonimizzata")}
                   >
                     {redactionActive ? <Eye size={13} /> : <EyeOff size={13} />}
                   </button>
@@ -2342,9 +2343,9 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               <button
                 className="ghost-button"
                 onClick={() => setShowExportModal(true)}
-                title="Esporta fascicolo"
+                title={t("Esporta fascicolo")}
               >
-                <Share2 size={13} /> Esporta
+                <Share2 size={13} />{" " + t("Esporta")}
               </button>
             </>)}
           </div>
@@ -2353,7 +2354,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           <Editable
             value={d.case_title}
             onChange={t => updateCase(c => ({ ...c, case_title: t }))}
-            placeholder="Titolo del fascicolo…"
+            placeholder={t("Titolo del fascicolo…")}
             readOnly={redactionActive}
           />
         </h1>
@@ -2361,36 +2362,36 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           <Editable
             value={d.case_summary}
             onChange={t => updateCase(c => ({ ...c, case_summary: t }))}
-            placeholder="Sintesi del caso (tocca per scrivere)…"
+            placeholder={t("Sintesi del caso (tocca per scrivere)…")}
             multiline
             readOnly={redactionActive}
           />
         </p>
         <div className="hero-actions">
           {!isDemo && (<>
-            <button className="primary-button" data-tour="add-document" onClick={() => { setShowUpload(true); wizardBus.emit('upload-opened'); }} title="Carica nuovi documenti PDF o immagini" style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
-              <Upload size={15} /> Aggiungi documento
+            <button className="primary-button" data-tour="add-document" onClick={() => { setShowUpload(true); wizardBus.emit('upload-opened'); }} title={t("Carica nuovi documenti PDF o immagini")} style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
+              <Upload size={15} />{" " + t("Aggiungi documento")}
               {uploadQueue.length > 0 && (
                 <span className="upload-badge-hero">
                   {uploadProcessing
-                    ? <><Loader2 size={11} className="spin" /> {uploadQueue.filter(i => i.status === 'uploading' || i.status === 'pending').length} in elaborazione</>
+                    ? <><Loader2 size={11} className="spin" /> {uploadQueue.filter(i => i.status === 'uploading' || i.status === 'pending').length}{" " + t("in elaborazione")}</>
                     : `${uploadQueue.length} in coda`}
                 </span>
               )}
             </button>
-            <div className="mode-toggle" role="group" aria-label="Modalità analisi AI">
+            <div className="mode-toggle" role="group" aria-label={t("Modalità analisi AI")}>
               <button
                 className={`mode-toggle-btn${analyzeMode === 'flash' ? ' active' : ''}`}
                 onClick={() => setAndSaveMode('flash')}
-                title="Analisi Flash — veloce, estrae struttura e fatti"
+                title={t("Analisi Flash — veloce, estrae struttura e fatti")}
               >Flash</button>
               <button
                 className={`mode-toggle-btn mode-toggle-btn--pro${analyzeMode === 'pro' ? ' active' : ''}`}
                 onClick={() => setAndSaveMode('pro')}
-                title="Analisi Pro — ragionamento profondo su contraddizioni, strategie e rischi procedurali"
+                title={t("Analisi Pro — ragionamento profondo su contraddizioni, strategie e rischi procedurali")}
               >✦ Pro</button>
             </div>
-            <button title="Esegui analisi AI"
+            <button title={t("Esegui analisi AI")}
               data-tour="analyze"
               className={analyzeMode === 'pro' ? 'primary-button' : 'secondary-button'}
               onClick={() => requestAnalyze(analyzeMode)}
@@ -2404,22 +2405,22 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 className="ghost-button"
                 onClick={requestReanalyze}
                 disabled={analyzing || rawDocs.length === 0}
-                title="Ri-analizza tutti i documenti preservando modifiche manuali e materiali"
+                title={t("Ri-analizza tutti i documenti preservando modifiche manuali e materiali")}
               >
-                <RefreshCw size={13} /> Ri-analizza
+                <RefreshCw size={13} />{" " + t("Ri-analizza")}
               </button>
             )}
           </>)}
-          <button className="aula-trigger-btn" title="Avvia la modalità Aula per la consultazione rapida in udienza" onClick={() => setAulaModeActive(true)}>
-            <Gavel size={14} /> Aula
+          <button className="aula-trigger-btn" title={t("Avvia la modalità Aula per la consultazione rapida in udienza")} onClick={() => setAulaModeActive(true)}>
+            <Gavel size={14} />{" " + t("Aula")}
           </button>
         </div>
         {!isDemo && d.pro_recommendation?.recommended && (
           <div className="pro-recommendation-card" role="status" aria-live="polite">
             <div>
-              <p className="eyebrow">Approfondimento Pro con GiulIA</p>
+              <p className="eyebrow">{t("Approfondimento Pro con GiulIA")}</p>
               <p>{d.pro_recommendation.message}</p>
-              <p className="muted">L'analisi standard resta inclusa. Pro parte solo con conferma: nessun addebito automatico.</p>
+              <p className="muted">{t("L'analisi standard resta inclusa. Pro parte solo con conferma: nessun addebito automatico.")}</p>
             </div>
             <div className="pro-recommendation-actions">
               <button className="primary-button" onClick={() => requestAnalyze('pro')} disabled={analyzing || rawDocs.length === 0}>
@@ -2440,17 +2441,17 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
 
       {/* Stats */}
       <section className="stats-grid">
-        <button className="stats-card" title="Vai a questa sezione" onClick={() => { scrollTo(materialsRef); }}>
-          <FileText /><strong>{d.materials.length}</strong><span>materiali</span>
+        <button className="stats-card" title={t("Vai a questa sezione")} onClick={() => { scrollTo(materialsRef); }}>
+          <FileText /><strong>{d.materials.length}</strong><span>{t("materiali")}</span>
         </button>
-        <button className="stats-card" title="Vai a questa sezione" onClick={() => { setActiveTab('timeline'); scrollTo(timelineRef); }}>
-          <Clock /><strong>{d.timeline.length}</strong><span>eventi</span>
+        <button className="stats-card" title={t("Vai a questa sezione")} onClick={() => { setActiveTab('timeline'); scrollTo(timelineRef); }}>
+          <Clock /><strong>{d.timeline.length}</strong><span>{t("eventi")}</span>
         </button>
-        <button className="stats-card" title="Vai a questa sezione" onClick={() => { setActiveTab('questions'); scrollTo(contradictionsRef); }}>
-          <AlertTriangle /><strong>{d.contradictions.length}</strong><span>contraddizioni</span>
+        <button className="stats-card" title={t("Vai a questa sezione")} onClick={() => { setActiveTab('questions'); scrollTo(contradictionsRef); }}>
+          <AlertTriangle /><strong>{d.contradictions.length}</strong><span>{t("contraddizioni")}</span>
         </button>
-        <button className="stats-card" title="Vai a questa sezione" onClick={() => { setActiveTab('deadlines'); scrollTo(deadlinesRef); }}>
-          <CalendarClock /><strong>{nextDeadline ? formatShortDate(nextDeadline.due_date) : '—'}</strong><span>priorità</span>
+        <button className="stats-card" title={t("Vai a questa sezione")} onClick={() => { setActiveTab('deadlines'); scrollTo(deadlinesRef); }}>
+          <CalendarClock /><strong>{nextDeadline ? formatShortDate(nextDeadline.due_date, getLanguage()) : '—'}</strong><span>{t("priorità")}</span>
         </button>
       </section>
 
@@ -2458,12 +2459,12 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {nextDeadline && (
         <section className="deadline-card" onClick={() => setActiveTab('deadlines')}>
           <div>
-            <p className="eyebrow">Prossima priorità</p>
+            <p className="eyebrow">{t("Prossima priorità")}</p>
             <h2>{nextDeadline.title}</h2>
-            <p>{formatDate(nextDeadline.due_date)}{nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''} · {nextDeadline.status === 'confirmed' ? 'confermato' : 'da confermare'}</p>
+            <p>{formatDate(nextDeadline.due_date, getLanguage())}{nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''} · {nextDeadline.status === 'confirmed' ? t("confermato") : t("da confermare")}</p>
             <p>{nextDeadline.description}</p>
             {!isDemo && (
-              <button title="Apri una nuova bozza di preparazione udienza"
+              <button title={t("Apri una nuova bozza di preparazione udienza")}
                 className="giulia-ctx-btn"
                 onClick={e => {
                   e.stopPropagation();
@@ -2474,7 +2475,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                   );
                 }}
               >
-                <MessageSquare size={12} /> Prepara con GiulIA
+                <MessageSquare size={12} />{" " + t("Prepara con GiulIA")}
               </button>
             )}
           </div>
@@ -2485,11 +2486,11 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {/* Tab bar (scrollable) */}
       <nav className="tab-bar">
         {tabs.filter(tab => !isDemo || tab.id !== 'drafts').map(tab => (
-          <button title="Esegui azione" key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>
+          <button title={t("Esegui azione")} key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>
             {tab.id === 'legal' && la && (
               <span className="tab-risk-dot" style={{ background: riskColor(la.risk_level) }} />
             )}
-            {tab.label}
+            {t(tab.label)}
           </button>
         ))}
       </nav>
@@ -2499,8 +2500,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         <section ref={timelineRef} className="panel timeline-panel">
           {d.timeline.length === 0 && (
             <div className="empty-state-placeholder">
-              <p className="muted" style={{ marginBottom: 12 }}>Nessun evento ancora nella timeline.</p>
-              <p className="muted" style={{ fontSize: '0.85rem' }}>Carica dei documenti e clicca su <strong>Analizza con AI</strong> in alto per estrarre automaticamente la cronologia dei fatti, oppure aggiungi un evento manualmente.</p>
+              <p className="muted" style={{ marginBottom: 12 }}>{t("Nessun evento ancora nella timeline.")}</p>
+              <p className="muted" style={{ fontSize: '0.85rem' }}>{t("Carica dei documenti e clicca su") + " "}<strong>{t("Analizza con AI")}</strong>{" " + t("in alto per estrarre automaticamente la cronologia dei fatti, oppure aggiungi un evento manualmente.")}</p>
             </div>
           )}
           {d.timeline.map((ev, i) => (
@@ -2512,13 +2513,13 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                     <Editable
                       value={ev.date ?? ''}
                       onChange={v => updateTimelineEvent(i, { date: v || null })}
-                      placeholder="data"
+                      placeholder={t("data")}
                     />
                     {' · '}
                     <Editable
                       value={ev.time ?? ''}
                       onChange={v => updateTimelineEvent(i, { time: v || null })}
-                      placeholder="orario"
+                      placeholder={t("orario")}
                     />
                   </p>
                   <RowDelete onClick={() => deleteTimelineEvent(i)} label={ev.title} />
@@ -2527,22 +2528,22 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                   <Editable
                     value={ev.title}
                     onChange={v => updateTimelineEvent(i, { title: v })}
-                    placeholder="Titolo evento…"
+                    placeholder={t("Titolo evento…")}
                   />
                 </h3>
                 <button
                   className={`defense-position-badge dp-${ev.defense_position ?? 'contested'}`}
                   disabled={isDemo}
-                  title={isDemo ? "Posizione difensiva" : "Clicca per cambiare posizione difensiva su questo fatto"}
+                  title={isDemo ? t("Posizione difensiva") : t("Clicca per cambiare posizione difensiva su questo fatto")}
                   onClick={() => updateTimelineEvent(i, { defense_position: cycleDefensePosition(ev.defense_position) })}
                 >
-                  {ev.defense_position === 'admitted' ? '✓ Pacifico' : ev.defense_position === 'denied' ? '✗ Negato' : '⚠ Contestato'}
+                  {ev.defense_position === 'admitted' ? t("✓ Pacifico") : ev.defense_position === 'denied' ? t("✗ Negato") : t("⚠ Contestato")}
                 </button>
                 <p>
                   <Editable
                     value={ev.description}
                     onChange={v => updateTimelineEvent(i, { description: v })}
-                    placeholder="Descrizione evento…"
+                    placeholder={t("Descrizione evento…")}
                     multiline
                   />
                 </p>
@@ -2550,17 +2551,17 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               </div>
             </article>
           ))}
-          <AddRowButton label="Aggiungi evento" onClick={addTimelineEvent} />
+          <AddRowButton label={t("Aggiungi evento")} onClick={addTimelineEvent} />
         </section>
       )}
 
       {/* Deadlines */}
       {activeTab === 'deadlines' && (
         <section ref={deadlinesRef} className="panel deadline-list-panel">
-          <h2><CalendarClock size={18} /> Agenda difensiva</h2>
-          <p className="muted">Scadenze del fascicolo. Le candidate vanno confermate prima di essere trattate come operative.</p>
+          <h2><CalendarClock size={18} />{" " + t("Agenda difensiva")}</h2>
+          <p className="muted">{t("Scadenze del fascicolo. Le candidate vanno confermate prima di essere trattate come operative.")}</p>
           {d.procedural_deadlines.length === 0 && (
-            <p className="muted">Nessuna scadenza. Aggiungi la prima.</p>
+            <p className="muted">{t("Nessuna scadenza. Aggiungi la prima.")}</p>
           )}
           {d.procedural_deadlines.map((dl, i) => {
             const upd = (patch: Partial<ProceduralDeadline>) => updateCase(c => ({
@@ -2576,7 +2577,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                         value={dl.deadline_type}
                         options={[
                           { value: 'hearing', label: 'Udienza' },
-                          { value: 'defense_brief', label: 'Memoria difensiva' },
+                          { value: 'defense_brief', label: t("Memoria difensiva") },
                           { value: 'filing', label: 'Deposito' },
                           { value: 'investigation', label: 'Indagine' },
                           { value: 'other', label: 'Altro' },
@@ -2593,15 +2594,15 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                       />
                     </p>
                     <h3>
-                      <Editable value={dl.title} onChange={v => upd({ title: v })} placeholder="Titolo scadenza…" />
+                      <Editable value={dl.title} onChange={v => upd({ title: v })} placeholder={t("Titolo scadenza…")} />
                     </h3>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <EditableSelect
                       value={dl.status}
                       options={[
-                        { value: 'confirmed', label: 'confermato' },
-                        { value: 'candidate', label: 'da confermare' },
+                        { value: 'confirmed', label: t("confermato") },
+                        { value: 'candidate', label: t("da confermare") },
                         { value: 'needs_review', label: 'verifica' },
                       ]}
                       onChange={v => upd({ status: v })}
@@ -2611,9 +2612,9 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                   </div>
                 </div>
                 <p className="deadline-date">
-                  <Editable value={dl.due_date} onChange={v => upd({ due_date: v })} placeholder="data scadenza" />
+                  <Editable value={dl.due_date} onChange={v => upd({ due_date: v })} placeholder={t("data scadenza")} />
                   {' · '}
-                  <Editable value={dl.due_time ?? ''} onChange={v => upd({ due_time: v || null })} placeholder="orario" />
+                  <Editable value={dl.due_time ?? ''} onChange={v => upd({ due_time: v || null })} placeholder={t("orario")} />
                 </p>
                 <label className="muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', marginBottom: 8 }}>
                   <input
@@ -2622,22 +2623,22 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                     checked={Boolean(dl.feriale_applied)}
                     onChange={e => upd({ feriale_applied: e.target.checked })}
                   />
-                  sospensione feriale applicata
+                  {t("sospensione feriale applicata")}
                 </label>
                 <p>
-                  <Editable value={dl.description} onChange={v => upd({ description: v })} placeholder="Descrizione scadenza…" multiline />
+                  <Editable value={dl.description} onChange={v => upd({ description: v })} placeholder={t("Descrizione scadenza…")} multiline />
                 </p>
                 <div className="workback-grid">
                   <div>
-                    <span>Inizio lavori</span>
+                    <span>{t("Inizio lavori")}</span>
                     <strong>
-                      <Editable value={dl.start_work_date ?? ''} onChange={v => upd({ start_work_date: v || null })} placeholder="data" />
+                      <Editable value={dl.start_work_date ?? ''} onChange={v => upd({ start_work_date: v || null })} placeholder={t("data")} />
                     </strong>
                   </div>
                   <div>
-                    <span>Target interno</span>
+                    <span>{t("Target interno")}</span>
                     <strong>
-                      <Editable value={dl.internal_target_date ?? ''} onChange={v => upd({ internal_target_date: v || null })} placeholder="data" />
+                      <Editable value={dl.internal_target_date ?? ''} onChange={v => upd({ internal_target_date: v || null })} placeholder={t("data")} />
                     </strong>
                   </div>
                 </div>
@@ -2645,12 +2646,12 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                   <div className="task-progress-bar">
                     <div className="task-progress-fill" style={{ width: `${dl.tasks.length ? (doneCount(dl.title, dl.tasks.length) / dl.tasks.length) * 100 : 0}%` }} />
                   </div>
-                  <span>{doneCount(dl.title, dl.tasks.length)}/{dl.tasks.length} completati</span>
+                  <span>{doneCount(dl.title, dl.tasks.length)}/{dl.tasks.length}{" " + t("completati")}</span>
                 </div>
                 <ul className="task-list">
-                  {dl.tasks.map((t, ti) => (
+                  {dl.tasks.map((task, ti) => (
                     <li key={ti} className={`task-item${isDone(dl.title, ti) ? ' task-done' : ''}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                      <button title="Esegui azione"
+                      <button title={t("Esegui azione")}
                         disabled={isDemo}
                         onClick={() => toggleTask(dl.title, ti)}
                         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', marginTop: 2 }}
@@ -2661,9 +2662,9 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                       </button>
                       <span style={{ flex: 1 }}>
                         <Editable
-                          value={t}
+                          value={task}
                           onChange={v => upd({ tasks: dl.tasks.map((x, idx) => idx === ti ? v : x) })}
-                          placeholder="Task…"
+                          placeholder={t("Task…")}
                           multiline
                         />
                       </span>
@@ -2671,13 +2672,13 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                     </li>
                   ))}
                 </ul>
-                <AddRowButton label="Aggiungi task" onClick={() => upd({ tasks: [...dl.tasks, ''] })} />
+                <AddRowButton label={t("Aggiungi task")} onClick={() => upd({ tasks: [...dl.tasks, ''] })} />
                 <SourceRow refs={dl.source_refs} onSelect={setSelectedSource} />
               </article>
             );
           })}
           <AddRowButton
-            label="Aggiungi scadenza"
+            label={t("Aggiungi scadenza")}
             onClick={() => updateCase(c => ({
               ...c, procedural_deadlines: [...c.procedural_deadlines, {
                 title: '', deadline_type: 'other', due_date: '', due_time: null,
@@ -2693,8 +2694,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {activeTab === 'facts' && (
         <section className="panel grid-panel">
           <div>
-            <h2><Users size={18} /> Persone</h2>
-            {d.people.length === 0 && <p className="muted">Nessuna persona. Aggiungi un nome.</p>}
+            <h2><Users size={18} />{" " + t("Persone")}</h2>
+            {d.people.length === 0 && <p className="muted">{t("Nessuna persona. Aggiungi un nome.")}</p>}
             {d.people.map((p, i) => (
               <article className="mini-card" key={i}>
                 <div className="editable-row-head">
@@ -2702,7 +2703,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                     <Editable
                       value={p.name}
                       onChange={v => updatePerson(i, { name: v })}
-                      placeholder="Nome…"
+                      placeholder={t("Nome…")}
                     />
                   </h3>
                   <RowDelete onClick={() => deletePerson(i)} label={p.name} />
@@ -2711,25 +2712,25 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                   <Editable
                     value={p.role}
                     onChange={v => updatePerson(i, { role: v })}
-                    placeholder="Ruolo…"
+                    placeholder={t("Ruolo…")}
                   />
                 </p>
                 <p>
                   <Editable
                     value={p.notes}
                     onChange={v => updatePerson(i, { notes: v })}
-                    placeholder="Note…"
+                    placeholder={t("Note…")}
                     multiline
                   />
                 </p>
                 <SourceRow refs={p.source_refs} onSelect={setSelectedSource} />
               </article>
             ))}
-            <AddRowButton label="Aggiungi persona" onClick={addPerson} />
+            <AddRowButton label={t("Aggiungi persona")} onClick={addPerson} />
           </div>
           <div>
-            <h2><Search size={18} /> Prove</h2>
-            {d.evidence.length === 0 && <p className="muted">Nessuna prova. Aggiungi un elemento.</p>}
+            <h2><Search size={18} />{" " + t("Prove")}</h2>
+            {d.evidence.length === 0 && <p className="muted">{t("Nessuna prova. Aggiungi un elemento.")}</p>}
             {d.evidence.map((ev, i) => (
               <article className="mini-card" key={i}>
                 <div className="editable-row-head">
@@ -2737,7 +2738,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                     <Editable
                       value={ev.title}
                       onChange={v => updateEvidence(i, { title: v })}
-                      placeholder="Titolo prova…"
+                      placeholder={t("Titolo prova…")}
                     />
                   </h3>
                   <RowDelete onClick={() => deleteEvidence(i)} label={ev.title} />
@@ -2746,21 +2747,21 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                   <Editable
                     value={ev.status}
                     onChange={v => updateEvidence(i, { status: v })}
-                    placeholder="Stato…"
+                    placeholder={t("Stato…")}
                   />
                 </p>
                 <p>
                   <Editable
                     value={ev.notes}
                     onChange={v => updateEvidence(i, { notes: v })}
-                    placeholder="Note…"
+                    placeholder={t("Note…")}
                     multiline
                   />
                 </p>
                 <SourceRow refs={ev.source_refs} onSelect={setSelectedSource} />
               </article>
             ))}
-            <AddRowButton label="Aggiungi prova" onClick={addEvidence} />
+            <AddRowButton label={t("Aggiungi prova")} onClick={addEvidence} />
           </div>
         </section>
       )}
@@ -2779,15 +2780,15 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           : (
             <section className="panel">
               <div className="empty-state-placeholder">
-                <p className="muted" style={{ marginBottom: 12 }}>Nessuna analisi legale presente.</p>
-                {!isDemo && <p className="muted" style={{ fontSize: '0.85rem' }}>Carica dei documenti e clicca su <strong>Analizza con AI</strong> per estrarre in automatico capi di imputazione e strategia, oppure clicca qui sotto per creare l'analisi manualmente.</p>}
+                <p className="muted" style={{ marginBottom: 12 }}>{t("Nessuna analisi legale presente.")}</p>
+                {!isDemo && <p className="muted" style={{ fontSize: '0.85rem' }}>{t("Carica dei documenti e clicca su") + " "}<strong>{t("Analizza con AI")}</strong>{" " + t("per estrarre in automatico capi di imputazione e strategia, oppure clicca qui sotto per creare l'analisi manualmente.")}</p>}
               </div>
               {!isDemo && (
                 <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-                  <button title="Esegui analisi AI" className="primary-button" onClick={() => requestAnalyze(analyzeMode)} disabled={analyzing || rawDocs.length === 0}>
-                    <Sparkles size={14} /> {analyzeMode === 'pro' ? 'Analizza con AI (Pro)' : 'Analizza con AI'}
+                  <button title={t("Esegui analisi AI")} className="primary-button" onClick={() => requestAnalyze(analyzeMode)} disabled={analyzing || rawDocs.length === 0}>
+                    <Sparkles size={14} /> {analyzeMode === 'pro' ? t("Analizza con AI (Pro)") : t("Analizza con AI")}
                   </button>
-                  <button title="Esegui azione"
+                  <button title={t("Esegui azione")}
                     className="secondary-button"
                     onClick={() => updateCase(c => ({ ...c, legal_analysis: {
                       risk_level: 'medium',
@@ -2801,7 +2802,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                       client_summary: '',
                     } }))}
                   >
-                    <Plus size={14} /> Crea analisi manualmente
+                    <Plus size={14} />{" " + t("Crea analisi manualmente")}
                   </button>
                 </div>
               )}
@@ -2827,8 +2828,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {/* Questions / contradictions */}
       {activeTab === 'questions' && (
         <section className="panel">
-          <h2>Domande per colloquio / udienza</h2>
-          {d.open_questions.length === 0 && <p className="muted">Nessuna domanda aperta.</p>}
+          <h2>{t("Domande per colloquio / udienza")}</h2>
+          {d.open_questions.length === 0 && <p className="muted">{t("Nessuna domanda aperta.")}</p>}
           {d.open_questions.map((q, i) => (
             <article className="question-card" key={i}>
               <div className="editable-row-head">
@@ -2836,7 +2837,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                   <Editable
                     value={q.question}
                     onChange={v => updateOpenQuestion(i, { question: v })}
-                    placeholder="Domanda…"
+                    placeholder={t("Domanda…")}
                   />
                 </h3>
                 <RowDelete onClick={() => deleteOpenQuestion(i)} label={q.question} />
@@ -2845,22 +2846,22 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 <Editable
                   value={q.why_it_matters}
                   onChange={v => updateOpenQuestion(i, { why_it_matters: v })}
-                  placeholder="Perché è rilevante…"
+                  placeholder={t("Perché è rilevante…")}
                   multiline
                 />
               </p>
               <SourceRow refs={q.source_refs} onSelect={setSelectedSource} />
               {onOpenChat && q.question && (
-                <button className="giulia-ctx-btn" title="Chiedi a GiulIA di analizzare questo elemento in dettaglio" onClick={() => onOpenChat(`Come indago questa questione: "${q.question}"? Perché conta: ${q.why_it_matters}. Suggerisci le mosse concrete per rispondere a questa domanda difensiva.`)}>
-                  <MessageSquare size={12} /> Chiedi a GiulIA
+                <button className="giulia-ctx-btn" title={t("Chiedi a GiulIA di analizzare questo elemento in dettaglio")} onClick={() => onOpenChat(`Come indago questa questione: "${q.question}"? Perché conta: ${q.why_it_matters}. Suggerisci le mosse concrete per rispondere a questa domanda difensiva.`)}>
+                  <MessageSquare size={12} />{" " + t("Chiedi a GiulIA")}
                 </button>
               )}
             </article>
           ))}
-          <AddRowButton label="Aggiungi domanda" onClick={addOpenQuestion} />
+          <AddRowButton label={t("Aggiungi domanda")} onClick={addOpenQuestion} />
 
-          <h2 style={{ marginTop: 28 }}>Documenti mancanti</h2>
-          {d.missing_documents.length === 0 && <p className="muted">Nessun documento segnalato come mancante.</p>}
+          <h2 style={{ marginTop: 28 }}>{t("Documenti mancanti")}</h2>
+          {d.missing_documents.length === 0 && <p className="muted">{t("Nessun documento segnalato come mancante.")}</p>}
           {d.missing_documents.map((doc, i) => (
             <article className="missing-card" key={i}>
               <CheckCircle2 />
@@ -2870,7 +2871,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                     <Editable
                       value={doc.title}
                       onChange={v => updateCase(c => ({ ...c, missing_documents: c.missing_documents.map((d, idx) => idx === i ? { ...d, title: v } : d) }))}
-                      placeholder="Documento mancante…"
+                      placeholder={t("Documento mancante…")}
                     />
                     {' '}
                     <EditableSelect
@@ -2890,7 +2891,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                   <Editable
                     value={doc.reason}
                     onChange={v => updateCase(c => ({ ...c, missing_documents: c.missing_documents.map((d, idx) => idx === i ? { ...d, reason: v } : d) }))}
-                    placeholder="Motivo…"
+                    placeholder={t("Motivo…")}
                     multiline
                   />
                 </p>
@@ -2898,12 +2899,12 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             </article>
           ))}
           <AddRowButton
-            label="Aggiungi documento mancante"
+            label={t("Aggiungi documento mancante")}
             onClick={() => updateCase(c => ({ ...c, missing_documents: [...c.missing_documents, { title: '', reason: '', priority: 'media' }] }))}
           />
 
-          <h2 ref={contradictionsRef} style={{ marginTop: 28 }}>Contraddizioni</h2>
-          {d.contradictions.length === 0 && <p className="muted">Nessuna contraddizione segnalata.</p>}
+          <h2 ref={contradictionsRef} style={{ marginTop: 28 }}>{t("Contraddizioni")}</h2>
+          {d.contradictions.length === 0 && <p className="muted">{t("Nessuna contraddizione segnalata.")}</p>}
           {d.contradictions.map((ct, i) => (
             <article className="question-card contradiction" key={i}>
               <div className="editable-row-head">
@@ -2911,7 +2912,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                   <Editable
                     value={ct.title}
                     onChange={v => updateContradiction(i, { title: v })}
-                    placeholder="Contraddizione…"
+                    placeholder={t("Contraddizione…")}
                   />
                 </h3>
                 <RowDelete onClick={() => deleteContradiction(i)} label={ct.title} />
@@ -2920,19 +2921,19 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 <Editable
                   value={ct.description}
                   onChange={v => updateContradiction(i, { description: v })}
-                  placeholder="Descrizione…"
+                  placeholder={t("Descrizione…")}
                   multiline
                 />
               </p>
               <SourceRow refs={ct.source_refs} onSelect={setSelectedSource} />
               {onOpenChat && ct.title && (
-                <button className="giulia-ctx-btn" title="Chiedi a GiulIA di analizzare questo elemento in dettaglio" onClick={() => onOpenChat(`Come possiamo sfruttare in udienza la contraddizione "${ct.title}"? ${ct.description} Suggerisci come usarla nella strategia difensiva e quali domande fare ai testimoni.`)}>
-                  <MessageSquare size={12} /> Chiedi a GiulIA
+                <button className="giulia-ctx-btn" title={t("Chiedi a GiulIA di analizzare questo elemento in dettaglio")} onClick={() => onOpenChat(`Come possiamo sfruttare in udienza la contraddizione "${ct.title}"? ${ct.description} Suggerisci come usarla nella strategia difensiva e quali domande fare ai testimoni.`)}>
+                  <MessageSquare size={12} />{" " + t("Chiedi a GiulIA")}
                 </button>
               )}
             </article>
           ))}
-          <AddRowButton label="Aggiungi contraddizione" onClick={addContradiction} />
+          <AddRowButton label={t("Aggiungi contraddizione")} onClick={addContradiction} />
         </section>
       )}
 
@@ -2940,23 +2941,23 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {activeTab === 'brief' && (
         <section className="panel brief-panel">
           <div className="brief-toolbar">
-            <button className="brief-action-btn" title="Azione rapida sul documento" onClick={exportBriefDocx}><FileText size={14} /> Scarica DOCX</button>
-            <button className="brief-action-btn" title="Azione rapida sul documento" onClick={exportBrief}><Copy size={14} /> Copia</button>
-            <button className="brief-action-btn" title="Azione rapida sul documento" onClick={shareBrief}><Share2 size={14} /> Condividi</button>
-            {!isDemo && <button className="brief-action-btn" title="Azione rapida sul documento" onClick={handleAnonymizeBrief}><EyeOff size={14} /> Anonimizza</button>}
-            <button className="brief-action-btn" title="Azione rapida sul documento" onClick={() => setAulaModeActive(true)}><Gavel size={14} /> Aula Mode</button>
+            <button className="brief-action-btn" title={t("Azione rapida sul documento")} onClick={exportBriefDocx}><FileText size={14} />{" " + t("Scarica DOCX")}</button>
+            <button className="brief-action-btn" title={t("Azione rapida sul documento")} onClick={exportBrief}><Copy size={14} />{" " + t("Copia")}</button>
+            <button className="brief-action-btn" title={t("Azione rapida sul documento")} onClick={shareBrief}><Share2 size={14} />{" " + t("Condividi")}</button>
+            {!isDemo && <button className="brief-action-btn" title={t("Azione rapida sul documento")} onClick={handleAnonymizeBrief}><EyeOff size={14} />{" " + t("Anonimizza")}</button>}
+            <button className="brief-action-btn" title={t("Azione rapida sul documento")} onClick={() => setAulaModeActive(true)}><Gavel size={14} />{" " + t("Aula Mode")}</button>
           </div>
           {!isDemo && (
             <textarea
               className="editable-input editable-input-multi brief-editor"
               value={caseData.brief_markdown}
               onChange={e => updateCase(c => ({ ...c, brief_markdown: e.target.value }))}
-              placeholder="Scrivi il promemoria in markdown. Usa ## per i titoli, - per i bullet, **grassetto**."
+              placeholder={t("Scrivi il promemoria in markdown. Usa ## per i titoli, - per i bullet, **grassetto**.")}
               rows={24}
             />
           )}
           <div className="brief-preview">
-            <p className="eyebrow">Anteprima</p>
+            <p className="eyebrow">{t("Anteprima")}</p>
             {markdownToLines(d.brief_markdown).map((line, i) => {
               if (line.startsWith('## ')) return <h2 key={i}>{line.slice(3)}</h2>;
               if (line.startsWith('### ')) return <h3 key={i}>{line.slice(4)}</h3>;
@@ -2966,11 +2967,9 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             })}
           </div>
           <div className="usage-box">
-            <p className="eyebrow">Stima token richiesti</p>
+            <p className="eyebrow">{t("Stima token richiesti")}</p>
             <p>
-              {caseData.usage_estimate.pages} pag · {caseData.usage_estimate.audio_minutes} min audio ·
-              Flash {caseData.usage_estimate.flash_input_tokens}/{caseData.usage_estimate.flash_output_tokens} tok ·
-              Pro: {caseData.usage_estimate.pro_used ? 'sì' : 'no'}
+              {caseData.usage_estimate.pages}{" " + t("pag ·") + " "}{caseData.usage_estimate.audio_minutes}{" " + t("min audio · Flash") + " "}{caseData.usage_estimate.flash_input_tokens}/{caseData.usage_estimate.flash_output_tokens}{" " + t("tok · Pro:") + " "}{caseData.usage_estimate.pro_used ? 'sì' : 'no'}
             </p>
           </div>
         </section>
@@ -2979,30 +2978,30 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {/* Raw documents (always visible — the source files in this fascicolo) */}
       <section ref={materialsRef} className="materials-panel">
         <div className="materials-header">
-          <h2>Documenti del fascicolo ({rawDocs.length})</h2>
+          <h2>{t("Documenti del fascicolo (")}{rawDocs.length})</h2>
           {!isDemo && (
-            <button className="upload-fab" title="Aggiungi nuovi documenti al fascicolo" onClick={() => setShowUpload(true)}>
-              <Plus size={16} /> Aggiungi
+            <button className="upload-fab" title={t("Aggiungi nuovi documenti al fascicolo")} onClick={() => setShowUpload(true)}>
+              <Plus size={16} />{" " + t("Aggiungi")}
               {uploadQueue.length > 0 && <span className="upload-badge">{uploadQueue.length}</span>}
             </button>
           )}
         </div>
         {rawDocs.length === 0 && (
-          <p className="muted">{isDemo ? 'Nessun documento originale nel fascicolo demo.' : 'Nessun documento. Aggiungi PDF, testi o note manuali.'}</p>
+          <p className="muted">{isDemo ? t("Nessun documento originale nel fascicolo demo.") : t("Nessun documento. Aggiungi PDF, testi o note manuali.")}</p>
         )}
         {rawDocs.map(doc => (
           <div key={doc.doc_id} className="pending-doc-row">
-            <button className="pending-doc-item pending-doc-item-flex" title="Visualizza il contenuto estratto dal documento" onClick={() => setSelectedRawDoc(doc)}>
+            <button className="pending-doc-item pending-doc-item-flex" title={t("Visualizza il contenuto estratto dal documento")} onClick={() => setSelectedRawDoc(doc)}>
               <FileText size={18} className="pending-doc-icon" />
               <div>
                 <strong>{doc.description || doc.name}</strong>
-                <small>{doc.name} · {new Date(doc.added_at).toLocaleDateString('it')}</small>
+                <small>{doc.name} · {new Date(doc.added_at).toLocaleDateString(getLanguage())}</small>
               </div>
             </button>
             {!isDemo && (<>
               <button
                 className="ghost-button pending-doc-anon-btn"
-                title="Anonimizza questo documento con AI"
+                title={t("Anonimizza questo documento con AI")}
                 disabled={anonymizingDocId === doc.doc_id}
                 onClick={() => handleAnonymizeDoc(doc.doc_id)}
               >
@@ -3010,7 +3009,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               </button>
               <button
                 className="ghost-button"
-                title="Elimina questo documento"
+                title={t("Elimina questo documento")}
                 onClick={() => handleDeleteDoc(doc.doc_id)}
               >
                 <Trash2 size={13} />
@@ -3024,11 +3023,11 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       {d.materials.length > 0 && (
         <section className="materials-panel">
           <div className="materials-header">
-            <h2>Materiali estratti dall'AI</h2>
+            <h2>{t("Materiali estratti dall'AI")}</h2>
           </div>
           {d.materials.map((m: Material) => (
             <div key={m.id} className="pending-doc-row">
-              <button className="material-button pending-doc-item-flex" title="Visualizza questo materiale investigativo" onClick={() => setSelectedMaterial(m)}>
+              <button className="material-button pending-doc-item-flex" title={t("Visualizza questo materiale investigativo")} onClick={() => setSelectedMaterial(m)}>
                 {m.kind === 'audio' ? <Mic size={17} /> : <FileText size={17} />}
                 <div>
                   <strong>{m.name}</strong>
@@ -3039,7 +3038,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
               {!isDemo && (
                 <button
                   className="ghost-button pending-doc-anon-btn"
-                  title="Elimina questo materiale"
+                  title={t("Elimina questo materiale")}
                   onClick={() => handleDeleteMaterial(m.id)}
                 >
                   <Trash2 size={13} />

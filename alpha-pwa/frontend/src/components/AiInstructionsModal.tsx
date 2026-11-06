@@ -1,3 +1,4 @@
+import { t } from '../locale';
 /**
  * AiInstructionsModal — a reusable "pre-flight" step shown before a non-chat AI
  * action (Analizza, Crea bozza, …). It collects OPTIONAL free-text instructions
@@ -51,14 +52,14 @@ export default function AiInstructionsModal({ request, onClose }: { request: AiI
           <h3 className="ai-instr-title">{request.title}</h3>
         </div>
         <p className="ai-instr-sub">
-          Istruzioni per GiulIA <strong>(facoltative)</strong> — orientano la risposta. GiulIA resta vincolata ai materiali del fascicolo e non inventa fatti, termini né precedenti.
+          {t("Istruzioni per GiulIA") + " "}<strong>{t("(facoltative)")}</strong>{" " + t("— orientano la risposta. GiulIA resta vincolata ai materiali del fascicolo e non inventa fatti, termini né precedenti.")}
         </p>
         <textarea
           ref={ref}
           className="ai-instr-textarea"
           value={text}
           onChange={e => setText(e.target.value)}
-          placeholder="Es: concentrati sui vizi di notifica, ignora il merito…"
+          placeholder={t("Es: concentrati sui vizi di notifica, ignora il merito…")}
           rows={3}
           onKeyDown={e => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); proceed(); }
@@ -66,8 +67,8 @@ export default function AiInstructionsModal({ request, onClose }: { request: AiI
           }}
         />
         <div className="ai-instr-actions">
-          <button type="button" className="ghost-button" onClick={onClose}>Annulla</button>
-          <button type="button" className="primary-button" onClick={proceed} title="Procedi (⌘/Ctrl+Invio)">{request.actionLabel}</button>
+          <button type="button" className="ghost-button" onClick={onClose}>{t("Annulla")}</button>
+          <button type="button" className="primary-button" onClick={proceed} title={t("Procedi (⌘/Ctrl+Invio)")}>{request.actionLabel}</button>
         </div>
       </div>
     </div>

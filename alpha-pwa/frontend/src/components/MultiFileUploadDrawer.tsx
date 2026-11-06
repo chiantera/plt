@@ -1,3 +1,4 @@
+import { t } from '../locale';
 import React, { useCallback, useRef, useState } from 'react';
 import {
   AlertTriangle, CheckCircle2, FileText, Globe, Loader2,
@@ -130,24 +131,24 @@ export default function MultiFileUploadDrawer({
 
         <div className="drawer-header">
           <div>
-            <p className="eyebrow">Elaborazione locale</p>
-            <h2>Aggiungi al fascicolo</h2>
+            <p className="eyebrow">{t("Elaborazione locale")}</p>
+            <h2>{t("Aggiungi al fascicolo")}</h2>
           </div>
-          <button title="Chiudi" onClick={onClose} className="ghost-button"><X size={18} /></button>
+          <button title={t("Chiudi")} onClick={onClose} className="ghost-button"><X size={18} /></button>
         </div>
 
         <div className="upload-tab-strip">
           <button className={`upload-tab${!isGiur ? ' active' : ''}`} onClick={() => setActiveTab('fascicolo')}>
-            <FileText size={14} /> Documenti
+            <FileText size={14} />{" " + t("Documenti")}
           </button>
           <button className={`upload-tab${isGiur ? ' active giur' : ''}`} onClick={() => setActiveTab('giurisprudenza')}>
-            <Scale size={14} /> Giurisprudenza
+            <Scale size={14} />{" " + t("Giurisprudenza")}
           </button>
         </div>
 
         {isGiur && (
           <div className="upload-url-section">
-            <label className="upload-url-label">Importa da URL (sentenza, banca dati, testo web)</label>
+            <label className="upload-url-label">{t("Importa da URL (sentenza, banca dati, testo web)")}</label>
             <div className="upload-url-row">
               <input
                 className="upload-url-input"
@@ -162,7 +163,7 @@ export default function MultiFileUploadDrawer({
               <input
                 className="upload-url-input"
                 type="text"
-                placeholder="Etichetta (es. Cass. Pen. sez. I n. 1234/2023)"
+                placeholder={t("Etichetta (es. Cass. Pen. sez. I n. 1234/2023)")}
                 value={urlName}
                 onChange={e => setUrlName(e.target.value)}
               />
@@ -172,16 +173,16 @@ export default function MultiFileUploadDrawer({
                 onClick={handleUrlImport}
               >
                 {urlFetching ? <Loader2 size={13} className="spin" /> : <Globe size={13} />}
-                {urlFetching ? 'Importo…' : 'Importa'}
+                {urlFetching ? 'Importo…' : t("Importa")}
               </button>
             </div>
             {urlError && (
               <p className="upload-url-hint" style={{ color: 'var(--critical)', marginTop: 6 }}>
-                Errore: {urlError}
+                {t("Errore:") + " "}{urlError}
               </p>
             )}
             <p className="upload-url-hint">
-              Il testo estratto apparirà nel box qui sotto — controlla che ci sia tutto prima di cliccare Aggiungi. Se il sito usa JavaScript dinamico, incolla il testo manualmente.
+              {t("Il testo estratto apparirà nel box qui sotto — controlla che ci sia tutto prima di cliccare Aggiungi. Se il sito usa JavaScript dinamico, incolla il testo manualmente.")}
             </p>
           </div>
         )}
@@ -231,8 +232,8 @@ export default function MultiFileUploadDrawer({
                   <div className="upload-queue-name">
                     {item.description || item.name}
                     {item.category === 'giurisprudenza'
-                      ? <span className="upload-cat-badge upload-cat-badge--giur">Precedente</span>
-                      : <span className="upload-cat-badge upload-cat-badge--doc">Fascicolo</span>
+                      ? <span className="upload-cat-badge upload-cat-badge--giur">{t("Precedente")}</span>
+                      : <span className="upload-cat-badge upload-cat-badge--doc">{t("Fascicolo")}</span>
                     }
                   </div>
                   <div className="upload-queue-size">
@@ -241,17 +242,17 @@ export default function MultiFileUploadDrawer({
                   </div>
                 </div>
                 <div className="upload-queue-status">
-                  {item.status === 'pending' && <span className="status-badge pending">In coda…</span>}
-                  {item.status === 'uploading' && <span className="status-badge uploading">Elaboro…</span>}
-                  {item.status === 'done' && <span className="status-badge done">Aggiunto ✓</span>}
+                  {item.status === 'pending' && <span className="status-badge pending">{t("In coda…")}</span>}
+                  {item.status === 'uploading' && <span className="status-badge uploading">{t("Elaboro…")}</span>}
+                  {item.status === 'done' && <span className="status-badge done">{t("Aggiunto ✓")}</span>}
                   {item.status === 'error' && (
                     <span className="status-badge error" onClick={() => onRetryItem(item.id)} title={item.error} style={{ cursor: 'pointer' }}>
-                      Riprova ↻
+                      {t("Riprova ↻")}
                     </span>
                   )}
                 </div>
                 {(item.status === 'pending' || item.status === 'done' || item.status === 'error') && (
-                  <button className="upload-queue-action" onClick={() => onRemoveItem(item.id)} title="Rimuovi">
+                  <button className="upload-queue-action" onClick={() => onRemoveItem(item.id)} title={t("Rimuovi")}>
                     <X size={14} />
                   </button>
                 )}
@@ -275,10 +276,10 @@ export default function MultiFileUploadDrawer({
                 className={`mic-btn${recording ? ' mic-btn--recording' : ''}`}
               >
                 {transcribing
-                  ? <><Loader2 size={12} className="spin" /> Trascrivo…</>
+                  ? <><Loader2 size={12} className="spin" />{" " + t("Trascrivo…")}</>
                   : recording
                     ? <><span className="mic-btn-dot" /> Stop</>
-                    : <><Mic size={12} /> Nota vocale</>
+                    : <><Mic size={12} />{" " + t("Nota vocale")}</>
                 }
               </button>
             )}
@@ -286,7 +287,7 @@ export default function MultiFileUploadDrawer({
           <div style={{ display: 'flex', gap: 6 }}>
             <textarea
               className={`upload-textarea${pasteText ? ' upload-textarea--has-content' : ''}`}
-              placeholder="Il testo del tuo upload apparirà qui — controlla che ci sia tutto. Puoi anche incollare o scrivere direttamente."
+              placeholder={t("Il testo del tuo upload apparirà qui — controlla che ci sia tutto. Puoi anche incollare o scrivere direttamente.")}
               value={pasteText}
               onChange={e => { setPasteText(e.target.value); if (!e.target.value) setPendingItemName(''); }}
               rows={4}
@@ -302,7 +303,7 @@ export default function MultiFileUploadDrawer({
               }}
               style={{ alignSelf: 'flex-end', whiteSpace: 'nowrap', padding: '8px 12px', fontSize: '0.78rem' }}
             >
-              Aggiungi
+              {t("Aggiungi")}
             </button>
           </div>
         </div>
@@ -312,31 +313,31 @@ export default function MultiFileUploadDrawer({
             {isUploading && (
               <div className="upload-status-processing">
                 <Loader2 size={14} className="spin" />
-                <span>Elaborazione in corso…</span>
+                <span>{t("Elaborazione in corso…")}</span>
               </div>
             )}
             {!isUploading && doneCount > 0 && (
-              <div className="upload-status-done">✓ {doneCount} elemento/i pronto/i</div>
+              <div className="upload-status-done">✓ {doneCount}{" " + t("elemento/i pronto/i")}</div>
             )}
-            {errorCount > 0 && <span className="upload-status-error">{errorCount} errore/i</span>}
+            {errorCount > 0 && <span className="upload-status-error">{errorCount}{" " + t("errore/i")}</span>}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <button className="ghost-button" onClick={onClose}>Chiudi</button>
+            <button className="ghost-button" onClick={onClose}>{t("Chiudi")}</button>
             {doneCount > 0 && onAnalyze && (
               <>
                 {onModeChange && (
-                  <div className="mode-toggle" role="group" aria-label="Modalità analisi AI">
+                  <div className="mode-toggle" role="group" aria-label={t("Modalità analisi AI")}>
                     <button
                       type="button"
                       className={`mode-toggle-btn${analyzeMode !== 'pro' ? ' active' : ''}`}
                       onClick={() => onModeChange('flash')}
-                      title="Analisi Flash — veloce, estrae struttura e fatti"
+                      title={t("Analisi Flash — veloce, estrae struttura e fatti")}
                     >Flash</button>
                     <button
                       type="button"
                       className={`mode-toggle-btn mode-toggle-btn--pro${analyzeMode === 'pro' ? ' active' : ''}`}
                       onClick={() => onModeChange('pro')}
-                      title="Analisi Pro — ragionamento profondo su contraddizioni, strategie e rischi"
+                      title={t("Analisi Pro — ragionamento profondo su contraddizioni, strategie e rischi")}
                     >✦ Pro</button>
                   </div>
                 )}
@@ -348,7 +349,7 @@ export default function MultiFileUploadDrawer({
           </div>
         </div>
         {doneCount > 0 && onAnalyze && (
-          <p className="upload-credits-note">L’analisi consuma crediti. Scegli Flash (veloce) o Pro (più approfondita) qui sopra.</p>
+          <p className="upload-credits-note">{t("L’analisi consuma crediti. Scegli Flash (veloce) o Pro (più approfondita) qui sopra.")}</p>
         )}
       </aside>
     </div>

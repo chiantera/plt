@@ -160,6 +160,12 @@ Good current behavior:
 - Strongest analysis-side anti-hallucination guardrail.
 - Same DIVIETO ASSOLUTO pattern now applied consistently across all chat/draft prompts.
 
+## Response language
+
+Analysis (P03/P04) uses an explicit lawyer request first, then the clear language of the lawyer's instructions, then the request locale (Italian, English, or German). The JSON records the actual language and preserves schema keys and source quotations.
+
+Chat (P07/P08) follows the explicit request or the latest genuine user question. Built-in app actions use the UI language as a fallback. Response language does not select a legal jurisdiction. Existing source and Cassazione guardrails still apply.
+
 ## P03 — Full case analysis system prompt
 
 File: `alpha-pwa/backend/app/ai_service.py`

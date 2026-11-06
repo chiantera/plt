@@ -4,7 +4,7 @@
 
 Create cases, upload documents, and work with GiulIA. The [read-only Caso Bianchi demo](https://plt-phi.vercel.app/?demo=bianchi) is also available without an account.
 
-The sign-in screen is available in Italian, English, and German. The workspace currently uses Italian.
+The sign-in and workspace interfaces support Italian, English, and German. GiulIA follows the language of your instructions or question and uses the selected interface language when unclear.
 
 ## What PLT does
 

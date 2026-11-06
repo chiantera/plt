@@ -1,3 +1,4 @@
+import { t } from '../locale';
 /**
  * OnboardingWizard — first-run spotlight tour for new testers.
  *
@@ -245,13 +246,13 @@ export default function OnboardingWizard({ view }: { view: Screen }) {
   return (
     <div className="tour-overlay">
       {hole && <div className="tour-spotlight" style={{ position: 'fixed', ...hole }} aria-hidden="true" />}
-      <div ref={tooltipRef} className="tour-tooltip" aria-live="polite" aria-label="Tutorial guidato" style={{ position: 'fixed', ...ttStyle }}>
-        <button type="button" className="tour-close" aria-label="Chiudi il tutorial per ora" onClick={closeForSession}>✕</button>
-        <h3 className="tour-title">{step.title}</h3>
-        <p className="tour-body">{step.body}</p>
+      <div ref={tooltipRef} className="tour-tooltip" aria-live="polite" aria-label={t("Tutorial guidato")} style={{ position: 'fixed', ...ttStyle }}>
+        <button type="button" className="tour-close" aria-label={t("Chiudi il tutorial per ora")} onClick={closeForSession}>✕</button>
+        <h3 className="tour-title">{t(step.title)}</h3>
+        <p className="tour-body">{t(step.body)}</p>
         <label className="tour-dontshow">
           <input type="checkbox" onChange={e => { if (e.target.checked) dontShow(); }} />
-          Non mostrare più
+          {t("Non mostrare più")}
         </label>
       </div>
     </div>

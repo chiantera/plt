@@ -1,3 +1,4 @@
+import { t } from '../locale';
 /**
  * AnalysisProgressBanner — non-blocking sticky banner shown while an AI analysis
  * runs: a spinner + indeterminate progress bar + an abort button that asks for
@@ -23,11 +24,11 @@ interface Props {
 export default function AnalysisProgressBanner({
   analyzing,
   onAbort,
-  label = 'Analisi AI in corso',
-  abortLabel = 'Rinuncia',
-  confirmText = 'Abbandonare l’analisi?',
-  keepLabel = 'Continua',
-  confirmAbortLabel = 'Abbandona',
+  label = t("Analisi AI in corso"),
+  abortLabel = t("Rinuncia"),
+  confirmText = t("Abbandonare l’analisi?"),
+  keepLabel = t("Continua"),
+  confirmAbortLabel = t("Abbandona"),
 }: Props) {
   const [confirm, setConfirm] = useState(false);
 

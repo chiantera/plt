@@ -1,3 +1,4 @@
+import { t } from '../locale';
 import { ShieldAlert, ShieldCheck, ShieldOff } from 'lucide-react';
 import React from 'react';
 
@@ -6,7 +7,7 @@ export function riskColor(level: string | null) {
 }
 
 export function riskLabel(level: string | null) {
-  return ({ critical: 'Critico', high: 'Alto', medium: 'Medio', low: 'Basso' })[level ?? ''] ?? '—';
+  return t(({ critical: 'Critico', high: 'Alto', medium: 'Medio', low: 'Basso' })[level ?? ''] ?? '—');
 }
 
 export function riskIcon(level: string | null) {

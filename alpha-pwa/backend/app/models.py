@@ -263,7 +263,7 @@ class CaseAnalysis(BaseModel):
     model_config = ConfigDict(extra="ignore")
     case_id: str
     case_title: str
-    language: Literal["it", "en"] = "it"
+    language: Literal["it", "en", "de"] = "it"
     case_summary: str
     materials: list[Material]
     timeline: list[TimelineEvent]
@@ -318,7 +318,7 @@ class AnalyzeRequest(BaseModel):
     case_title: str
     materials: list[AnalyzeMaterialInput]
     mode: Literal["flash", "pro"] = "flash"
-    language: Literal["it", "en"] = "it"
+    language: Literal["it", "en", "de"] = "it"
     # Optional free-text steering from the lawyer (pre-flight modal). Never a
     # source of facts/deadlines/precedents — only orients GiulIA's response.
     user_instructions: str | None = None
@@ -345,5 +345,6 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     system_override: str | None = None
+    language: Literal["it", "en", "de"] = "it"
     mode: Literal["flash", "pro"] = "flash"
     max_tokens_override: int | None = None

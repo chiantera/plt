@@ -1,3 +1,4 @@
+import { t } from '../locale';
 /**
  * LockSetup — first-run prompt to protect the app with a PIN, plus a reusable
  * PinSetForm (enter + confirm) used here and by the Profilo management panel.
@@ -23,22 +24,22 @@ export function PinSetForm({ onSubmit, submitLabel, onCancel }: {
   const digits = (s: string) => s.replace(/\D/g, '').slice(0, PIN_LEN);
 
   const proceed = async () => {
-    if (pin.length !== PIN_LEN) { setError('Il PIN deve essere di 4 cifre.'); return; }
-    if (pin !== confirm) { setError('I due PIN non coincidono.'); return; }
+    if (pin.length !== PIN_LEN) { setError(t("Il PIN deve essere di 4 cifre.")); return; }
+    if (pin !== confirm) { setError(t("I due PIN non coincidono.")); return; }
     setBusy(true);
     try { await onSubmit(pin); } finally { setBusy(false); }
   };
 
   return (
     <div className="lock-form">
-      <label className="lock-field-label">PIN (4 cifre)</label>
+      <label className="lock-field-label">{t("PIN (4 cifre)")}</label>
       <input
         className="lock-input" inputMode="numeric" type="password" autoComplete="off"
         value={pin} autoFocus
         onChange={e => { setPinVal(digits(e.target.value)); setError(null); }}
         onKeyDown={e => { if (e.key === 'Enter' && pin.length === PIN_LEN) confirmRef.current?.focus(); }}
       />
-      <label className="lock-field-label">Conferma PIN</label>
+      <label className="lock-field-label">{t("Conferma PIN")}</label>
       <input
         ref={confirmRef}
         className="lock-input" inputMode="numeric" type="password" autoComplete="off"
@@ -48,9 +49,9 @@ export function PinSetForm({ onSubmit, submitLabel, onCancel }: {
       />
       {error && <p className="lock-error" role="alert">{error}</p>}
       <div className="lock-form-actions">
-        {onCancel && <button type="button" className="ghost-button" onClick={onCancel}>Annulla</button>}
+        {onCancel && <button type="button" className="ghost-button" onClick={onCancel}>{t("Annulla")}</button>}
         <button type="button" className="primary-button" onClick={() => void proceed()} disabled={busy || pin.length !== PIN_LEN || confirm.length !== PIN_LEN}>
-          {busy ? 'Salvataggio…' : submitLabel}
+          {busy ? t("Salvataggio…") : submitLabel}
         </button>
       </div>
     </div>
@@ -65,11 +66,11 @@ export default function LockSetup({ userId, onDone }: { userId: string; onDone: 
       <div className="lock-screen">
         <div className="lock-card">
           <div className="lock-icon"><Fingerprint size={22} /></div>
-          <h1 className="lock-title">Sblocco biometrico</h1>
-          <p className="lock-sub">Vuoi sbloccare anche con Face ID / impronta? Il PIN resta come alternativa.</p>
+          <h1 className="lock-title">{t("Sblocco biometrico")}</h1>
+          <p className="lock-sub">{t("Vuoi sbloccare anche con Face ID / impronta? Il PIN resta come alternativa.")}</p>
           <div className="lock-form-actions lock-form-actions--stack">
-            <button type="button" className="primary-button" onClick={async () => { await registerBiometric(userId, userId); onDone(); }}>Attiva biometria</button>
-            <button type="button" className="ghost-button" onClick={onDone}>Solo PIN</button>
+            <button type="button" className="primary-button" onClick={async () => { await registerBiometric(userId, userId); onDone(); }}>{t("Attiva biometria")}</button>
+            <button type="button" className="ghost-button" onClick={onDone}>{t("Solo PIN")}</button>
           </div>
         </div>
       </div>
@@ -81,8 +82,8 @@ export default function LockSetup({ userId, onDone }: { userId: string; onDone: 
       <div className="lock-screen">
         <div className="lock-card">
           <div className="lock-icon"><ShieldCheck size={22} /></div>
-          <h1 className="lock-title">Imposta un PIN</h1>
-          <p className="lock-sub">Ti verrà chiesto all'apertura dell'app e dopo qualche minuto di inattività.</p>
+          <h1 className="lock-title">{t("Imposta un PIN")}</h1>
+          <p className="lock-sub">{t("Ti verrà chiesto all'apertura dell'app e dopo qualche minuto di inattività.")}</p>
           <PinSetForm
             submitLabel="Attiva il blocco"
             onCancel={() => setStep('intro')}
@@ -97,14 +98,13 @@ export default function LockSetup({ userId, onDone }: { userId: string; onDone: 
     <div className="lock-screen">
       <div className="lock-card">
         <div className="lock-icon"><ShieldCheck size={22} /></div>
-        <h1 className="lock-title">Proteggi l'app con un PIN</h1>
+        <h1 className="lock-title">{t("Proteggi l'app con un PIN")}</h1>
         <p className="lock-sub">
-          I dati dei fascicoli restano solo su questo dispositivo. Un PIN impedisce a chiunque
-          prenda in mano il telefono di aprirli. Potrai cambiarlo o disattivarlo da <strong>Profilo</strong>.
+          {t("I dati dei fascicoli restano solo su questo dispositivo. Un PIN impedisce a chiunque prenda in mano il telefono di aprirli. Potrai cambiarlo o disattivarlo da") + " "}<strong>{t("Profilo")}</strong>.
         </p>
         <div className="lock-form-actions lock-form-actions--stack">
-          <button type="button" className="primary-button" onClick={() => setStep('set')}>Imposta PIN</button>
-          <button type="button" className="ghost-button" onClick={() => { dismissSetup(userId); onDone(); }}>Più tardi</button>
+          <button type="button" className="primary-button" onClick={() => setStep('set')}>{t("Imposta PIN")}</button>
+          <button type="button" className="ghost-button" onClick={() => { dismissSetup(userId); onDone(); }}>{t("Più tardi")}</button>
         </div>
       </div>
     </div>

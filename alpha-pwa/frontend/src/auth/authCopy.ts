@@ -135,15 +135,3 @@ export const authCopy = {
     draftsDetail: "Die Strafverteidigung behält die Kontrolle über die Vorbereitung und Ersteinschätzung.",
   },
 } satisfies Record<SignInLanguage, Record<string, string>>;
-
-export function readSignInLanguage(): SignInLanguage {
-  try {
-    const saved = localStorage.getItem('plt:sign-in-language');
-    if (saved === 'en' || saved === 'de') return saved;
-  } catch { /* Storage can be disabled. */ }
-  return 'it';
-}
-
-export function saveSignInLanguage(language: SignInLanguage) {
-  try { localStorage.setItem('plt:sign-in-language', language); } catch { /* Keep the in-memory selection. */ }
-}

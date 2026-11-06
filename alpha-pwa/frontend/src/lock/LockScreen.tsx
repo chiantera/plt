@@ -1,3 +1,4 @@
+import { t } from '../locale';
 /**
  * LockScreen — 4-digit PIN entry shown when the app is locked. Verifies against
  * the local PBKDF2 hash; escalating cooldown after repeated wrong attempts.
@@ -51,11 +52,11 @@ export default function LockScreen({ userId, onForgot }: { userId: string; onFor
   };
 
   return (
-    <div className="lock-screen" role="dialog" aria-modal="true" aria-label="App bloccata">
+    <div className="lock-screen" role="dialog" aria-modal="true" aria-label={t("App bloccata")}>
       <div className="lock-card">
         <div className="lock-icon"><Lock size={22} /></div>
-        <h1 className="lock-title">App bloccata</h1>
-        <p className="lock-sub">Inserisci il PIN per continuare</p>
+        <h1 className="lock-title">{t("App bloccata")}</h1>
+        <p className="lock-sub">{t("Inserisci il PIN per continuare")}</p>
 
         <div className={`lock-dots${shake ? ' lock-dots--shake' : ''}`} aria-hidden="true">
           {Array.from({ length: PIN_LEN }).map((_, i) => (
@@ -64,9 +65,9 @@ export default function LockScreen({ userId, onForgot }: { userId: string; onFor
         </div>
 
         {cooling
-          ? <p className="lock-error" role="alert">Troppi tentativi. Riprova tra {secondsLeft}s.</p>
+          ? <p className="lock-error" role="alert">{t("Troppi tentativi. Riprova tra") + " "}{secondsLeft}s.</p>
           : attempts > 0
-            ? <p className="lock-error" role="alert">PIN errato. Riprova.</p>
+            ? <p className="lock-error" role="alert">{t("PIN errato. Riprova.")}</p>
             : <p className="lock-error lock-error--placeholder">&nbsp;</p>}
 
         <div className="lock-keypad">
@@ -75,17 +76,17 @@ export default function LockScreen({ userId, onForgot }: { userId: string; onFor
           ))}
           <span />
           <button type="button" className="lock-key" onClick={() => press('0')} disabled={cooling}>0</button>
-          <button type="button" className="lock-key lock-key--util" onClick={back} disabled={cooling} aria-label="Cancella"><Delete size={20} /></button>
+          <button type="button" className="lock-key lock-key--util" onClick={back} disabled={cooling} aria-label={t("Cancella")}><Delete size={20} /></button>
         </div>
 
         {bioAvailable && (
           <button type="button" className="lock-bio" onClick={() => void tryBiometric()}>
-            <Fingerprint size={18} /> Sblocca con biometria
+            <Fingerprint size={18} />{" " + t("Sblocca con biometria")}
           </button>
         )}
-        {bioError && <p className="lock-error" role="alert">Sblocco biometrico non riuscito. Usa il PIN.</p>}
+        {bioError && <p className="lock-error" role="alert">{t("Sblocco biometrico non riuscito. Usa il PIN.")}</p>}
 
-        <button type="button" className="lock-forgot" onClick={onForgot}>PIN dimenticato?</button>
+        <button type="button" className="lock-forgot" onClick={onForgot}>{t("PIN dimenticato?")}</button>
       </div>
     </div>
   );

@@ -20,7 +20,7 @@ Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the existing Supabase pr
 
 The [public Caso Bianchi demo](https://plt-phi.vercel.app/?demo=bianchi) opens a read-only view of the fictional fixture, including source excerpts, Aula mode, and the brief. The regular workspace requires sign-in.
 
-The sign-in screen and welcome tour offer Italian, English, and German. The browser remembers the selection. Workspace screens, case content, AI output, and legal workflows keep their existing language behavior.
+The browser remembers the selected Italian, English, or German interface across sign-in and the workspace. Case content and quotations stay in their original language. GiulIA uses the lawyer’s requested language or recognizes the language of their instructions or question, with the interface language as a fallback. This does not change the applicable legal jurisdiction.
 
 ## What Is Built
 
