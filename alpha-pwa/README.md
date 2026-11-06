@@ -20,6 +20,8 @@ Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the existing Supabase pr
 
 The [public Caso Bianchi demo](https://plt-phi.vercel.app/?demo=bianchi) opens a read-only view of the fictional fixture, including source excerpts, Aula mode, and the brief. The regular workspace requires sign-in.
 
+The sign-in screen and welcome tour offer Italian, English, and German. The browser remembers the selection. Workspace screens, case content, AI output, and legal workflows keep their existing language behavior.
+
 ## What Is Built
 
 - Mobile-first fascicoli dashboard with risk, deadlines, contradictions, and material counts.

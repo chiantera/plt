@@ -39,7 +39,8 @@ import {
   type DraftArtifact,
   type DraftArtifactType,
 } from './draftArtifacts';
-import { type Session } from '@supabase/supabase-js';
+import { isAuthError, type Session } from '@supabase/supabase-js';
+import { authCopy, readSignInLanguage, saveSignInLanguage, signInLanguages, type SignInLanguage } from './auth/authCopy';
 import { supabase } from './supabaseClient';
 import { DOC_PROMPTS } from './prompts/documentDrafts';
 import { REDACT_APPLY_PROMPT, REDACT_DETECT_PROMPT } from './prompts/redaction';
@@ -212,7 +213,19 @@ const AUTH_TOUR_KEY = 'plt:auth-tour:dismissed';
 /** First-run welcome panel on the login page. Reuses the wizard's `.tour-*`
  *  look. Guides the user: read the warning → tick the box → sign in / sign up.
  *  ✕ / "Ho capito" close for this visit; "Non mostrare più" persists. */
-function AuthTour() {
+function SignInLanguageSelect({ language, onChange }: { language: SignInLanguage; onChange: (language: SignInLanguage) => void }) {
+  return (
+    <label className="auth-language">
+      {authCopy[language].language}
+      <select value={language} onChange={event => onChange(event.target.value as SignInLanguage)}>
+        {Object.entries(signInLanguages).map(([code, label]) => <option key={code} value={code} lang={code}>{label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function AuthTour({ language, onLanguageChange }: { language: SignInLanguage; onLanguageChange: (language: SignInLanguage) => void }) {
+  const copy = authCopy[language];
   const [show, setShow] = useState(() => {
     try { return localStorage.getItem(AUTH_TOUR_KEY) !== '1'; } catch { return false; }
   });
@@ -225,18 +238,19 @@ function AuthTour() {
   return (
     <div className="auth-tour-backdrop" role="dialog" aria-modal="true" aria-labelledby="auth-tour-title">
       <div className="tour-tooltip auth-tour-panel">
-        <button type="button" className="tour-close" aria-label="Chiudi" onClick={close}>✕</button>
-        <h3 className="tour-title" id="auth-tour-title">Benvenuto in PLT 👋</h3>
-        <p className="tour-body">Prima di entrare, tre passaggi rapidi:</p>
+        <button type="button" className="tour-close" aria-label={copy.close} onClick={close}>✕</button>
+        <h3 className="tour-title" id="auth-tour-title">{copy.welcome}</h3>
+        <SignInLanguageSelect language={language} onChange={onLanguageChange} />
+        <p className="tour-body">{copy.tourIntro}</p>
         <ol className="auth-tour-steps">
-          <li>Leggi l'<strong>avvertimento</strong> qui a fianco (responsabilità professionale e privacy).</li>
-          <li>Spunta «<strong>Ho letto e compreso</strong>».</li>
-          <li><strong>Accedi</strong> o <strong>registrati</strong> con la tua email.</li>
+          <li>{copy.tourRead}</li>
+          <li>{copy.tourAccept}</li>
+          <li>{copy.tourSignIn}</li>
         </ol>
-        <button type="button" className="auth-tour-ok" onClick={close}>Ho capito, iniziamo</button>
+        <button type="button" className="auth-tour-ok" onClick={close}>{copy.tourContinue}</button>
         <label className="tour-dontshow">
           <input type="checkbox" onChange={e => { if (e.target.checked) never(); }} />
-          Non mostrare più
+          {copy.tourHide}
         </label>
       </div>
     </div>
@@ -244,19 +258,25 @@ function AuthTour() {
 }
 
 function AuthScreen() {
+  const [language, setLanguage] = useState(readSignInLanguage);
+  const copy = authCopy[language];
+  const changeLanguage = (next: SignInLanguage) => {
+    setLanguage(next);
+    saveSignInLanguage(next);
+  };
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [accepted, setAccepted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [error, setError] = useState<'invalid' | 'failed' | null>(null);
+  const [created, setCreated] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accepted) return;
     setError(null);
-    setInfo(null);
+    setCreated(false);
     setLoading(true);
     try {
       if (tab === 'login') {
@@ -267,52 +287,53 @@ function AuthScreen() {
         const { error: err } = await supabase.auth.signUp({ email, password });
         if (err) throw err;
         recordAcceptance();
-        setInfo('Account creato. Puoi accedere subito.');
+        setCreated(true);
       }
     } catch (err: unknown) {
-      setError((err as Error).message);
+      setError(isAuthError(err) && err.code === 'invalid_credentials' ? 'invalid' : 'failed');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-screen">
-      <AuthTour />
+    <div className="auth-screen" lang={language}>
+      <AuthTour language={language} onLanguageChange={changeLanguage} />
       <div className="auth-shell">
         <div className="auth-col">
+          <SignInLanguageSelect language={language} onChange={changeLanguage} />
           <div className="auth-disclaimer auth-disclaimer--card" role="note">
-            <p><strong>Importante:</strong> PLT aiuta a organizzare fascicoli, bozze e checklist. Non sostituisce il giudizio dell'avvocato: ogni termine, fonte, precedente o citazione resta da verificare prima dell'uso.</p>
-            <p><strong>Privacy:</strong> carica solo materiali che puoi trattare. Usa anonimizzazione o pseudonimi quando opportuno; le chiamate AI/OCR/STT sono superfici di trasferimento dati esterne.</p>
-            <p><strong>💬 Feedback.</strong> Per domande, osservazioni o suggerimenti scriva a <strong>studiolegale.ai@gmail.com</strong> — può allegare screenshot se aiutano a spiegare. Ogni segnalazione è benvenuta.</p>
+            <p><strong>{copy.important}</strong> {copy.notice}</p>
+            <p><strong>{copy.privacy}</strong> {copy.privacyNotice}</p>
+            <p><strong>{copy.feedbackLabel}</strong> {copy.feedback} <strong>studiolegale.ai@gmail.com</strong>. {copy.feedbackSuffix}</p>
             <label className="auth-accept">
               <input
                 type="checkbox"
                 checked={accepted}
                 onChange={e => setAccepted(e.target.checked)}
               />
-              <span>Ho letto e compreso: PLT produce materiale di lavoro da verificare, non decisioni.</span>
+              <span>{copy.accept}</span>
             </label>
-            {!accepted && <p className="auth-accept-hint">Spunta la casella per accedere o creare un account.</p>}
+            {!accepted && <p className="auth-accept-hint">{copy.acceptHint}</p>}
           </div>
 
           <div className="auth-card" data-tour="auth-card">
-            <div className="auth-card-kicker">Accesso riservato</div>
+            <div className="auth-card-kicker">{copy.restricted}</div>
             <div className="auth-tabs">
               {(['login', 'signup'] as const).map(t => (
-                <button title="Cambia modalità di accesso" key={t} className={`auth-tab${tab === t ? ' auth-tab--active' : ''}`} onClick={() => setTab(t)}>
-                  {t === 'login' ? 'Accedi' : 'Registrati'}
+                <button title={copy.switchMode} key={t} className={`auth-tab${tab === t ? ' auth-tab--active' : ''}`} onClick={() => setTab(t)}>
+                  {t === 'login' ? copy.login : copy.signup}
                 </button>
               ))}
             </div>
 
             <form className="auth-form" onSubmit={handleSubmit}>
-              <input className="auth-input" type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
-              <input className="auth-input" type="password" placeholder="Password (min. 6 caratteri)" value={password} onChange={e => setPassword(e.target.value)} required />
-              {error && <div className="auth-error">{error}</div>}
-              {info && <div className="auth-info">{info}</div>}
-              <button className="auth-submit" title="Conferma dati di accesso" type="submit" disabled={loading || !accepted}>
-                {loading ? 'Caricamento…' : tab === 'login' ? 'Accedi' : 'Crea account'}
+              <input className="auth-input" type="email" placeholder={copy.email} value={email} onChange={e => setEmail(e.target.value)} required />
+              <input className="auth-input" type="password" placeholder={copy.password} value={password} onChange={e => setPassword(e.target.value)} required />
+              {error && <div className="auth-error">{copy[error]}</div>}
+              {created && <div className="auth-info">{copy.created}</div>}
+              <button className="auth-submit" title={copy.submit} type="submit" disabled={loading || !accepted}>
+                {loading ? copy.loading : tab === 'login' ? copy.login : copy.create}
               </button>
             </form>
           </div>
@@ -323,18 +344,18 @@ function AuthScreen() {
             <div className="auth-brand-icon"><Scale size={20} /></div>
             <div>
               <div className="auth-brand-name">Pocket Legal Triage</div>
-              <div className="auth-brand-sub">Fascicoli penali, ordinati prima dell'udienza</div>
+              <div className="auth-brand-sub">{copy.tagline}</div>
             </div>
           </div>
-          <h1 id="auth-title">Trasforma atti, scansioni e note in fascicoli verificabili.</h1>
+          <h1 id="auth-title">{copy.headline}</h1>
           <p className="auth-lede">
-            Timeline, scadenze candidate, prove, contraddizioni e domande aperte — con fonti e confidenza sempre visibili.
+            {copy.lede}
           </p>
-          <ul className="auth-feature-list" aria-label="Cosa fa Pocket Legal Triage">
-            <li><ShieldCheck size={18} /><div><strong>Privacy operativa</strong><span>I fascicoli restano sul dispositivo; invii all'AI solo ciò che scegli.</span></div></li>
-            <li><FileText size={18} /><div><strong>Fonti prima delle conclusioni</strong><span>Ogni affermazione importante rimanda a quote, pagina o documento.</span></div></li>
-            <li><CalendarClock size={18} /><div><strong>Scadenze da verificare</strong><span>Le date estratte restano candidate finché l'avvocato non le conferma.</span></div></li>
-            <li><CheckSquare size={18} /><div><strong>Bozze e checklist, non decisioni</strong><span>Preparazione e triage sotto controllo del difensore, non un “AI lawyer”.</span></div></li>
+          <ul className="auth-feature-list" aria-label={copy.featuresLabel}>
+            <li><ShieldCheck size={18} /><div><strong>{copy.privacyTitle}</strong><span>{copy.privacyDetail}</span></div></li>
+            <li><FileText size={18} /><div><strong>{copy.sourcesTitle}</strong><span>{copy.sourcesDetail}</span></div></li>
+            <li><CalendarClock size={18} /><div><strong>{copy.deadlinesTitle}</strong><span>{copy.deadlinesDetail}</span></div></li>
+            <li><CheckSquare size={18} /><div><strong>{copy.draftsTitle}</strong><span>{copy.draftsDetail}</span></div></li>
           </ul>
         </section>
       </div>

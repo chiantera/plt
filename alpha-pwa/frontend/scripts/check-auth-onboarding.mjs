@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(__dirname, '..', 'src', 'main.tsx'), 'utf8');
+const authCopy = readFileSync(join(__dirname, '..', 'src', 'auth', 'authCopy.ts'), 'utf8');
 const styles = readFileSync(join(__dirname, '..', 'src', 'styles.css'), 'utf8');
 const caseDetail = readFileSync(join(__dirname, '..', 'src', 'screens', 'CaseDetailView.tsx'), 'utf8');
 const readOptional = (path) => existsSync(path) ? readFileSync(path, 'utf8') : '';
@@ -13,11 +14,11 @@ const supabaseClient = readOptional(join(__dirname, '..', 'src', 'supabaseClient
 const checks = [
   {
     name: 'auth screen contains the product orientation copy before login',
-    pass: src.includes('Trasforma atti, scansioni e note in fascicoli verificabili'),
+    pass: authCopy.includes('Trasforma atti, scansioni e note in fascicoli verificabili'),
   },
   {
     name: 'auth screen says outputs are drafts/checklists under lawyer control',
-    pass: src.includes('Bozze e checklist, non decisioni'),
+    pass: authCopy.includes('Bozze e checklist, non decisioni'),
   },
   {
     name: 'post-login app does not block users with an onboarding gate',

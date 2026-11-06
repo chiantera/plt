@@ -4,6 +4,10 @@ _Last updated: 2026-11-06 by Codex_
 
 ---
 
+## Localization first slice (2026-11-06)
+
+Italian, English, and German are selectable on sign-in, registration, and the welcome tour. Auth copy lives in `alpha-pwa/frontend/src/auth/authCopy.ts`. Next areas are the case list, account and lock screens, case viewer, and locale-aware formatting. UI translation is separate from AI output language and jurisdiction.
+
 ## Showcase homepage and repository layout (2026-11-06)
 
 The Vercel homepage opens the workspace. Existing `?view=workspace` and `?demo=bianchi` links still work. The numbered project documents now live under `docs/`.

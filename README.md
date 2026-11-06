@@ -4,6 +4,8 @@
 
 Create cases, upload documents, and work with GiulIA. The [read-only Caso Bianchi demo](https://plt-phi.vercel.app/?demo=bianchi) is also available without an account.
 
+The sign-in screen is available in Italian, English, and German. The workspace currently uses Italian.
+
 ## What PLT does
 
 Pocket Legal Triage organizes case materials into a source-linked timeline, evidence map, agenda, and draft work products. Lawyers verify facts, deadlines, and citations before relying on them. Case files are stored locally in the browser.

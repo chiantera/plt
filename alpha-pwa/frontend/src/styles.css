@@ -1417,6 +1417,8 @@ blockquote {
 
 /* ── Auth screen ─────────────────────────────────────────────────────────── */
 .auth-screen { min-height: 100dvh; display: grid; place-items: center; padding: clamp(18px, 4vw, 36px); background: var(--paper); }
+.auth-language { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; color: var(--ink-2); font-size: 0.85rem; }
+.auth-language select { font: inherit; color: var(--ink-1); background: var(--paper-raised); border: 1px solid var(--ink-4); border-radius: 6px; padding: 4px 8px; }
 .auth-shell { width: min(100%, 980px); display: grid; grid-template-columns: minmax(340px, 420px) minmax(0, 1.05fr); gap: clamp(18px, 4vw, 42px); align-items: start; }
 .auth-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .auth-intro {
