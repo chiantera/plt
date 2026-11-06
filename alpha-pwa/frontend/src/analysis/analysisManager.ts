@@ -1,3 +1,4 @@
+import { apiFetch } from '../locale';
 /**
  * analysisManager — owns the lifecycle of background AI analyses, independent of
  * which screen is mounted. Analyses run as backend *jobs*: we POST once, store
@@ -13,6 +14,7 @@
  * case and saves it to IndexedDB, so the result is never lost even if no screen
  * is mounted. Components subscribe via `subscribeAnalysis` / `useAnalysisState`.
  */
+import { workspaceStorageKey } from '../guest';
 import { useSyncExternalStore } from 'react';
 import { API } from '../config';
 import { dbGet, dbSave } from '../db';
@@ -31,7 +33,7 @@ interface JobRecord {
   startedAt: number;
 }
 
-const LS_KEY = 'plt:analysis-jobs';
+const LS_KEY = workspaceStorageKey('plt:analysis-jobs');
 const POLL_MS = 2000;
 
 const states = new Map<string, AnalysisState>();
@@ -77,7 +79,7 @@ async function finalize(rec: JobRecord, result: CaseAnalysis) {
 async function pollOnce(rec: JobRecord) {
   clearTimer(rec.caseId);
   try {
-    const r = await fetch(`${API}/api/analyze-jobs/${rec.jobId}`);
+    const r = await apiFetch(`${API}/api/analyze-jobs/${rec.jobId}`);
     if (r.status === 404) { // lost to a server cold start
       removeJob(rec.caseId);
       setState(rec.caseId, { status: 'error', startedAt: rec.startedAt, error: 'Analisi interrotta sul server. Riprova.' });
@@ -116,7 +118,7 @@ export async function startAnalysis(opts: StartAnalysisOptions): Promise<void> {
   const startedAt = Date.now();
   setState(opts.caseId, { status: 'running', startedAt });
   try {
-    const r = await fetch(`${API}/api/analyze-jobs`, {
+    const r = await apiFetch(`${API}/api/analyze-jobs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(opts.body),

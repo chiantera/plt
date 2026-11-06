@@ -1,3 +1,4 @@
+import { apiFetch } from './locale';
 import React, { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
@@ -12,6 +13,8 @@ const MultiFileUploadDrawer = React.lazy(() => import('./components/MultiFileUpl
 const CaseDetailView = React.lazy(() => import('./screens/CaseDetailView'));
 import { ChatDrawer, FloatingChatButton, FabRestoreButton } from './components/ChatPanel';
 import GiuliaPromptBar from './components/GiuliaPromptBar';
+import WorkspaceLanguage from './components/WorkspaceLanguage';
+import { GUEST_ID, isGuestWorkspace, workspaceStorageKey } from './guest';
 import AccountControls from './components/AccountControls';
 import { resumePersistedAnalyses, runningAnalysisCount, getAnalysisState, useAnalysisTick } from './analysis/analysisManager';
 import LockGate from './lock/LockGate';
@@ -41,7 +44,7 @@ import {
 } from './draftArtifacts';
 import { isAuthError, type Session } from '@supabase/supabase-js';
 import { authCopy, signInLanguages, type SignInLanguage } from './auth/authCopy';
-import { getLanguage, t, setLanguage as setWorkspaceLanguage } from './locale';
+import { getLanguage, t, useLanguage, setLanguage as setWorkspaceLanguage } from './locale';
 import { supabase } from './supabaseClient';
 import { DOC_PROMPTS } from './prompts/documentDrafts';
 import { REDACT_APPLY_PROMPT, REDACT_DETECT_PROMPT } from './prompts/redaction';
@@ -163,7 +166,7 @@ async function fetchWithWakeup(
   const attempt = (timeoutMs: number) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+    return apiFetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
   };
   try {
     const r = await attempt(opts.firstTimeoutMs);
@@ -177,9 +180,17 @@ async function fetchWithWakeup(
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
+const guestSession: Session = {
+  access_token: '', refresh_token: '', expires_in: 0, token_type: 'bearer',
+  user: { id: GUEST_ID, aud: '', app_metadata: {}, user_metadata: {}, created_at: '' },
+};
+
+function GuestGate({ children }: { children: React.ReactNode }) { return <>{children}</>; }
+
 function useAuth() {
-  const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [session, setSession] = useState<Session | null | undefined>(isGuestWorkspace ? guestSession : undefined);
   useEffect(() => {
+    if (isGuestWorkspace) return;
     if (DEV_BYPASS_AUTH) {
       setSession({
         access_token: 'dev-bypass-token',
@@ -379,6 +390,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
   useAnalysisTick(); // re-render this list as background analyses start/finish
 
   useEffect(() => {
+    if (isGuestWorkspace) return;
     supabase.from('profiles').select('full_name,studio').eq('id', session.user.id).single()
       .then(({ data }) => {
         if (data) setProfileTagline(data.studio || data.full_name || null);
@@ -400,7 +412,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
   useEffect(() => {
     (async () => {
       // Local cases from IndexedDB — always available, even offline
-      await dbClaimLegacyCases(localOwnerId);
+      if (!isGuestWorkspace) await dbClaimLegacyCases(localOwnerId);
       const local = (await dbList(localOwnerId)) as CaseAnalysis[];
       const localSummaries = local.map(caseAnalysisToSummary);
       const localIdSet = new Set(local.map(c => c.case_id));
@@ -473,7 +485,8 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
               <div className="home-brand-tagline">{profileTagline ?? t('Il tuo studio')}</div>
             </div>
           </div>
-          <AccountControls session={session} />
+          <WorkspaceLanguage />
+          {isGuestWorkspace ? <a href="./">{t('Accedi')}</a> : <AccountControls session={session} />}
         </div>
         <h1 className="home-headline">
           {t("I miei") + " "}<span className="home-headline-accent">{t("fascicoli")}</span>
@@ -636,17 +649,19 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
 type View = 'cases' | 'case';
 
 function App() {
+  useLanguage();
+  const WorkspaceGate = isGuestWorkspace ? GuestGate : LockGate;
   const session = useAuth();
   // Warm up the Render backend the moment the app loads (free-tier instances
   // cold-start in ~30-50s). Fire-and-forget so nothing blocks; by the time the
   // user reads the disclaimer, logs in, and opens a case, the backend is awake.
-  useEffect(() => { fetch(`${API}/api/health`).catch(() => {}); }, []);
+  useEffect(() => { apiFetch(`${API}/api/health`).catch(() => {}); }, []);
   // Logout forzato ogni 72h: l'utente deve ri-accettare l'avviso. Quando c'è una
   // sessione, se l'ultima accettazione è scaduta sloggiamo (→ torna al login con
   // la checkbox); altrimenti innestiamo il timestamp per le sessioni preesistenti.
   // Ricontrolliamo quando l'app torna in primo piano.
   useEffect(() => {
-    if (!session) return;
+    if (!session || isGuestWorkspace) return;
     const check = () => {
       if (isSessionExpired()) { clearAcceptance(); supabase.auth.signOut(); }
       else ensureAcceptanceTs();
@@ -661,7 +676,7 @@ function App() {
   const [activeCaseData, setActiveCaseData] = useState<CaseAnalysis | null>(null);
   const [chat, setChat] = useState<ChatState>(() => {
     try {
-      const saved = localStorage.getItem('plt_chat_messages');
+      const saved = localStorage.getItem(workspaceStorageKey('plt_chat_messages'));
       return { open: false, messages: saved ? JSON.parse(saved) : [], caseContext: null, activeCaseId: null };
     } catch { return { open: false, messages: [], caseContext: null, activeCaseId: null }; }
   });
@@ -682,7 +697,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem('plt_chat_messages', JSON.stringify(chat.messages)); } catch {}
+    try { localStorage.setItem(workspaceStorageKey('plt_chat_messages'), JSON.stringify(chat.messages)); } catch {}
   }, [chat.messages]);
 
   // Resume any analysis job that was running before a refresh / app restart.
@@ -764,7 +779,7 @@ function App() {
         ? `${SYSTEM_PROMPT_IT}\n\n${languageHint}\n\n---\n${caseCtx}`
         : `${SYSTEM_PROMPT_IT}\n\n${languageHint}`;
 
-      const res = await fetch(`${API}/api/chat`, {
+      const res = await apiFetch(`${API}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -825,7 +840,8 @@ function App() {
   return (
     <>
       {session ? (
-        <LockGate session={session}>
+        <WorkspaceGate session={session}>
+          {isGuestWorkspace && <div className="guest-notice"><strong>{t('Modalità ospite')}</strong> {t('I fascicoli ospite restano in questo browser. Le funzioni di analisi inviano il testo ai servizi indicati nell’avviso di caricamento.')}</div>}
           {/* Keep both views mounted; hide the inactive one so background analysis survives navigation */}
           <div style={view === 'case' ? { display: 'none' } : undefined}>
             <CaseListView key={listRefreshKey} onSelect={handleSelectCase} session={session} onOpenChat={openChat} />
@@ -849,7 +865,7 @@ function App() {
             onClear={() => setChat(prev => ({ ...prev, messages: [] }))}
             streaming={chatStreaming}
           />
-        </LockGate>
+        </WorkspaceGate>
       ) : (
         <AuthScreen />
       )}

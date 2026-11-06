@@ -1,3 +1,4 @@
+import { apiError, apiFetch } from '../locale';
 import { t } from '../locale';
 import React, { useCallback, useRef, useState } from 'react';
 import {
@@ -57,13 +58,13 @@ export default function MultiFileUploadDrawer({
         try {
           const fd = new FormData();
           fd.append('file', blob, 'nota_vocale.webm');
-          const res = await fetch(`${API}/api/transcribe`, { method: 'POST', body: fd });
+          const res = await apiFetch(`${API}/api/transcribe`, { method: 'POST', body: fd });
           const data = await res.json().catch(() => ({}));
           if (res.ok && data.text) {
             setPasteText(prev => prev ? prev + '\n\n' + data.text : data.text);
             setPendingItemName('Nota vocale');
           } else {
-            alert('Trascrizione non riuscita. Contatta studiolegale.ai@gmail.com');
+            alert(typeof data.detail === 'string' ? data.detail : t('Errore'));
           }
         } finally {
           setTranscribing(false);
@@ -100,12 +101,12 @@ export default function MultiFileUploadDrawer({
     setUrlFetching(true);
     setUrlError('');
     try {
-      const res = await fetch(`${API}/api/fetch-url`, {
+      const res = await apiFetch(`${API}/api/fetch-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, name: urlName.trim() }),
       });
-      if (!res.ok) throw new Error(`Errore ${res.status}`);
+      if (!res.ok) throw await apiError(res);
       const data = await res.json();
       const extracted: string = data.extracted_text ?? '';
       setPasteText(prev => prev ? prev + '\n\n' + extracted : extracted);
@@ -197,8 +198,8 @@ export default function MultiFileUploadDrawer({
           <div className="drop-zone-icon-container">
             {isGiur ? <Scale size={28} /> : <Upload size={32} />}
           </div>
-          <p>{isGiur ? 'Trascina la sentenza o il provvedimento' : 'Trascina i file qui o tocca per selezionarli'}</p>
-          <small>{isGiur ? "PDF, TXT — il precedente sarà etichettato come verificato dall'avvocato" : 'PDF, DOCX, TXT, immagini — più file alla volta'}</small>
+          <p>{isGiur ? t(t("Trascina la sentenza o il provvedimento")) : t(t("Trascina i file qui o tocca per selezionarli"))}</p>
+          <small>{isGiur ? t("PDF, TXT — il precedente sarà etichettato come verificato dall'avvocato") : t(t("PDF, DOCX, TXT, immagini — più file alla volta"))}</small>
           <input ref={fileRef} type="file" style={{ display: 'none' }} multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.csv,.rtf,image/*,audio/*" onChange={onFileChange} />
         </label>
 
@@ -208,7 +209,7 @@ export default function MultiFileUploadDrawer({
             <span>
               {isGiur
                 ? t("I precedenti caricati restano in locale. GiulIA li può citare con source_ref esplicita distinguendoli dai documenti del caso.")
-                : "I file originali restano sul dispositivo. Solo il testo estratto viene inviato all'AI al momento dell'analisi."}
+                : t("I file originali restano sul dispositivo. Solo il testo estratto viene inviato all'AI al momento dell'analisi.")}
             </span>
           </div>
         )}
@@ -265,8 +266,8 @@ export default function MultiFileUploadDrawer({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <label className={`upload-text-label${pasteText ? ' upload-text-label--ready' : ''}`}>
               {pasteText
-                ? (pendingItemName ? `Testo pronto — "${pendingItemName}"` : 'Controlla il testo e clicca Aggiungi')
-                : (isGiur ? 'Testo della sentenza' : 'Testo o nota vocale')}
+                ? (pendingItemName ? `${t("Testo pronto")} — "${pendingItemName}"` : t(t("Controlla il testo e clicca Aggiungi")))
+                : (isGiur ? t(t("Testo della sentenza")) : t(t("Testo o nota vocale")))}
             </label>
             {!isGiur && (
               <button

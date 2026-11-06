@@ -6,6 +6,8 @@ Create cases, upload documents, and work with GiulIA. The [read-only Caso Bianch
 
 The sign-in and workspace interfaces support Italian, English, and German. GiulIA follows the language of your instructions or question and uses the selected interface language when unclear.
 
+The [guest workspace](https://plt-phi.vercel.app/?view=guest) opens directly. Guest cases are stored in this browser separately from signed-in cases. Switch languages from the workspace toolbar.
+
 ## What PLT does
 
 Pocket Legal Triage organizes case materials into a source-linked timeline, evidence map, agenda, and draft work products. Lawyers verify facts, deadlines, and citations before relying on them. Case files are stored locally in the browser.

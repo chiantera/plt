@@ -73,7 +73,9 @@ def test_analysis_job_surfaces_errors(monkeypatch):
     job_id = client.post("/api/analyze-jobs", json=_request_body()).json()["job_id"]
     final = _poll(client, job_id)
     assert final["status"] == "error"
-    assert "modello non disponibile" in final["error"]
+    assert "Analisi non riuscita" in final["error"]
+    localized = client.get(f"/api/analyze-jobs/{job_id}", headers={"Accept-Language": "de-DE"}).json()
+    assert localized["error"].startswith("Die Analyse ist fehlgeschlagen")
     assert final["result"] is None
 
 

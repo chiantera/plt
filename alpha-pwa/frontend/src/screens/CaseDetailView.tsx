@@ -1,3 +1,4 @@
+import { apiError, apiFetch } from '../locale';
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, ArrowLeft, ArrowRight, BookOpen,
@@ -56,6 +57,8 @@ import type {
   WitnessAssessment,
 } from '../domain/types';
 import GiuliaPromptBar from '../components/GiuliaPromptBar';
+import WorkspaceLanguage from '../components/WorkspaceLanguage';
+import { isGuestWorkspace, workspaceStorageKey } from '../guest';
 import AccountControls from '../components/AccountControls';
 import AiInstructionsModal, { type AiInstructionsRequest } from '../components/AiInstructionsModal';
 import { startAnalysis, abortAnalysis, dismissAnalysis, useAnalysisState } from '../analysis/analysisManager';
@@ -117,7 +120,7 @@ function useToast() {
 function useCompletedTasks(caseId: string, isDemo: boolean) {
   const [completed, setCompleted] = useState<Set<string>>(() => {
     if (isDemo) return new Set<string>();
-    try { return new Set<string>(JSON.parse(localStorage.getItem('plt_tasks') ?? '[]')); }
+    try { return new Set<string>(JSON.parse(localStorage.getItem(workspaceStorageKey('plt_tasks')) ?? '[]')); }
     catch { return new Set<string>(); }
   });
   const key = (dlTitle: string, idx: number) => `${caseId}|${dlTitle}|${idx}`;
@@ -126,7 +129,7 @@ function useCompletedTasks(caseId: string, isDemo: boolean) {
       const next = new Set(prev);
       const k = `${caseId}|${dlTitle}|${idx}`;
       if (next.has(k)) next.delete(k); else next.add(k);
-      try { localStorage.setItem('plt_tasks', JSON.stringify([...next])); } catch {}
+      try { localStorage.setItem(workspaceStorageKey('plt_tasks'), JSON.stringify([...next])); } catch {}
       return next;
     });
   }, [caseId]);
@@ -141,12 +144,12 @@ function useCompletedTasks(caseId: string, isDemo: boolean) {
 function useRedactionRules(isDemo: boolean) {
   const [globalRules, setGlobalRulesState] = useState<RedactionRule[]>(() => {
     if (isDemo) return [];
-    try { return JSON.parse(localStorage.getItem('plt_redaction_rules') ?? '[]'); }
+    try { return JSON.parse(localStorage.getItem(workspaceStorageKey('plt_redaction_rules')) ?? '[]'); }
     catch { return []; }
   });
   const setGlobalRules = useCallback((rules: RedactionRule[]) => {
     setGlobalRulesState(rules);
-    try { localStorage.setItem('plt_redaction_rules', JSON.stringify(rules)); } catch {}
+    try { localStorage.setItem(workspaceStorageKey('plt_redaction_rules'), JSON.stringify(rules)); } catch {}
   }, []);
   return { globalRules, setGlobalRules };
 }
@@ -1152,7 +1155,7 @@ function RedactionDrawer({
   const handleDetect = async () => {
     setDetecting(true); setSuggested([]);
     try {
-      const res = await fetch(`${apiBase}/api/chat`, {
+      const res = await apiFetch(`${apiBase}/api/chat`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [{ role: 'user', content: REDACT_DETECT_PROMPT(caseCtx) }], mode: 'flash' }),
       });
@@ -1624,12 +1627,12 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const exportBriefDocx = useCallback(async () => {
     if (!caseData) return;
     try {
-      const res = await fetch(`${API}/api/export-brief`, {
+      const res = await apiFetch(`${API}/api/export-brief`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ case_title: caseData.case_title, brief_markdown: caseData.brief_markdown }),
       });
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (!res.ok) throw await apiError(res);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1667,7 +1670,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       }
       // Fall back to backend demo cases
       try {
-        const r = await fetch(`${API}/api/cases/${caseId}`);
+        const r = await apiFetch(`${API}/api/cases/${caseId}`);
         if (!r.ok) throw new Error(`${r.status}`);
         const d = await r.json() as CaseAnalysis;
         setCaseData(d); onCaseLoaded?.(d);
@@ -1722,7 +1725,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           } else {
             const fd = new FormData();
             fd.append('file', item.file);
-            const res = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
+            const res = await apiFetch(`${API}/api/upload`, { method: 'POST', body: fd });
             if (!res.ok) throw new Error(`Upload fallito (${res.status})`);
             const data = await res.json();
             text = data.extracted_text ?? '';
@@ -1833,7 +1836,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     setUploadQueue(prev => [...prev, item]);
     wizardBus.emit('material-added');
     try {
-      const res = await fetch(`${API}/api/fetch-url`, {
+      const res = await apiFetch(`${API}/api/fetch-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, name: label }),
@@ -1949,11 +1952,11 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const fetchChatFull = useCallback(async (userMessage: string, opts?: { maxTokens?: number; mode?: 'flash' | 'pro' }): Promise<string> => {
     const body: Record<string, unknown> = { messages: [{ role: 'user', content: userMessage }], mode: opts?.mode ?? 'flash', language: getLanguage() };
     if (opts?.maxTokens) body.max_tokens_override = opts.maxTokens;
-    const res = await fetch(`${API}/api/chat`, {
+    const res = await apiFetch(`${API}/api/chat`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (!res.ok || !res.body) throw new Error(`${res.status}`);
+    if (!res.ok || !res.body) throw await apiError(res);
     const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = ''; let full = '';
     while (true) {
       const { done, value } = await reader.read(); if (done) break;
@@ -2072,12 +2075,12 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     }
     if (!confirm(`${DRAFT_PLAINTEXT_EXPORT_WARNING}\n\nProcedere con export DOCX non cifrato?`)) return;
     try {
-      const res = await fetch(`${API}/api/export-brief`, {
+      const res = await apiFetch(`${API}/api/export-brief`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ case_title: draft.title, brief_markdown: draft.content_markdown }),
       });
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (!res.ok) throw await apiError(res);
       const blob = await res.blob();
       downloadTextFile(blob, `${draft.title.replace(/[^\w\s-]/g, '').trim() || 'bozza'}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       showToast(t("Bozza esportata in DOCX"));
@@ -2297,7 +2300,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         {session ? (
           <>
             <button className="back-button" title={t("Torna alla lista principale dei fascicoli")} onClick={onBack}><ArrowLeft size={15} />{" " + t("Fascicoli")}</button>
-            <AccountControls session={session} />
+            <WorkspaceLanguage />
+            {!isGuestWorkspace && <AccountControls session={session} />}
           </>
         ) : (
           <>

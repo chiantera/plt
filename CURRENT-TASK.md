@@ -4,6 +4,8 @@ _Last updated: 2026-11-06 by Codex_
 
 ---
 
+The [guest workspace](https://plt-phi.vercel.app/?view=guest) opens directly. Guest cases are stored in this browser separately from signed-in cases. Switch languages from the workspace toolbar.
+
 ## Localization first slice (2026-11-06)
 
 Italian, English, and German are selectable on sign-in, registration, and the welcome tour. Auth copy lives in `alpha-pwa/frontend/src/auth/authCopy.ts`. The choice now carries into the case list, account and lock screens, case viewer, and date formatting. GiulIA uses the same choice as the fallback for chat and analysis. UI translation is separate from AI output language and jurisdiction.

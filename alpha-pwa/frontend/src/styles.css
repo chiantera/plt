@@ -1572,3 +1572,5 @@ blockquote {
 
 /* ── Onboarding wizard (spotlight) ── moved to src/onboarding/onboarding.css
    (co-located with the component for portability). ── */
+.workspace-language { max-width: 100%; font: inherit; color: var(--ink-1); background: var(--paper-raised); border: 1px solid var(--ink-4); border-radius: 6px; padding: 4px 6px; }
+.guest-notice { max-width: 920px; margin: 10px auto; padding: 8px 14px; color: var(--ink-2); font-size: .85rem; }

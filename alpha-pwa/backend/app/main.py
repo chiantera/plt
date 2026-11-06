@@ -18,11 +18,14 @@ except ImportError:
     pass
 
 import aiofiles
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.exception_handlers import http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 
+from .api_messages import translate_error
 from .ai_service import analyze_case, stream_analyze_case, stream_chat
 
 logger = logging.getLogger(__name__)
@@ -40,6 +43,14 @@ from .ocr_adapter import MistralOcrAdapter, PptxAdapter, PypdfAdapter, XlsxAdapt
 from .ocr_models import OcrInput
 
 app = FastAPI(title="Pocket Legal Triage Alpha", version="0.2.0")
+
+@app.exception_handler(StarletteHTTPException)
+async def localized_http_error(request: Request, exc: StarletteHTTPException):
+    if isinstance(exc.detail, str):
+        exc.detail = translate_error(exc.detail, request.headers.get("accept-language", ""))
+    return await http_exception_handler(request, exc)
+
+
 
 _DEFAULT_ALLOWED_ORIGINS = [
     "http://localhost:5173",
@@ -69,7 +80,7 @@ app.add_middleware(
     allow_origins=_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "Accept"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "Accept-Language"],
 )
 
 
@@ -144,7 +155,7 @@ def _run_analysis_job(job_id: str, request: AnalyzeRequest) -> None:
         _jobs[job_id] = {"status": "done", "result": result, "error": None, "updated_at": time.time()}
     except ValueError as exc:
         logger.error("analyze-job %s value error: %s", job_id, exc)
-        _jobs[job_id] = {"status": "error", "result": None, "error": str(exc), "updated_at": time.time()}
+        _jobs[job_id] = {"status": "error", "result": None, "error": _ANALYSIS_GENERIC_ERROR, "updated_at": time.time()}
     except Exception as exc:
         logger.error("analyze-job %s failed: %s", job_id, exc, exc_info=True)
         _jobs[job_id] = {"status": "error", "result": None, "error": _ANALYSIS_GENERIC_ERROR, "updated_at": time.time()}
@@ -163,12 +174,15 @@ def create_analysis_job(request: AnalyzeRequest) -> AnalyzeJobCreated:
 
 
 @app.get("/api/analyze-jobs/{job_id}", response_model=AnalyzeJobStatus)
-def get_analysis_job(job_id: str) -> AnalyzeJobStatus:
+def get_analysis_job(job_id: str, request: Request) -> AnalyzeJobStatus:
     """Poll an analysis job. 404 if unknown (e.g. lost to a cold start)."""
     job = _jobs.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job di analisi sconosciuto o scaduto.")
-    return AnalyzeJobStatus(status=job["status"], result=job["result"], error=job["error"])
+    error = job["error"]
+    if error:
+        error = translate_error(error, request.headers.get("accept-language", ""))
+    return AnalyzeJobStatus(status=job["status"], result=job["result"], error=error)
 
 
 # ── Chat (SSE streaming) ─────────────────────────────────────────────────────
@@ -300,7 +314,7 @@ def _extract_pdf_or_ocr_from_path(file_path: Path, mime: str) -> tuple[str, str,
 
 
 @app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)) -> dict[str, Any]:
+async def upload_file(request: Request, file: UploadFile = File(...)) -> dict[str, Any]:
     """Extract uploaded file text without blocking the event loop on parsing work."""
     mime = file.content_type or ""
     filename = file.filename or "documento"
@@ -316,10 +330,15 @@ async def upload_file(file: UploadFile = File(...)) -> dict[str, Any]:
     is_zip = lower_filename.endswith(".zip")
     is_rar = lower_filename.endswith(".rar")
 
-    if is_zip:
-        return _archive_upload_response(filename, mime, "zip", file.size or 0)
-    if is_rar:
-        return _archive_upload_response(filename, mime, "rar", file.size or 0)
+    language = request.headers.get("accept-language", "")
+    if is_zip or is_rar:
+        payload = _archive_upload_response(filename, mime, "zip" if is_zip else "rar", file.size or 0)
+        notice = "Estrai e carica singolarmente i file dell’archivio."
+        localized = translate_error(notice, language)
+        if localized != notice:
+            payload["warnings"] = [localized]
+            payload["extracted_text"] = f"[{localized}]"
+        return payload
 
     fd, temp_name = tempfile.mkstemp(prefix="plt-upload-")
     os.close(fd)
@@ -344,6 +363,13 @@ async def upload_file(file: UploadFile = File(...)) -> dict[str, Any]:
             extracted_text, engine, warnings, ready = await run_in_threadpool(_extract_xlsx_from_path, temp_path, mime)
         else:
             extracted_text, engine, warnings, ready = await run_in_threadpool(_extract_pdf_or_ocr_from_path, temp_path, mime)
+
+        if not ready:
+            notice = "Estrazione non riuscita. Incolla il testo manualmente."
+            localized = translate_error(notice, language)
+            if localized != notice:
+                warnings = [localized]
+                extracted_text = f"[{localized}]"
 
         return _result_to_upload_payload(
             filename=filename,
@@ -382,7 +408,7 @@ async def fetch_url_content(request: FetchUrlRequest) -> dict[str, Any]:
         raise
     except Exception as exc:
         logger.error("fetch-url failed for %s: %s", url, exc, exc_info=True)
-        raise HTTPException(status_code=502, detail=f"Impossibile recuperare il contenuto dall'URL: {exc}") from exc
+        raise HTTPException(status_code=502, detail="Impossibile recuperare il contenuto dall'URL.") from exc
 
 
 def _fetch_url_text(url: str, label: str) -> dict[str, Any]:
@@ -453,7 +479,7 @@ async def transcribe_audio(file: UploadFile = File(...)) -> dict[str, Any]:
     import os
     groq_key = os.environ.get("GROQ_API_KEY")
     if not groq_key:
-        raise HTTPException(status_code=503, detail="GROQ_API_KEY non configurata")
+        raise HTTPException(status_code=503, detail="Trascrizione non disponibile.")
 
     content = await file.read()
     filename = file.filename or "audio.webm"
