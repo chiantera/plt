@@ -1,12 +1,12 @@
 # Pocket Legal Triage
 
-**[Open the PLT workspace](https://plt-phi.vercel.app/)** · Sign in or create an account.
+**[Open the PLT workspace](https://plt-phi.vercel.app/)** · No account required.
 
 Create cases, upload documents, and work with GiulIA. The [read-only Caso Bianchi demo](https://plt-phi.vercel.app/?demo=bianchi) is also available without an account.
 
 The sign-in and workspace interfaces support Italian, English, and German. GiulIA follows the language of your instructions or question and uses the selected interface language when unclear.
 
-The [guest workspace](https://plt-phi.vercel.app/?view=guest) opens directly. Guest cases are stored in this browser separately from signed-in cases. Switch languages from the workspace toolbar.
+Guest cases are stored in this browser separately from signed-in cases. To open existing signed-in cases, use the same browser and choose **Sign in** in the toolbar or [open the sign-in workspace](https://plt-phi.vercel.app/?view=workspace). Switch languages from the workspace toolbar.
 
 ## What PLT does
 

@@ -4,7 +4,7 @@ _Last updated: 2026-11-06 by Codex_
 
 ---
 
-The [guest workspace](https://plt-phi.vercel.app/?view=guest) opens directly. Guest cases are stored in this browser separately from signed-in cases. Switch languages from the workspace toolbar.
+The [Vercel homepage](https://plt-phi.vercel.app/) opens the guest workspace. The toolbar links to the [signed-in workspace](https://plt-phi.vercel.app/?view=workspace). Guest cases are stored in this browser separately from signed-in cases. Switch languages from the workspace toolbar.
 
 ## Localization first slice (2026-11-06)
 
@@ -12,7 +12,7 @@ Italian, English, and German are selectable on sign-in, registration, and the we
 
 ## Showcase homepage and repository layout (2026-11-06)
 
-The Vercel homepage opens the workspace. Existing `?view=workspace` and `?demo=bianchi` links still work. The numbered project documents now live under `docs/`.
+The Vercel homepage opens the guest workspace. Existing `?view=guest`, `?view=workspace`, and `?demo=bianchi` links still work. The numbered project documents now live under `docs/`.
 
 ## Public Caso Bianchi demo (2026-11-06)
 

@@ -22,7 +22,7 @@ The [public Caso Bianchi demo](https://plt-phi.vercel.app/?demo=bianchi) opens a
 
 The browser remembers the selected Italian, English, or German interface across sign-in and the workspace. Case content and quotations stay in their original language. GiulIA uses the lawyer’s requested language or recognizes the language of their instructions or question, with the interface language as a fallback. This does not change the applicable legal jurisdiction.
 
-The [guest workspace](https://plt-phi.vercel.app/?view=guest) opens directly. Guest cases are stored in this browser separately from signed-in cases. Switch languages from the workspace toolbar.
+The [Vercel homepage](https://plt-phi.vercel.app/) opens the guest workspace. The toolbar links to the [signed-in workspace](https://plt-phi.vercel.app/?view=workspace). Guest cases are stored in this browser separately from signed-in cases. Switch languages from the workspace toolbar.
 
 ## What Is Built
 

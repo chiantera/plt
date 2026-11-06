@@ -486,7 +486,7 @@ function CaseListView({ onSelect, session, onOpenChat }: { onSelect: (id: string
             </div>
           </div>
           <WorkspaceLanguage />
-          {isGuestWorkspace ? <a href="./">{t('Accedi')}</a> : <AccountControls session={session} />}
+          {isGuestWorkspace ? <a className="secondary-button" href="./?view=workspace">{t('Accedi')}</a> : <AccountControls session={session} />}
         </div>
         <h1 className="home-headline">
           {t("I miei") + " "}<span className="home-headline-accent">{t("fascicoli")}</span>
