@@ -1,8 +1,12 @@
 # CURRENT TASK — PLT alpha handoff and backlog
 
-_Last updated: 2026-06-03 by Claude_
+_Last updated: 2026-11-06 by Codex_
 
 ---
+
+## Vercel showcase (2026-11-06)
+
+The root Vercel config deploys the Vite UI and FastAPI's stateless routes together. It proxies provider-backed requests to the existing Render backend, including both job submission and polling. The existing Supabase auth project is shared with the alpha.
 
 ## ✅ DONE — Logout forzato ogni 72h su PLT e SchedaPRO (2026-06-03)
 

@@ -1,5 +1,5 @@
 # Pocket Legal Triage — Alpha PWA
-_Last updated: 2026-05-27_
+_Last updated: 2026-11-06_
 
 Pocket Legal Triage (PLT) is the working alpha app for mobile-first Italian criminal-defense case triage. It combines a FastAPI backend, a React/Vite frontend, local-first case storage, Supabase auth for deployed builds, and a Capacitor Android wrapper.
 
@@ -9,12 +9,14 @@ It is not an AI lawyer. It is a lawyer-controlled workspace for organizing mater
 
 | Layer | Service |
 |---|---|
-| Frontend | Netlify |
-| Backend | Render |
+| Frontend | Vercel showcase and Netlify alpha |
+| Backend | Vercel FastAPI service and Render processing API |
 | Auth | Supabase |
 | Android test build | Capacitor APK from `frontend/android/` |
 
-Pushes to `main` trigger the Netlify frontend deploy. Backend deploys are handled separately on Render.
+The repository-root `vercel.json` deploys Vite and FastAPI together using Vercel Services. The browser uses same-origin `/api` URLs. Health, sample cases, and brief export run on Vercel. The deployment forwards analysis, chat, uploads, URL ingestion, and transcription to the existing Render service so background jobs and provider credentials stay with the process that owns them.
+
+Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the existing Supabase project's URL and publishable key in Vercel. Leave `VITE_API_URL` unset for same-origin routing. The Netlify and Android configurations keep their own backend URLs.
 
 ## What Is Built
 

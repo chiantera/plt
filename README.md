@@ -1,5 +1,5 @@
 # Pocket Legal Triage
-_Last updated: 2026-06-03_
+_Last updated: 2026-11-06_
 
 > Mobile-first criminal-defense case triage for Italian lawyers.
 
@@ -20,8 +20,8 @@ The working alpha lives in [`alpha-pwa/`](./alpha-pwa/).
 
 | Layer | Stack | Current deployment |
 |---|---|---|
-| Frontend | React + Vite + Capacitor | Netlify |
-| Backend | FastAPI | Render |
+| Frontend | React + Vite + Capacitor | Vercel showcase and Netlify alpha |
+| Backend | FastAPI | Vercel for demo cases and brief export, Render for document and AI processing |
 | Persistence | IndexedDB locally, Supabase auth for deployed app | Alpha |
 | AI routing | DeepSeek primary, Anthropic fallback | Env-driven |
 
