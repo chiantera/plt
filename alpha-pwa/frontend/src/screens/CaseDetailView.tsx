@@ -1302,7 +1302,7 @@ function ExportCaseDrawer({
   const submit = async () => {
     setError(null);
     if (mode === 'protected') {
-      if (!password.trim()) { setError('Inserisci una password per proteggere il fascicolo.'); return; }
+      if (!password.trim()) { setError(t("Inserisci una password per proteggere il fascicolo.")); return; }
       if (password !== confirmPassword) { setError('Le password non coincidono.'); return; }
     } else if (!confirm('Confermi di voler esportare un file non protetto?\nIl contenuto sarà leggibile da chiunque abbia accesso al file.')) {
       return;
@@ -1686,7 +1686,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         if (fresh) {
           setCaseData(fresh); onCaseLoaded?.(fresh); onCaseAnalyzed?.(fresh);
           if (fresh.pro_recommendation?.recommended) {
-            showToast('Analisi standard completata. GiulIA suggerisce un Approfondimento Pro: nessun addebito senza conferma.', 'info');
+            showToast(t("Analisi standard completata. GiulIA suggerisce un Approfondimento Pro: nessun addebito senza conferma."), 'info');
           } else {
             showToast(t("Analisi completata."), 'info');
           }
@@ -2031,7 +2031,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       await dbSave(localOwnerId, finalizedCase);
       setCaseData(finalizedCase);
       onCaseLoaded?.(finalizedCase);
-      showToast('Bozza salvata nel fascicolo');
+      showToast(t("Bozza salvata nel fascicolo"));
     } catch (e) {
       const failed = {
         ...placeholder,
@@ -2080,7 +2080,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       if (!res.ok) throw new Error(`${res.status}`);
       const blob = await res.blob();
       downloadTextFile(blob, `${draft.title.replace(/[^\w\s-]/g, '').trim() || 'bozza'}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      showToast('Bozza esportata in DOCX');
+      showToast(t("Bozza esportata in DOCX"));
     } catch (e) {
       showToast(`Export DOCX fallito: ${(e as Error).message}`, 'error');
     }
@@ -2134,7 +2134,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     }
     const docs = analysisBase.raw_documents ?? [];
     if (docs.length === 0) {
-      showToast('Aggiungi almeno un documento prima di analizzare', 'error');
+      showToast(t("Aggiungi almeno un documento prima di analizzare"), 'error');
       return;
     }
 
@@ -2424,13 +2424,13 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             </div>
             <div className="pro-recommendation-actions">
               <button className="primary-button" onClick={() => requestAnalyze('pro')} disabled={analyzing || rawDocs.length === 0}>
-                <Sparkles size={14} /> {d.pro_recommendation.cta_label}
+                <Sparkles size={14} /> {t(d.pro_recommendation.cta_label)}
               </button>
               <button
                 className="ghost-button"
                 onClick={() => updateCase(c => ({ ...c, pro_recommendation: { ...c.pro_recommendation!, recommended: false } }))}
               >
-                {d.pro_recommendation.alternate_label}
+                {t(d.pro_recommendation.alternate_label)}
               </button>
             </div>
           </div>

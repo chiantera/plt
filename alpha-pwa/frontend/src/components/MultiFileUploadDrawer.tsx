@@ -207,7 +207,7 @@ export default function MultiFileUploadDrawer({
             <ShieldCheck size={13} />
             <span>
               {isGiur
-                ? 'I precedenti caricati restano in locale. GiulIA li può citare con source_ref esplicita distinguendoli dai documenti del caso.'
+                ? t("I precedenti caricati restano in locale. GiulIA li può citare con source_ref esplicita distinguendoli dai documenti del caso.")
                 : "I file originali restano sul dispositivo. Solo il testo estratto viene inviato all'AI al momento dell'analisi."}
             </span>
           </div>
@@ -342,7 +342,7 @@ export default function MultiFileUploadDrawer({
                   </div>
                 )}
                 <button className="primary-button upload-analyze-btn" onClick={onAnalyze}>
-                  <Sparkles size={15} /> {analyzeMode === 'pro' ? 'Avvia Analisi (Pro)' : 'Avvia Analisi'}
+                  <Sparkles size={15} /> {analyzeMode === 'pro' ? t("Avvia Analisi (Pro)") : t("Avvia Analisi")}
                 </button>
               </>
             )}
