@@ -72,8 +72,8 @@ const screen = readFileSync(new URL('../src/lock/LockScreen.tsx', import.meta.ur
 const lockMod = readFileSync(new URL('../src/lock/appLock.ts', import.meta.url), 'utf8');
 const account = readFileSync(new URL('../src/components/AccountControls.tsx', import.meta.url), 'utf8');
 
-assert.match(main, /<LockGate session=\{session\}>/, 'app shell wrapped in LockGate');
-assert.match(main, /fetch\(`\$\{API\}\/api\/health`\)\.catch/, 'warm-up ping still fires on App mount');
+assert.match(main, /<WorkspaceGate session=\{session\}>/, 'app shell wrapped in the workspace gate');
+assert.match(main, /apiFetch\(`\$\{API\}\/api\/health`\)\.catch/, 'warm-up ping still fires on App mount');
 assert.match(lockMod, /PBKDF2/, 'PBKDF2 used');
 assert.match(lockMod, /SHA-256/, 'SHA-256 used');
 assert.match(gate, /visibilitychange/, 'idle/background trigger wired');
@@ -92,3 +92,4 @@ assert.match(account, /usePlatformAuthenticator/, 'Profilo gates biometric on pl
 assert.match(setup, /isPlatformAuthenticatorAvailable/, 'setup offers biometric only if a platform authenticator exists');
 
 console.log('app-lock checks passed');
+assert.match(main, /const WorkspaceGate = isGuestWorkspace \? GuestGate : LockGate/, 'signed-in workspace retains its PIN gate');
