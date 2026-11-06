@@ -141,17 +141,26 @@ class FakeProviders:
     def __init__(self):
         self.deepseek = FakeProvider("deepseek")
         self.anthropic = FakeProvider("anthropic")
+        self.nous = FakeProvider("nous")
 
 
 @pytest.fixture
 def providers(monkeypatch):
-    """Both providers configured. Each test scripts `.deepseek` and `.anthropic`."""
+    """DeepSeek and Anthropic configured. Each test scripts `.deepseek` and `.anthropic`."""
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-deepseek")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic")
-    monkeypatch.delenv("DEEPSEEK_DEFAULT_MODEL", raising=False)
-    monkeypatch.delenv("DEEPSEEK_PRO_MODEL", raising=False)
-    monkeypatch.delenv("PLT_PROMPT_LOG", raising=False)
+    for variable in (
+        "NOUS_API_KEY", "PLT_FALLBACK_MODEL", "PLT_FALLBACK_MAX_TOKENS",
+        "DEEPSEEK_DEFAULT_MODEL", "DEEPSEEK_PRO_MODEL", "PLT_PROMPT_LOG",
+    ):
+        monkeypatch.delenv(variable, raising=False)
     fakes = FakeProviders()
+    monkeypatch.setattr(ai_service, "_get_nous_client", lambda: anthropic.Anthropic(
+        api_key="test",
+        base_url="https://nous.test",
+        max_retries=0,
+        http_client=httpx2.Client(transport=httpx2.MockTransport(fakes.nous)),
+    ))
     monkeypatch.setattr(ai_service, "_get_openai_client", lambda: openai.OpenAI(
         api_key="test",
         base_url="https://deepseek.test",

@@ -77,7 +77,7 @@ File: `alpha-pwa/backend/app/ai_service.py`
 File: `alpha-pwa/backend/app/ai_service.py`
 Section: `_call_llm`
 
-Prompts are provider-neutral: the same system prompt and messages go to Anthropic when a DeepSeek call fails and `ANTHROPIC_API_KEY` is set. The Flash/Pro split is preserved (Flash to Haiku, Pro to Opus), and Pro still requires the lawyer's confirmation. Details and limits: `docs/04-technical/model-routing.md`.
+Prompts are provider-neutral: the same system prompt and messages go to a free model on Nous Portal when a DeepSeek call fails and `NOUS_API_KEY` is set. Failover never changes `mode`, so Pro still requires the lawyer's confirmation. Details and limits: `docs/04-technical/model-routing.md`.
 
 ### SSE keepalive for reasoning models
 

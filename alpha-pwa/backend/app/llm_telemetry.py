@@ -145,8 +145,12 @@ def estimate_cost_usd(
     cached_input_tokens: int | None = None,
     at: datetime | None = None,
 ) -> float | None:
+    if input_tokens is None or output_tokens is None:
+        return None
+    if model.endswith(":free"):
+        return 0.0
     price = _PRICES.get(model)
-    if price is None or input_tokens is None or output_tokens is None:
+    if price is None:
         return None
     cached = min(cached_input_tokens or 0, input_tokens)
     cached_rate = price.input if price.cached_input is None else price.cached_input

@@ -12,19 +12,20 @@ Use the cheapest model that can do the job reliably, then escalate when quality 
 | Keys set | Provider order |
 |---|---|
 | `DEEPSEEK_API_KEY` only | DeepSeek, no failover |
-| Both | DeepSeek, then Anthropic if DeepSeek fails |
+| `DEEPSEEK_API_KEY` and `NOUS_API_KEY` (intended setup) | DeepSeek, then a free model on Nous Portal |
+| `ANTHROPIC_API_KEY` as well | Anthropic is added as the last step |
 | `ANTHROPIC_API_KEY` only | Anthropic |
 
-| Mode | DeepSeek | Anthropic |
-|---|---|---|
-| `flash` | `deepseek-v4-flash` (`DEEPSEEK_DEFAULT_MODEL`) | `claude-haiku-4-5-20251001` |
-| `pro` | `deepseek-v4-pro` (`DEEPSEEK_PRO_MODEL`) | `claude-opus-4-7` |
+| Mode | DeepSeek | Nous Portal | Anthropic (optional) |
+|---|---|---|---|
+| `flash` | `deepseek-v4-flash` (`DEEPSEEK_DEFAULT_MODEL`) | `meituan/longcat-2.5:free` (`PLT_FALLBACK_MODEL`) | `claude-haiku-4-5-20251001` |
+| `pro` | `deepseek-v4-pro` (`DEEPSEEK_PRO_MODEL`) | same free model | `claude-opus-4-7` |
 
-Failover stays on the tier the request asked for. A Flash call cannot become Opus, and Pro still runs only after the lawyer confirms it.
+Failover never changes `mode`, so it cannot start a Pro run: Pro still runs only after the lawyer confirms it. A confirmed Pro call that fails over gets the Pro prompt on the free model, which may be less capable than DeepSeek Pro.
 
 ## Runtime failover
 
-When `ANTHROPIC_API_KEY` is set, any failure of the DeepSeek call moves the request to Anthropic:
+When a fallback key is set, any failure of the DeepSeek call moves the request to the next provider:
 
 - HTTP errors, including 429, 5xx, 401 and 402
 - connection errors and stalled reads
@@ -41,7 +42,7 @@ When `ANTHROPIC_API_KEY` is set, any failure of the DeepSeek call moves the requ
 
 When every provider fails, analysis returns the existing localized error (Italian, English or German) and chat ends the stream abnormally, which triggers the frontend's existing error handling. The SSE wire format is unchanged: `data: {"text": ...}`, `: ping`, `data: [DONE]`. Do not add a new `data:` event shape to chat, because the frontend readers append `.text` from every data frame and would render "undefined".
 
-Client limits apply to both providers:
+Client limits apply to every provider:
 
 | Env var | Default | Purpose |
 |---|---|---|
@@ -49,30 +50,44 @@ Client limits apply to both providers:
 | `PLT_LLM_CONNECT_TIMEOUT_SECONDS` | `10` | Connection timeout |
 | `PLT_LLM_MAX_RETRIES` | `1` | SDK retries on the same provider before failing over |
 
-Anthropic calls always stream, because the SDK refuses large non-streaming requests. Their output budget is capped at the model limit (64K for Haiku 4.5, 128K for Opus 4.7), and chat history is cleaned of empty, leading and trailing assistant turns, which the Messages API rejects.
+Nous is called through its Anthropic-compatible Messages route with the Anthropic SDK, sharing `_anthropic_stream`. Those calls always stream, because the SDK refuses large non-streaming requests. Output is capped at `PLT_FALLBACK_MAX_TOKENS` (default 64000) on Nous and at the model limit on Anthropic (64K for Haiku 4.5, 128K for Opus 4.7). Chat history is cleaned of empty, leading and trailing assistant turns, which the Messages API rejects.
 
 ### Known limits
 
-- **Data transfer:** failover sends the same case material to a second external provider. `render.yaml` does not declare `ANTHROPIC_API_KEY`, so failover stays off on Render unless the key was added in the dashboard.
+- **Data transfer (decide before enabling):** failover sends the same case material to a second external provider. Nous routes models to backends including OpenRouter and "proprietary or secondary providers", and its docs state no retention or privacy terms. Free models may log prompts. Check this before setting `NOUS_API_KEY` where real case material flows. `render.yaml` does not declare the key, so failover stays off on Render until it is added.
+- **Free model availability:** free models can be rate limited, change or disappear, and not every free model works on the Messages route. If the fallback model fails, the request fails with the existing error. `PLT_FALLBACK_MODEL` changes it without a code change.
 - **Not triggered by bad output:** unparseable or schema-invalid JSON from a call that completed normally is an analysis error, not a failover.
-- **Context size:** DeepSeek V4 has a 1M-token context and Haiku 4.5 has 200K. A very large Flash analysis can fit DeepSeek and then be rejected by Haiku. The request fails with an error and nothing is silently truncated.
+- **Context size:** a very large analysis that fits DeepSeek's 1M-token context can be rejected by a smaller fallback model. The request fails with an error and nothing is silently truncated.
 - **No overall deadline:** the read timeout detects silence only. A provider sending keepalives can hold a call until it closes the connection, which DeepSeek documents as 10 minutes for a request that has not started.
 - **Proxies (needs validation):** a mid-stream break makes the browser's reader reject when connected directly to uvicorn. Through the Vite dev proxy the read hangs instead, because the proxy does not forward the upstream abort. The Vercel rewrite and Render's edge are untested.
 
 ### Verification status
 
-`tests/test_llm_failover.py` and `tests/test_llm_telemetry.py` run the real `openai` and `anthropic` SDKs over a fake HTTP transport. The chat and analysis paths were also run in a browser against the real frontend with fake providers. **No call has been made to a live provider.** To check it live with a real Anthropic key and non-sensitive text:
+`tests/test_llm_failover.py`, `tests/test_llm_free_fallback.py` and `tests/test_llm_telemetry.py` run the real `openai` and `anthropic` SDKs over a fake HTTP transport. The chat and analysis paths were also run in a browser against the real frontend with fake providers.
+
+A partial live run on 2026-11-06, with short fictional input, was stopped once the setup was settled:
+
+| Live result | Status |
+|---|---|
+| DeepSeek served a chat, and `deepseek-v4-flash` was accepted | Passed |
+| A real DeepSeek 401 failed over to `meituan/longcat-2.5:free`, which completed a blocking analysis in Flash mode with `pro_used: false` | Passed, on an earlier build that reached Nous through a test script |
+| No keys or case text in the logs for those calls | Passed |
+| Background job or SSE analysis completing after failover, and chat failover | Not exercised live |
+| DeepSeek completing an analysis | Not shown: the run's 8000-token test cap ended it first |
+| 429, timeouts and mid-stream breaks | Not exercised live |
+
+To repeat the failover check with non-sensitive text:
 
 ```bash
 cd alpha-pwa/backend
-DEEPSEEK_API_KEY=invalid ANTHROPIC_API_KEY=<real key> uvicorn app.main:app --port 8000
+DEEPSEEK_API_KEY=invalid NOUS_API_KEY=<real key> uvicorn app.main:app --port 8000
 ```
 
 ```bash
 curl -N -X POST localhost:8000/api/chat -H 'Content-Type: application/json' -d '{"messages":[{"role":"user","content":"Ciao"}]}'
 ```
 
-The reply should stream normally, and the server log should show `"outcome":"switched"` with `"reason":"auth"`, then `"provider":"anthropic"` with `"status":"ok"`.
+The reply should stream normally, and the server log should show `"outcome":"switched"` with `"reason":"auth"`, then `"provider":"nous"` with `"status":"ok"`.
 
 ## Observability
 

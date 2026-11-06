@@ -53,10 +53,10 @@ def _log_prompt(*, endpoint: str, model: str, system: str, user: str, mode: str 
 
 # ── Provider routing ──────────────────────────────────────────────────────────
 # DeepSeek (OpenAI-compatible, much cheaper) is primary when DEEPSEEK_API_KEY is set.
-# Anthropic serves alone when it holds the only key, and is the runtime failover
-# target when both are set. The tier always follows `mode`: Flash fails over to
-# Haiku and Pro to Opus, so failover can never start a Pro run the lawyer did not
-# confirm.
+# When NOUS_API_KEY is set, a free model on Nous Portal is the runtime failover target.
+# ANTHROPIC_API_KEY adds Anthropic as a further optional step, and Anthropic also serves
+# alone when no other key is set. `mode` is never changed by failover, so it can never
+# start a Pro run the lawyer did not confirm.
 
 @dataclass(frozen=True)
 class _Route:
@@ -101,6 +101,18 @@ def _get_anthropic_client():
     )
 
 
+def _get_nous_client():
+    """Nous Portal's Anthropic-compatible Messages route, used through the Anthropic SDK."""
+    import anthropic
+    key = os.environ["NOUS_API_KEY"]
+    return anthropic.Anthropic(
+        api_key=key,
+        default_headers={"Authorization": f"Bearer {key}"},
+        base_url="https://inference-api.nousresearch.com",
+        **_client_limits(anthropic),
+    )
+
+
 def _deepseek_model(mode: str) -> str:
     if mode == "flash":
         return os.environ.get("DEEPSEEK_DEFAULT_MODEL", "deepseek-v4-flash")
@@ -116,6 +128,8 @@ def _routes(mode: str) -> list[_Route]:
     routes: list[_Route] = []
     if _use_deepseek():
         routes.append(_Route("deepseek", _deepseek_model(mode)))
+    if os.environ.get("NOUS_API_KEY"):
+        routes.append(_Route("nous", os.environ.get("PLT_FALLBACK_MODEL", "meituan/longcat-2.5:free")))
     if os.environ.get("ANTHROPIC_API_KEY") or not routes:
         routes.append(_Route("anthropic", _anthropic_model(mode)))
     return routes
@@ -133,9 +147,11 @@ _ANTHROPIC_MAX_OUTPUT_TOKENS = {
 
 
 def _provider_max_tokens(route: _Route, requested: int) -> int:
-    if route.provider != "anthropic":
-        return requested
-    return min(requested, _ANTHROPIC_MAX_OUTPUT_TOKENS.get(route.model, requested))
+    if route.provider == "nous":
+        return min(requested, int(os.environ.get("PLT_FALLBACK_MAX_TOKENS", "64000")))
+    if route.provider == "anthropic":
+        return min(requested, _ANTHROPIC_MAX_OUTPUT_TOKENS.get(route.model, requested))
+    return requested
 
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
@@ -675,7 +691,6 @@ def _call_llm(
     failures: list[str] = []
     for index, route in enumerate(routes):
         limit = _provider_max_tokens(route, max_tokens)
-        provider_stream = _deepseek_stream if route.provider == "deepseek" else _anthropic_stream
         call = LLMCallTracker(
             call_id=call_id, endpoint=endpoint, attempt=index + 1,
             provider=route.provider, model=route.model, mode=mode,
@@ -685,7 +700,7 @@ def _call_llm(
         last_ping = time.monotonic()
         try:
             with call:
-                for piece in provider_stream(route.model, system, messages, limit, call):
+                for piece in _provider_stream(route, system, messages, limit, call):
                     if piece is None:
                         yield _KEEPALIVE
                         continue
@@ -780,9 +795,19 @@ def _anthropic_messages(messages: list) -> list:
     return cleaned
 
 
-def _anthropic_stream(model: str, system: str, messages: list, max_tokens: int, call: LLMCallTracker) -> Generator[str | None, None, None]:
-    """Yield text deltas. Always streams: the SDK refuses large non-streaming requests."""
-    client = _get_anthropic_client()
+def _provider_stream(route: _Route, system: str, messages: list, max_tokens: int, call: LLMCallTracker) -> Generator[str | None, None, None]:
+    if route.provider == "deepseek":
+        return _deepseek_stream(route.model, system, messages, max_tokens, call)
+    get_client = _get_nous_client if route.provider == "nous" else _get_anthropic_client
+    return _anthropic_stream(get_client, route.model, system, messages, max_tokens, call)
+
+
+def _anthropic_stream(get_client, model: str, system: str, messages: list, max_tokens: int, call: LLMCallTracker) -> Generator[str | None, None, None]:
+    """Yield text deltas from any Messages API provider.
+
+    Always streams: the Anthropic SDK refuses large non-streaming requests.
+    """
+    client = get_client()
     with client.messages.stream(
         model=model, max_tokens=max_tokens, system=system, messages=_anthropic_messages(messages),
     ) as stream:

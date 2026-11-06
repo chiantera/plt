@@ -66,7 +66,9 @@ The backend reads provider settings from the environment:
 | `DEEPSEEK_API_KEY` | Primary provider key |
 | `DEEPSEEK_DEFAULT_MODEL` | Ordinary work, defaults to `deepseek-v4-flash` |
 | `DEEPSEEK_PRO_MODEL` | Confirmed Pro legal reasoning route, defaults to `deepseek-v4-pro` |
-| `ANTHROPIC_API_KEY` | Runtime failover provider key, used when a DeepSeek call fails |
+| `NOUS_API_KEY` | Runtime failover to a free model on Nous Portal when a DeepSeek call fails |
+| `PLT_FALLBACK_MODEL` | Failover model, defaults to `meituan/longcat-2.5:free` |
+| `ANTHROPIC_API_KEY` | Optional further failover step |
 | `PLT_MAX_UPLOAD_BYTES` | Upload limit, default `52428800` (50 MB) |
 | `PLT_FLASH_MAX_TOKENS` | Flash generated-output token budget, default `128000` |
 | `PLT_PRO_MAX_TOKENS` | Pro generated-output token budget, default `256000` (doubled; Pro uses ~80-100K reasoning tokens before producing JSON output) |
@@ -154,7 +156,7 @@ backend/
   app/models.py           Pydantic contracts (CaseAnalysis, AnalyzeRequest, AnalyzeJob*, ChatRequest, …)
   app/ocr_adapter.py      Mistral OCR boundary
   app/demo_data.py        Demo case fixture
-  tests/                  Backend contract tests (pytest) — incl. test_user_instructions, test_analysis_jobs, test_llm_failover, test_llm_telemetry
+  tests/                  Backend contract tests (pytest) — incl. test_user_instructions, test_analysis_jobs, test_llm_failover, test_llm_free_fallback, test_llm_telemetry
 
 frontend/
   public/
