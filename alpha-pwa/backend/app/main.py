@@ -122,8 +122,8 @@ def analyze_text(request: AnalyzeRequest) -> StreamingResponse:
     connection before the model responds.  The final event carries either
     {"status":"done","analysis":{...}} or {"status":"error","detail":"..."}.
     """
-    logger.info("analyze-text: title=%s, materials=%d, mode=%s, lang=%s",
-                request.case_title, len(request.materials), request.mode, request.language)
+    logger.info("analyze-text: materials=%d, mode=%s, lang=%s",
+                len(request.materials), request.mode, request.language)
     return StreamingResponse(
         stream_analyze_case(request),
         media_type="text/event-stream",
@@ -167,8 +167,8 @@ def create_analysis_job(request: AnalyzeRequest) -> AnalyzeJobCreated:
     _purge_stale_jobs()
     job_id = uuid.uuid4().hex
     _jobs[job_id] = {"status": "running", "result": None, "error": None, "updated_at": time.time()}
-    logger.info("analyze-job %s queued: title=%s, materials=%d, mode=%s",
-                job_id, request.case_title, len(request.materials), request.mode)
+    logger.info("analyze-job %s queued: materials=%d, mode=%s",
+                job_id, len(request.materials), request.mode)
     _jobs_executor.submit(_run_analysis_job, job_id, request)
     return AnalyzeJobCreated(job_id=job_id)
 
