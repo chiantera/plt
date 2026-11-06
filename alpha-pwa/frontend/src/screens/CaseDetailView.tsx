@@ -2423,7 +2423,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           <div className="pro-recommendation-card" role="status" aria-live="polite">
             <div>
               <p className="eyebrow">{t("Approfondimento Pro con GiulIA")}</p>
-              <p>{d.pro_recommendation.message}</p>
+              <p>{getLanguage() === 'it' ? d.pro_recommendation.message
+                : t('GiulIA suggerisce un’analisi Pro per approfondire il fascicolo.')}</p>
               <p className="muted">{t("L'analisi standard resta inclusa. Pro parte solo con conferma: nessun addebito automatico.")}</p>
             </div>
             <div className="pro-recommendation-actions">

@@ -518,4 +518,5 @@ export const workspaceCopy: Record<string, { en: string; de: string }> = {
   "I fascicoli ospite restano in questo browser. Le funzioni di analisi inviano il testo ai servizi indicati nell’avviso di caricamento.": { en: "Guest cases stay in this browser. Analysis sends text to the services described in the upload notice.", de: "Gastfallakten bleiben in diesem Browser. Bei der Analyse wird Text an die im Upload-Hinweis beschriebenen Dienste gesendet." },
   "Analisi interrotta sul server. Riprova.": { en: "Analysis was interrupted on the server. Try again.", de: "Die Analyse wurde auf dem Server unterbrochen. Versuchen Sie es erneut." },
   "Errore durante l'analisi.": { en: "An error occurred during analysis.", de: "Bei der Analyse ist ein Fehler aufgetreten." },
+  "GiulIA suggerisce un’analisi Pro per approfondire il fascicolo.": { en: "GiulIA suggests Pro analysis for a deeper review of this case.", de: "GiulIA empfiehlt eine Pro-Analyse zur vertieften Prüfung dieser Fallakte." },
 };

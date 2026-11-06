@@ -9,6 +9,7 @@ from datetime import date, datetime
 from collections.abc import Generator
 from pathlib import Path
 
+from .api_messages import translate_error
 from .models import (
     AnalyzeRequest,
     CaseAnalysis,
@@ -529,7 +530,7 @@ def stream_analyze_case(request: AnalyzeRequest) -> Generator[str, None, None]:
         yield f"data: {json.dumps({'status': 'done', 'analysis': case.model_dump()})}\n\n"
 
     except Exception as exc:
-        detail = str(exc)
+        detail = translate_error("Analisi non riuscita. Riprova tra qualche secondo.", request.language)
         logger.error("stream_analyze_case error: %s", exc, exc_info=True)
         yield f"data: {json.dumps({'status': 'error', 'detail': detail})}\n\n"
 
