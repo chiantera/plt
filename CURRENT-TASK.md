@@ -4,6 +4,10 @@ _Last updated: 2026-11-06 by Codex_
 
 ---
 
+## Public Caso Bianchi demo (2026-11-06)
+
+The [Vercel demo link](https://plt-phi.vercel.app/?demo=bianchi) opens the fictional Bianchi fixture directly in the case viewer. Guests can explore the case, inspect sources, enter Aula mode, and export the sample brief. Editing, uploading, drafting, and AI chat stay in the signed-in workspace.
+
 ## Vercel showcase (2026-11-06)
 
 The root Vercel config deploys the Vite UI and FastAPI's stateless routes together. It proxies provider-backed requests to the existing Render backend, including both job submission and polling. The existing Supabase auth project is shared with the alpha.

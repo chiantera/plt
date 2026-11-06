@@ -834,7 +834,13 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')!).render(<App />);
+const isBianchiDemo = new URLSearchParams(window.location.search).get('demo') === 'bianchi';
+
+createRoot(document.getElementById('root')!).render(isBianchiDemo ? (
+  <Suspense fallback={<main className="app-shell loading-shell"><Loader2 className="spin" size={40} /><p>Carico il caso demo…</p></main>}>
+    <CaseDetailView caseId="demo-furto-aggravato-roma-2026" session={null} />
+  </Suspense>
+) : <App />);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

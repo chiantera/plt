@@ -59,6 +59,8 @@ import AccountControls from '../components/AccountControls';
 import AiInstructionsModal, { type AiInstructionsRequest } from '../components/AiInstructionsModal';
 import { startAnalysis, abortAnalysis, dismissAnalysis, useAnalysisState } from '../analysis/analysisManager';
 
+const ReadOnlyCase = React.createContext(false);
+
 const MultiFileUploadDrawer = React.lazy(() => import('../components/MultiFileUploadDrawer'));
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -111,8 +113,9 @@ function useToast() {
   return { toast, showToast, dismissToast: () => setToast(null) };
 }
 
-function useCompletedTasks(caseId: string) {
+function useCompletedTasks(caseId: string, isDemo: boolean) {
   const [completed, setCompleted] = useState<Set<string>>(() => {
+    if (isDemo) return new Set<string>();
     try { return new Set<string>(JSON.parse(localStorage.getItem('plt_tasks') ?? '[]')); }
     catch { return new Set<string>(); }
   });
@@ -134,8 +137,9 @@ function useCompletedTasks(caseId: string) {
   return { toggle, isDone, doneCount };
 }
 
-function useRedactionRules() {
+function useRedactionRules(isDemo: boolean) {
   const [globalRules, setGlobalRulesState] = useState<RedactionRule[]>(() => {
+    if (isDemo) return [];
     try { return JSON.parse(localStorage.getItem('plt_redaction_rules') ?? '[]'); }
     catch { return []; }
   });
@@ -191,6 +195,7 @@ function Editable({ value, onChange, placeholder, multiline, className, readOnly
   className?: string;
   readOnly?: boolean;
 }) {
+  const isDemo = React.useContext(ReadOnlyCase);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -210,6 +215,8 @@ function Editable({ value, onChange, placeholder, multiline, className, readOnly
     if (next !== value) onChange(next);
   };
   const cancel = () => { setDraft(value); setEditing(false); };
+
+  if (isDemo) return <span className={className}>{value}</span>;
 
   if (editing) {
     if (multiline) {
@@ -264,6 +271,7 @@ function Editable({ value, onChange, placeholder, multiline, className, readOnly
 }
 
 function RowDelete({ onClick, label }: { onClick: () => void; label?: string }) {
+  if (React.useContext(ReadOnlyCase)) return null;
   return (
     <button
       className="row-delete-btn"
@@ -276,6 +284,7 @@ function RowDelete({ onClick, label }: { onClick: () => void; label?: string }) 
 }
 
 function AddRowButton({ label, onClick }: { label: string; onClick: () => void }) {
+  if (React.useContext(ReadOnlyCase)) return null;
   return (
     <button title="Aggiungi nuova riga" className="add-row-btn" onClick={onClick}>
       <Plus size={14} /> {label}
@@ -289,6 +298,9 @@ function EditableSelect<T extends string>({ value, options, onChange, className 
   onChange: (v: T) => void;
   className?: string;
 }) {
+  if (React.useContext(ReadOnlyCase)) {
+    return <span className={className}>{options.find(option => option.value === value)?.label ?? value}</span>;
+  }
   return (
     <select
       className={`editable-select ${className ?? ''}`}
@@ -306,6 +318,7 @@ function EditablePercent({ value, onChange, className }: {
   onChange: (v: number) => void;
   className?: string;
 }) {
+  const isDemo = React.useContext(ReadOnlyCase);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(Math.round(value * 100)));
   const ref = useRef<HTMLInputElement>(null);
@@ -319,6 +332,8 @@ function EditablePercent({ value, onChange, className }: {
     if (Math.abs(asFloat - value) > 0.001) onChange(asFloat);
     setDraft(String(n));
   };
+
+  if (isDemo) return <span className={className}>{Math.round(value * 100)}%</span>;
 
   if (editing) {
     return (
@@ -424,7 +439,7 @@ function MaterialDrawer({ material, onClose }: { material: Material | null; onCl
   );
 }
 
-function RawDocDrawer({ doc, onClose, onDelete }: { doc: RawDocument | null; onClose: () => void; onDelete: (id: string) => void }) {
+function RawDocDrawer({ doc, onClose, onDelete }: { doc: RawDocument | null; onClose: () => void; onDelete?: (id: string) => void }) {
   if (!doc) return null;
   return (
     <div className="drawer-backdrop" onClick={onClose}>
@@ -433,7 +448,7 @@ function RawDocDrawer({ doc, onClose, onDelete }: { doc: RawDocument | null; onC
         <div className="drawer-header">
           <div><p className="eyebrow">{doc.name}</p><h2>{doc.description || doc.name}</h2></div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button title="Esegui azione" onClick={() => { onDelete(doc.doc_id); onClose(); }} className="ghost-button" style={{ color: 'var(--critical)' }}><Trash2 size={16} /></button>
+            {onDelete && <button title="Esegui azione" onClick={() => { onDelete(doc.doc_id); onClose(); }} className="ghost-button" style={{ color: 'var(--critical)' }}><Trash2 size={16} /></button>}
             <button onClick={onClose} className="ghost-button" title="Chiudi la finestra corrente">Chiudi</button>
           </div>
         </div>
@@ -605,15 +620,15 @@ function AulaModeOverlay({ caseData, onClose }: { caseData: CaseAnalysis; onClos
 // ── Legal analysis tab ────────────────────────────────────────────────────────
 
 
-function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdate, draftMode, onSetDraftMode }: {
+function LegalAnalysisTab({ la, onSelectSource, onOpenDraft, onUpdate, draftMode, onSetDraftMode }: {
   la: LegalAnalysis;
   onSelectSource: (s: SourceRef) => void;
-  onOpenChat: (key: string) => void;
   onOpenDraft: (type: DraftArtifactType, title?: string, extraInstruction?: string) => void;
   onUpdate: (updater: (la: LegalAnalysis) => LegalAnalysis) => void;
   draftMode: 'flash' | 'pro';
   onSetDraftMode: (m: 'flash' | 'pro') => void;
 }) {
+  const isDemo = React.useContext(ReadOnlyCase);
   const [expandedCharge, setExpandedCharge] = useState<number | null>(0);
   const [expandedStrategy, setExpandedStrategy] = useState<number | null>(0);
   const evidenceBalance: EvidenceBalance = la.evidence_balance ?? {
@@ -973,16 +988,18 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdat
               addLabel="Aggiungi domanda"
             />
             <SourceRow refs={w.source_refs} onSelect={onSelectSource} />
-            <button title="Esegui azione"
-              className="giulia-ctx-btn"
-              onClick={() => onOpenDraft(
-                'witnessCrossExam',
-                `Controesame — ${w.witness_name || 'testimone'}`,
-                `Preparami una sequenza di controesame per ${w.witness_name} (${w.role}, credibilità ${Math.round(w.credibility_score * 100)}%). Testimonianza chiave: "${w.key_testimony}". Vulnerabilità note: ${w.vulnerabilities.join('; ') || 'da sviluppare'}. Usa domande chiuse sì/no per massimizzare l'impatto.`
-              )}
-            >
-              <MessageSquare size={12} /> Prepara controesame con GiulIA
-            </button>
+            {!isDemo && (
+              <button title="Esegui azione"
+                className="giulia-ctx-btn"
+                onClick={() => onOpenDraft(
+                  'witnessCrossExam',
+                  `Controesame — ${w.witness_name || 'testimone'}`,
+                  `Preparami una sequenza di controesame per ${w.witness_name} (${w.role}, credibilità ${Math.round(w.credibility_score * 100)}%). Testimonianza chiave: "${w.key_testimony}". Vulnerabilità note: ${w.vulnerabilities.join('; ') || 'da sviluppare'}. Usa domande chiuse sì/no per massimizzare l'impatto.`
+                )}
+              >
+                <MessageSquare size={12} /> Prepara controesame con GiulIA
+              </button>
+            )}
           </div>
         ))}
         <AddRowButton label="Aggiungi testimone" onClick={addWitness} />
@@ -1062,45 +1079,47 @@ function LegalAnalysisTab({ la, onSelectSource, onOpenChat, onOpenDraft, onUpdat
       </div>
 
       {/* AI drafting */}
-      <div className="legal-drafting-box">
-        <div className="legal-drafting-header">
-          <Sparkles size={16} />
-          <div>
-            <div className="legal-drafting-title">Redazione atti con AI</div>
-            <div className="legal-drafting-sub">Memorie, ricorsi, eccezioni — ragionamento giuridico reale, non template</div>
+      {!isDemo && (
+        <div className="legal-drafting-box">
+          <div className="legal-drafting-header">
+            <Sparkles size={16} />
+            <div>
+              <div className="legal-drafting-title">Redazione atti con AI</div>
+              <div className="legal-drafting-sub">Memorie, ricorsi, eccezioni — ragionamento giuridico reale, non template</div>
+            </div>
+            <div className="mode-toggle" role="group" aria-label="Modello per le bozze" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+              <button
+                className={`mode-toggle-btn${draftMode === 'flash' ? ' active' : ''}`}
+                onClick={() => onSetDraftMode('flash')}
+                title="Bozze Flash — veloce, ottimo per la maggior parte degli atti"
+              >Flash</button>
+              <button
+                className={`mode-toggle-btn mode-toggle-btn--pro${draftMode === 'pro' ? ' active' : ''}`}
+                onClick={() => onSetDraftMode('pro')}
+                title="Bozze Pro — ragionamento profondo, consigliato per Ricorso Cassazione"
+              >✦ Pro</button>
+            </div>
           </div>
-          <div className="mode-toggle" role="group" aria-label="Modello per le bozze" style={{ marginLeft: 'auto', flexShrink: 0 }}>
-            <button
-              className={`mode-toggle-btn${draftMode === 'flash' ? ' active' : ''}`}
-              onClick={() => onSetDraftMode('flash')}
-              title="Bozze Flash — veloce, ottimo per la maggior parte degli atti"
-            >Flash</button>
-            <button
-              className={`mode-toggle-btn mode-toggle-btn--pro${draftMode === 'pro' ? ' active' : ''}`}
-              onClick={() => onSetDraftMode('pro')}
-              title="Bozze Pro — ragionamento profondo, consigliato per Ricorso Cassazione"
-            >✦ Pro</button>
+          <div className="legal-drafting-grid">
+            {([
+              { key: 'memoria',    label: 'Memoria difensiva',     desc: 'Atto completo con IN FATTO, IN DIRITTO e CONCLUSIONI', icon: FileText },
+              { key: 'cassazione', label: 'Ricorso Cassazione',    desc: 'Motivi ex art. 606 c.p.p. con giurisprudenza', icon: Scale },
+              { key: 'eccezione',  label: 'Eccezione procedurale', desc: 'Nullità / inutilizzabilità / inammissibilità', icon: ShieldAlert },
+              { key: 'crossExam',  label: 'Controesame',           desc: 'Schema domande per ciascun testimone dell\'accusa', icon: Users },
+              { key: 'strategy',   label: 'Analisi strategica',    desc: 'Valutazione realistica di ogni linea difensiva', icon: Sparkles },
+            ] as const).map(({ key, label, desc, icon: Icon }) => (
+              <button key={key} className="legal-drafting-card" title="Apri una nuova bozza nel workspace" onClick={() => onOpenDraft(key, label)}>
+                <div className="legal-drafting-card-icon"><Icon size={18} /></div>
+                <div className="legal-drafting-card-label">{label}</div>
+                <div className="legal-drafting-card-desc">{desc}</div>
+              </button>
+            ))}
           </div>
+          <p className="legal-drafting-note">
+            L'AI prepara bozze locali modificabili: l'avvocato resta in controllo e verifica fonti, norme e precedenti prima del deposito.
+          </p>
         </div>
-        <div className="legal-drafting-grid">
-          {([
-            { key: 'memoria',    label: 'Memoria difensiva',     desc: 'Atto completo con IN FATTO, IN DIRITTO e CONCLUSIONI', icon: FileText },
-            { key: 'cassazione', label: 'Ricorso Cassazione',    desc: 'Motivi ex art. 606 c.p.p. con giurisprudenza', icon: Scale },
-            { key: 'eccezione',  label: 'Eccezione procedurale', desc: 'Nullità / inutilizzabilità / inammissibilità', icon: ShieldAlert },
-            { key: 'crossExam',  label: 'Controesame',           desc: 'Schema domande per ciascun testimone dell\'accusa', icon: Users },
-            { key: 'strategy',   label: 'Analisi strategica',    desc: 'Valutazione realistica di ogni linea difensiva', icon: Sparkles },
-          ] as const).map(({ key, label, desc, icon: Icon }) => (
-            <button key={key} className="legal-drafting-card" title="Apri una nuova bozza nel workspace" onClick={() => onOpenDraft(key, label)}>
-              <div className="legal-drafting-card-icon"><Icon size={18} /></div>
-              <div className="legal-drafting-card-label">{label}</div>
-              <div className="legal-drafting-card-desc">{desc}</div>
-            </button>
-          ))}
-        </div>
-        <p className="legal-drafting-note">
-          L'AI prepara bozze locali modificabili: l'avvocato resta in controllo e verifica fonti, norme e precedenti prima del deposito.
-        </p>
-      </div>
+      )}
     </section>
   );
 }
@@ -1522,7 +1541,25 @@ const tabs: Array<{ id: TabId; label: string }> = [
   { id: 'brief', label: 'Promemoria' },
 ];
 
-function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onCaseAnalyzed }: { caseId: string; session: Session; onBack: () => void; onOpenChat: (key: string) => void; onCaseLoaded: (d: CaseAnalysis) => void; onCaseAnalyzed?: (d: CaseAnalysis) => void }) {
+type CaseDetailProps = { caseId: string } & (
+  | {
+      session: Session;
+      onBack: () => void;
+      onOpenChat: (key: string) => void;
+      onCaseLoaded: (data: CaseAnalysis) => void;
+      onCaseAnalyzed?: (data: CaseAnalysis) => void;
+    }
+  | {
+      session: null;
+      onBack?: never;
+      onOpenChat?: never;
+      onCaseLoaded?: never;
+      onCaseAnalyzed?: never;
+    }
+);
+
+function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onCaseAnalyzed }: CaseDetailProps) {
+  const isDemo = React.useContext(ReadOnlyCase);
   const [caseData, setCaseData] = useState<CaseAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('timeline');
@@ -1539,6 +1576,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const [pendingAi, setPendingAi] = useState<AiInstructionsRequest | null>(null);
   const [generatingDraftId, setGeneratingDraftId] = useState<string | null>(null);
   const [analyzeMode, setAnalyzeMode] = useState<'flash' | 'pro'>(() => {
+    if (isDemo) return 'flash';
     try { return (localStorage.getItem('plt_analyze_mode') as 'flash' | 'pro') || 'flash'; }
     catch { return 'flash'; }
   });
@@ -1547,6 +1585,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     try { localStorage.setItem('plt_analyze_mode', m); } catch {}
   }, []);
   const [draftMode, setDraftMode] = useState<'flash' | 'pro'>(() => {
+    if (isDemo) return 'flash';
     try { return (localStorage.getItem('plt_draft_mode') as 'flash' | 'pro') || 'flash'; }
     catch { return 'flash'; }
   });
@@ -1564,8 +1603,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const localOwnerId = useMemo(() => localOwnerIdFromSession(session), [session]);
 
   const { toast, showToast, dismissToast } = useToast();
-  const { toggle: toggleTask, isDone, doneCount } = useCompletedTasks(caseId);
-  const { globalRules, setGlobalRules } = useRedactionRules();
+  const { toggle: toggleTask, isDone, doneCount } = useCompletedTasks(caseId, isDemo);
+  const { globalRules, setGlobalRules } = useRedactionRules(isDemo);
   const caseRedactionRules = caseData?.redaction_rules ?? [];
   const mergedRules = mergeRedactionRules(globalRules, caseRedactionRules);
   const hasActiveRules = mergedRules.some(r => r.enabled && r.original.trim());
@@ -1616,33 +1655,35 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   const materialsRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (caseId === '__new__') {
+    if (!isDemo && caseId === '__new__') {
       const nc = (window as any).__newCase as CaseAnalysis | undefined;
-      if (nc) { setCaseData(nc); onCaseLoaded(nc); return; }
+      if (nc) { setCaseData(nc); onCaseLoaded?.(nc); return; }
     }
     (async () => {
-      // Check IndexedDB first — data stays local
-      const local = await dbGet(localOwnerId, caseId) as CaseAnalysis | null;
-      if (local) { setCaseData(local); onCaseLoaded(local); return; }
+      if (!isDemo) {
+        const local = await dbGet(localOwnerId, caseId) as CaseAnalysis | null;
+        if (local) { setCaseData(local); onCaseLoaded?.(local); return; }
+      }
       // Fall back to backend demo cases
       try {
         const r = await fetch(`${API}/api/cases/${caseId}`);
         if (!r.ok) throw new Error(`${r.status}`);
         const d = await r.json() as CaseAnalysis;
-        setCaseData(d); onCaseLoaded(d);
+        setCaseData(d); onCaseLoaded?.(d);
       } catch (e) { setError((e as Error).message); }
     })();
-  }, [caseId, localOwnerId, onCaseLoaded]);
+  }, [caseId, isDemo, localOwnerId, onCaseLoaded]);
 
   // React to the background analysis finishing (here or while we were away):
   // reload the merged result the manager already saved, or surface an error.
   const analysisStatus = analysis?.status;
   useEffect(() => {
+    if (isDemo) return;
     if (analysisStatus === 'done') {
       (async () => {
         const fresh = await dbGet(localOwnerId, caseId) as CaseAnalysis | null;
         if (fresh) {
-          setCaseData(fresh); onCaseLoaded(fresh); onCaseAnalyzed?.(fresh);
+          setCaseData(fresh); onCaseLoaded?.(fresh); onCaseAnalyzed?.(fresh);
           if (fresh.pro_recommendation?.recommended) {
             showToast('Analisi standard completata. GiulIA suggerisce un Approfondimento Pro: nessun addebito senza conferma.', 'info');
           } else {
@@ -1655,7 +1696,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       showToast(`Errore analisi: ${analysis?.error ?? ''}`, 'error');
       dismissAnalysis(caseId);
     }
-  }, [analysisStatus, caseId, localOwnerId, onCaseLoaded, onCaseAnalyzed, showToast]);
+  }, [analysisStatus, caseId, isDemo, localOwnerId, onCaseLoaded, onCaseAnalyzed, showToast]);
 
   const scrollTo = (ref: React.RefObject<HTMLElement | HTMLHeadingElement | null>) => {
     setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
@@ -1898,11 +1939,11 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   }, [buildExportCase, caseData, downloadPlt, showToast]);
 
   const updateCase = useCallback(async (updater: (c: CaseAnalysis) => CaseAnalysis) => {
-    if (!caseData) return;
+    if (isDemo || !caseData) return;
     const updated = updater(caseData);
     await dbSave(localOwnerId, updated);
     setCaseData(updated);
-  }, [caseData]);
+  }, [caseData, isDemo, localOwnerId]);
 
   const fetchChatFull = useCallback(async (userMessage: string, opts?: { maxTokens?: number; mode?: 'flash' | 'pro' }): Promise<string> => {
     const body: Record<string, unknown> = { messages: [{ role: 'user', content: userMessage }], mode: opts?.mode ?? 'flash' };
@@ -1969,7 +2010,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     const createdCase = addDraftArtifact(caseData, placeholder);
     await dbSave(localOwnerId, createdCase);
     setCaseData(createdCase);
-    onCaseLoaded(createdCase);
+    onCaseLoaded?.(createdCase);
     setActiveDraftId(placeholder.id);
     setActiveTab('drafts');
     setGeneratingDraftId(placeholder.id);
@@ -1988,7 +2029,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       const finalizedCase = updateDraftArtifact(createdCase, finalized);
       await dbSave(localOwnerId, finalizedCase);
       setCaseData(finalizedCase);
-      onCaseLoaded(finalizedCase);
+      onCaseLoaded?.(finalizedCase);
       showToast('Bozza salvata nel fascicolo');
     } catch (e) {
       const failed = {
@@ -2003,7 +2044,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       const failedCase = updateDraftArtifact(createdCase, failed);
       await dbSave(localOwnerId, failedCase);
       setCaseData(failedCase);
-      onCaseLoaded(failedCase);
+      onCaseLoaded?.(failedCase);
       showToast(`Generazione bozza fallita: ${(e as Error).message}`, 'error');
     } finally {
       setGeneratingDraftId(null);
@@ -2086,7 +2127,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           pro_recommendation: { ...caseData.pro_recommendation, recommended: false },
         };
         setCaseData(analysisBase);
-        onCaseLoaded(analysisBase);
+        onCaseLoaded?.(analysisBase);
         await dbSave(localOwnerId, analysisBase);
       }
     }
@@ -2215,7 +2256,9 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   if (error) return (
     <main className="app-shell loading-shell">
       <AlertTriangle /><h1>Errore</h1><p>{error}</p>
-      <button title="Azione secondaria" className="ghost-button" onClick={onBack}>← Torna ai fascicoli</button>
+      {isDemo
+        ? <a className="ghost-button" href="./">Vai all’accesso</a>
+        : <button title="Azione secondaria" className="ghost-button" onClick={onBack}>← Torna ai fascicoli</button>}
     </main>
   );
 
@@ -2250,11 +2293,20 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
     <main className="app-shell">
       {/* Back button */}
       <div className="case-topbar">
-        <button className="back-button" title="Torna alla lista principale dei fascicoli" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
-        <AccountControls session={session} />
+        {session ? (
+          <>
+            <button className="back-button" title="Torna alla lista principale dei fascicoli" onClick={onBack}><ArrowLeft size={15} /> Fascicoli</button>
+            <AccountControls session={session} />
+          </>
+        ) : (
+          <>
+            <span className="eyebrow">Demo pubblica · Caso fittizio</span>
+            <a className="back-button" href="./">Accedi a PLT <ArrowRight size={15} /></a>
+          </>
+        )}
       </div>
 
-      <AnalysisProgressBanner analyzing={analyzing} onAbort={() => abortAnalysis(caseId)} />
+      {!isDemo && <AnalysisProgressBanner analyzing={analyzing} onAbort={() => abortAnalysis(caseId)} />}
 
       {/* Hero */}
       <section className="hero-card">
@@ -2266,33 +2318,35 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 {riskIcon(la.risk_level)} Rischio {riskLabel(la.risk_level)}
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
-              <button
-                className={`anonymize-action-btn${redactionActive ? ' anonymize-action-active' : ''}`}
-                onClick={() => setShowRedactionDrawer(true)}
-                title="Anonimizza dati sensibili prima di condividere"
-              >
-                {redactionActive ? <EyeOff size={13} /> : <ShieldCheck size={13} />}
-                {redactionActive ? 'Vista anonimizzata' : `Anonimizza${mergedRules.filter(r => r.enabled).length ? ` · ${mergedRules.filter(r => r.enabled).length}` : ''}`}
-              </button>
-              {mergedRules.some(r => r.enabled) && (
+            {!isDemo && (<>
+              <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
                 <button
-                  className={`ghost-button redact-toggle-btn${redactionActive ? ' redact-toggle-active' : ''}`}
-                  style={{ padding: '0 10px', height: 'auto', borderRadius: 999 }}
-                  onClick={() => setRedactionActive(v => !v)}
-                  title={redactionActive ? 'Mostra dati originali' : 'Mostra vista anonimizzata'}
+                  className={`anonymize-action-btn${redactionActive ? ' anonymize-action-active' : ''}`}
+                  onClick={() => setShowRedactionDrawer(true)}
+                  title="Anonimizza dati sensibili prima di condividere"
                 >
-                  {redactionActive ? <Eye size={13} /> : <EyeOff size={13} />}
+                  {redactionActive ? <EyeOff size={13} /> : <ShieldCheck size={13} />}
+                  {redactionActive ? 'Vista anonimizzata' : `Anonimizza${mergedRules.filter(r => r.enabled).length ? ` · ${mergedRules.filter(r => r.enabled).length}` : ''}`}
                 </button>
-              )}
-            </div>
-            <button
-              className="ghost-button"
-              onClick={() => setShowExportModal(true)}
-              title="Esporta fascicolo"
-            >
-              <Share2 size={13} /> Esporta
-            </button>
+                {mergedRules.some(r => r.enabled) && (
+                  <button
+                    className={`ghost-button redact-toggle-btn${redactionActive ? ' redact-toggle-active' : ''}`}
+                    style={{ padding: '0 10px', height: 'auto', borderRadius: 999 }}
+                    onClick={() => setRedactionActive(v => !v)}
+                    title={redactionActive ? 'Mostra dati originali' : 'Mostra vista anonimizzata'}
+                  >
+                    {redactionActive ? <Eye size={13} /> : <EyeOff size={13} />}
+                  </button>
+                )}
+              </div>
+              <button
+                className="ghost-button"
+                onClick={() => setShowExportModal(true)}
+                title="Esporta fascicolo"
+              >
+                <Share2 size={13} /> Esporta
+              </button>
+            </>)}
           </div>
         </div>
         <h1>
@@ -2313,52 +2367,54 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           />
         </p>
         <div className="hero-actions">
-          <button className="primary-button" data-tour="add-document" onClick={() => { setShowUpload(true); wizardBus.emit('upload-opened'); }} title="Carica nuovi documenti PDF o immagini" style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
-            <Upload size={15} /> Aggiungi documento
-            {uploadQueue.length > 0 && (
-              <span className="upload-badge-hero">
-                {uploadProcessing
-                  ? <><Loader2 size={11} className="spin" /> {uploadQueue.filter(i => i.status === 'uploading' || i.status === 'pending').length} in elaborazione</>
-                  : `${uploadQueue.length} in coda`}
-              </span>
-            )}
-          </button>
-          <div className="mode-toggle" role="group" aria-label="Modalità analisi AI">
-            <button
-              className={`mode-toggle-btn${analyzeMode === 'flash' ? ' active' : ''}`}
-              onClick={() => setAndSaveMode('flash')}
-              title="Analisi Flash — veloce, estrae struttura e fatti"
-            >Flash</button>
-            <button
-              className={`mode-toggle-btn mode-toggle-btn--pro${analyzeMode === 'pro' ? ' active' : ''}`}
-              onClick={() => setAndSaveMode('pro')}
-              title="Analisi Pro — ragionamento profondo su contraddizioni, strategie e rischi procedurali"
-            >✦ Pro</button>
-          </div>
-          <button title="Esegui analisi AI"
-            data-tour="analyze"
-            className={analyzeMode === 'pro' ? 'primary-button' : 'secondary-button'}
-            onClick={() => requestAnalyze(analyzeMode)}
-            disabled={analyzing || rawDocs.length === 0}
-          >
-            <Sparkles size={14} />
-            {analyzeButtonLabel}
-          </button>
-          {hasExistingAnalysis && (
-            <button
-              className="ghost-button"
-              onClick={requestReanalyze}
-              disabled={analyzing || rawDocs.length === 0}
-              title="Ri-analizza tutti i documenti preservando modifiche manuali e materiali"
-            >
-              <RefreshCw size={13} /> Ri-analizza
+          {!isDemo && (<>
+            <button className="primary-button" data-tour="add-document" onClick={() => { setShowUpload(true); wizardBus.emit('upload-opened'); }} title="Carica nuovi documenti PDF o immagini" style={uploadQueue.length > 0 ? { position: 'relative' } : undefined}>
+              <Upload size={15} /> Aggiungi documento
+              {uploadQueue.length > 0 && (
+                <span className="upload-badge-hero">
+                  {uploadProcessing
+                    ? <><Loader2 size={11} className="spin" /> {uploadQueue.filter(i => i.status === 'uploading' || i.status === 'pending').length} in elaborazione</>
+                    : `${uploadQueue.length} in coda`}
+                </span>
+              )}
             </button>
-          )}
+            <div className="mode-toggle" role="group" aria-label="Modalità analisi AI">
+              <button
+                className={`mode-toggle-btn${analyzeMode === 'flash' ? ' active' : ''}`}
+                onClick={() => setAndSaveMode('flash')}
+                title="Analisi Flash — veloce, estrae struttura e fatti"
+              >Flash</button>
+              <button
+                className={`mode-toggle-btn mode-toggle-btn--pro${analyzeMode === 'pro' ? ' active' : ''}`}
+                onClick={() => setAndSaveMode('pro')}
+                title="Analisi Pro — ragionamento profondo su contraddizioni, strategie e rischi procedurali"
+              >✦ Pro</button>
+            </div>
+            <button title="Esegui analisi AI"
+              data-tour="analyze"
+              className={analyzeMode === 'pro' ? 'primary-button' : 'secondary-button'}
+              onClick={() => requestAnalyze(analyzeMode)}
+              disabled={analyzing || rawDocs.length === 0}
+            >
+              <Sparkles size={14} />
+              {analyzeButtonLabel}
+            </button>
+            {hasExistingAnalysis && (
+              <button
+                className="ghost-button"
+                onClick={requestReanalyze}
+                disabled={analyzing || rawDocs.length === 0}
+                title="Ri-analizza tutti i documenti preservando modifiche manuali e materiali"
+              >
+                <RefreshCw size={13} /> Ri-analizza
+              </button>
+            )}
+          </>)}
           <button className="aula-trigger-btn" title="Avvia la modalità Aula per la consultazione rapida in udienza" onClick={() => setAulaModeActive(true)}>
             <Gavel size={14} /> Aula
           </button>
         </div>
-        {d.pro_recommendation?.recommended && (
+        {!isDemo && d.pro_recommendation?.recommended && (
           <div className="pro-recommendation-card" role="status" aria-live="polite">
             <div>
               <p className="eyebrow">Approfondimento Pro con GiulIA</p>
@@ -2380,7 +2436,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
         )}
       </section>
 
-      <GiuliaPromptBar onOpenChat={(msg) => onOpenChat(msg ?? '')} />
+      {onOpenChat && <GiuliaPromptBar onOpenChat={(msg) => onOpenChat(msg ?? '')} />}
 
       {/* Stats */}
       <section className="stats-grid">
@@ -2406,19 +2462,21 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             <h2>{nextDeadline.title}</h2>
             <p>{formatDate(nextDeadline.due_date)}{nextDeadline.due_time ? ` · ${nextDeadline.due_time}` : ''} · {nextDeadline.status === 'confirmed' ? 'confermato' : 'da confermare'}</p>
             <p>{nextDeadline.description}</p>
-            <button title="Apri una nuova bozza di preparazione udienza"
-              className="giulia-ctx-btn"
-              onClick={e => {
-                e.stopPropagation();
-                requestDraft(
-                  'strategy',
-                  nextDeadline.title,
-                  `Prepara una bozza operativa sulla prossima priorità "${nextDeadline.title}" (${nextDeadline.due_date}${nextDeadline.due_time ? ` alle ${nextDeadline.due_time}` : ''}). Indica priorità difensive, documenti da portare o acquisire, atti da predisporre, rischi, verifiche fattuali e fonti da controllare. Descrizione scadenza/priorità: ${nextDeadline.description}`
-                );
-              }}
-            >
-              <MessageSquare size={12} /> Prepara con GiulIA
-            </button>
+            {!isDemo && (
+              <button title="Apri una nuova bozza di preparazione udienza"
+                className="giulia-ctx-btn"
+                onClick={e => {
+                  e.stopPropagation();
+                  requestDraft(
+                    'strategy',
+                    nextDeadline.title,
+                    `Prepara una bozza operativa sulla prossima priorità "${nextDeadline.title}" (${nextDeadline.due_date}${nextDeadline.due_time ? ` alle ${nextDeadline.due_time}` : ''}). Indica priorità difensive, documenti da portare o acquisire, atti da predisporre, rischi, verifiche fattuali e fonti da controllare. Descrizione scadenza/priorità: ${nextDeadline.description}`
+                  );
+                }}
+              >
+                <MessageSquare size={12} /> Prepara con GiulIA
+              </button>
+            )}
           </div>
           <ShieldCheck className="deadline-icon" />
         </section>
@@ -2426,7 +2484,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
 
       {/* Tab bar (scrollable) */}
       <nav className="tab-bar">
-        {tabs.map(tab => (
+        {tabs.filter(tab => !isDemo || tab.id !== 'drafts').map(tab => (
           <button title="Esegui azione" key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>
             {tab.id === 'legal' && la && (
               <span className="tab-risk-dot" style={{ background: riskColor(la.risk_level) }} />
@@ -2474,7 +2532,8 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 </h3>
                 <button
                   className={`defense-position-badge dp-${ev.defense_position ?? 'contested'}`}
-                  title="Clicca per cambiare posizione difensiva su questo fatto"
+                  disabled={isDemo}
+                  title={isDemo ? "Posizione difensiva" : "Clicca per cambiare posizione difensiva su questo fatto"}
                   onClick={() => updateTimelineEvent(i, { defense_position: cycleDefensePosition(ev.defense_position) })}
                 >
                   {ev.defense_position === 'admitted' ? '✓ Pacifico' : ev.defense_position === 'denied' ? '✗ Negato' : '⚠ Contestato'}
@@ -2559,6 +2618,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 <label className="muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', marginBottom: 8 }}>
                   <input
                     type="checkbox"
+                    disabled={isDemo}
                     checked={Boolean(dl.feriale_applied)}
                     onChange={e => upd({ feriale_applied: e.target.checked })}
                   />
@@ -2591,6 +2651,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                   {dl.tasks.map((t, ti) => (
                     <li key={ti} className={`task-item${isDone(dl.title, ti) ? ' task-done' : ''}`} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <button title="Esegui azione"
+                        disabled={isDemo}
                         onClick={() => toggleTask(dl.title, ti)}
                         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', marginTop: 2 }}
                       >
@@ -2710,7 +2771,6 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
           ? <LegalAnalysisTab
               la={la}
               onSelectSource={setSelectedSource}
-              onOpenChat={onOpenChat}
               onOpenDraft={requestDraft}
               onUpdate={updater => updateCase(c => ({ ...c, legal_analysis: c.legal_analysis ? updater(c.legal_analysis) : null }))}
               draftMode={draftMode}
@@ -2720,35 +2780,37 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             <section className="panel">
               <div className="empty-state-placeholder">
                 <p className="muted" style={{ marginBottom: 12 }}>Nessuna analisi legale presente.</p>
-                <p className="muted" style={{ fontSize: '0.85rem' }}>Carica dei documenti e clicca su <strong>Analizza con AI</strong> per estrarre in automatico capi di imputazione e strategia, oppure clicca qui sotto per creare l'analisi manualmente.</p>
+                {!isDemo && <p className="muted" style={{ fontSize: '0.85rem' }}>Carica dei documenti e clicca su <strong>Analizza con AI</strong> per estrarre in automatico capi di imputazione e strategia, oppure clicca qui sotto per creare l'analisi manualmente.</p>}
               </div>
-              <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-                <button title="Esegui analisi AI" className="primary-button" onClick={() => requestAnalyze(analyzeMode)} disabled={analyzing || rawDocs.length === 0}>
-                  <Sparkles size={14} /> {analyzeMode === 'pro' ? 'Analizza con AI (Pro)' : 'Analizza con AI'}
-                </button>
-                <button title="Esegui azione"
-                  className="secondary-button"
-                  onClick={() => updateCase(c => ({ ...c, legal_analysis: {
-                    risk_level: 'medium',
-                    risk_summary: '',
-                    immediate_actions: [],
-                    charges: [],
-                    strategies: [],
-                    constitutional_issues: [],
-                    witness_assessments: [],
-                    evidence_balance: { prosecution_strength: 0.5, defense_strength: 0.5, key_prosecution_evidence: [], key_defense_evidence: [], critical_gaps: [], overall_assessment: '' },
-                    client_summary: '',
-                  } }))}
-                >
-                  <Plus size={14} /> Crea analisi manualmente
-                </button>
-              </div>
+              {!isDemo && (
+                <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+                  <button title="Esegui analisi AI" className="primary-button" onClick={() => requestAnalyze(analyzeMode)} disabled={analyzing || rawDocs.length === 0}>
+                    <Sparkles size={14} /> {analyzeMode === 'pro' ? 'Analizza con AI (Pro)' : 'Analizza con AI'}
+                  </button>
+                  <button title="Esegui azione"
+                    className="secondary-button"
+                    onClick={() => updateCase(c => ({ ...c, legal_analysis: {
+                      risk_level: 'medium',
+                      risk_summary: '',
+                      immediate_actions: [],
+                      charges: [],
+                      strategies: [],
+                      constitutional_issues: [],
+                      witness_assessments: [],
+                      evidence_balance: { prosecution_strength: 0.5, defense_strength: 0.5, key_prosecution_evidence: [], key_defense_evidence: [], critical_gaps: [], overall_assessment: '' },
+                      client_summary: '',
+                    } }))}
+                  >
+                    <Plus size={14} /> Crea analisi manualmente
+                  </button>
+                </div>
+              )}
             </section>
           )
       )}
 
       {/* Drafting workspace */}
-      {activeTab === 'drafts' && (
+      {!isDemo && activeTab === 'drafts' && (
         <DraftingWorkspace
           caseTitle={caseData.case_title}
           drafts={caseData.draft_artifacts ?? []}
@@ -2788,7 +2850,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 />
               </p>
               <SourceRow refs={q.source_refs} onSelect={setSelectedSource} />
-              {q.question && (
+              {onOpenChat && q.question && (
                 <button className="giulia-ctx-btn" title="Chiedi a GiulIA di analizzare questo elemento in dettaglio" onClick={() => onOpenChat(`Come indago questa questione: "${q.question}"? Perché conta: ${q.why_it_matters}. Suggerisci le mosse concrete per rispondere a questa domanda difensiva.`)}>
                   <MessageSquare size={12} /> Chiedi a GiulIA
                 </button>
@@ -2863,7 +2925,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 />
               </p>
               <SourceRow refs={ct.source_refs} onSelect={setSelectedSource} />
-              {ct.title && (
+              {onOpenChat && ct.title && (
                 <button className="giulia-ctx-btn" title="Chiedi a GiulIA di analizzare questo elemento in dettaglio" onClick={() => onOpenChat(`Come possiamo sfruttare in udienza la contraddizione "${ct.title}"? ${ct.description} Suggerisci come usarla nella strategia difensiva e quali domande fare ai testimoni.`)}>
                   <MessageSquare size={12} /> Chiedi a GiulIA
                 </button>
@@ -2881,16 +2943,18 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
             <button className="brief-action-btn" title="Azione rapida sul documento" onClick={exportBriefDocx}><FileText size={14} /> Scarica DOCX</button>
             <button className="brief-action-btn" title="Azione rapida sul documento" onClick={exportBrief}><Copy size={14} /> Copia</button>
             <button className="brief-action-btn" title="Azione rapida sul documento" onClick={shareBrief}><Share2 size={14} /> Condividi</button>
-            <button className="brief-action-btn" title="Azione rapida sul documento" onClick={handleAnonymizeBrief}><EyeOff size={14} /> Anonimizza</button>
+            {!isDemo && <button className="brief-action-btn" title="Azione rapida sul documento" onClick={handleAnonymizeBrief}><EyeOff size={14} /> Anonimizza</button>}
             <button className="brief-action-btn" title="Azione rapida sul documento" onClick={() => setAulaModeActive(true)}><Gavel size={14} /> Aula Mode</button>
           </div>
-          <textarea
-            className="editable-input editable-input-multi brief-editor"
-            value={caseData.brief_markdown}
-            onChange={e => updateCase(c => ({ ...c, brief_markdown: e.target.value }))}
-            placeholder="Scrivi il promemoria in markdown. Usa ## per i titoli, - per i bullet, **grassetto**."
-            rows={24}
-          />
+          {!isDemo && (
+            <textarea
+              className="editable-input editable-input-multi brief-editor"
+              value={caseData.brief_markdown}
+              onChange={e => updateCase(c => ({ ...c, brief_markdown: e.target.value }))}
+              placeholder="Scrivi il promemoria in markdown. Usa ## per i titoli, - per i bullet, **grassetto**."
+              rows={24}
+            />
+          )}
           <div className="brief-preview">
             <p className="eyebrow">Anteprima</p>
             {markdownToLines(d.brief_markdown).map((line, i) => {
@@ -2916,13 +2980,15 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
       <section ref={materialsRef} className="materials-panel">
         <div className="materials-header">
           <h2>Documenti del fascicolo ({rawDocs.length})</h2>
-          <button className="upload-fab" title="Aggiungi nuovi documenti al fascicolo" onClick={() => setShowUpload(true)}>
-            <Plus size={16} /> Aggiungi
-            {uploadQueue.length > 0 && <span className="upload-badge">{uploadQueue.length}</span>}
-          </button>
+          {!isDemo && (
+            <button className="upload-fab" title="Aggiungi nuovi documenti al fascicolo" onClick={() => setShowUpload(true)}>
+              <Plus size={16} /> Aggiungi
+              {uploadQueue.length > 0 && <span className="upload-badge">{uploadQueue.length}</span>}
+            </button>
+          )}
         </div>
         {rawDocs.length === 0 && (
-          <p className="muted">Nessun documento. Aggiungi PDF, testi o note manuali.</p>
+          <p className="muted">{isDemo ? 'Nessun documento originale nel fascicolo demo.' : 'Nessun documento. Aggiungi PDF, testi o note manuali.'}</p>
         )}
         {rawDocs.map(doc => (
           <div key={doc.doc_id} className="pending-doc-row">
@@ -2933,21 +2999,23 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                 <small>{doc.name} · {new Date(doc.added_at).toLocaleDateString('it')}</small>
               </div>
             </button>
-            <button
-              className="ghost-button pending-doc-anon-btn"
-              title="Anonimizza questo documento con AI"
-              disabled={anonymizingDocId === doc.doc_id}
-              onClick={() => handleAnonymizeDoc(doc.doc_id)}
-            >
-              {anonymizingDocId === doc.doc_id ? <Loader2 size={13} className="spin" /> : <EyeOff size={13} />}
-            </button>
-            <button
-              className="ghost-button"
-              title="Elimina questo documento"
-              onClick={() => handleDeleteDoc(doc.doc_id)}
-            >
-              <Trash2 size={13} />
-            </button>
+            {!isDemo && (<>
+              <button
+                className="ghost-button pending-doc-anon-btn"
+                title="Anonimizza questo documento con AI"
+                disabled={anonymizingDocId === doc.doc_id}
+                onClick={() => handleAnonymizeDoc(doc.doc_id)}
+              >
+                {anonymizingDocId === doc.doc_id ? <Loader2 size={13} className="spin" /> : <EyeOff size={13} />}
+              </button>
+              <button
+                className="ghost-button"
+                title="Elimina questo documento"
+                onClick={() => handleDeleteDoc(doc.doc_id)}
+              >
+                <Trash2 size={13} />
+              </button>
+            </>)}
           </div>
         ))}
       </section>
@@ -2968,13 +3036,15 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
                   <small>{m.excerpt}</small>
                 </div>
               </button>
-              <button
-                className="ghost-button pending-doc-anon-btn"
-                title="Elimina questo materiale"
-                onClick={() => handleDeleteMaterial(m.id)}
-              >
-                <Trash2 size={13} />
-              </button>
+              {!isDemo && (
+                <button
+                  className="ghost-button pending-doc-anon-btn"
+                  title="Elimina questo materiale"
+                  onClick={() => handleDeleteMaterial(m.id)}
+                >
+                  <Trash2 size={13} />
+                </button>
+              )}
             </div>
           ))}
         </section>
@@ -2982,7 +3052,7 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
 
       <SourceDrawer source={selectedSource} onClose={() => setSelectedSource(null)} />
       <MaterialDrawer material={selectedMaterial} onClose={() => setSelectedMaterial(null)} />
-      <RawDocDrawer doc={selectedRawDoc} onClose={() => setSelectedRawDoc(null)} onDelete={handleDeleteDoc} />
+      <RawDocDrawer doc={selectedRawDoc} onClose={() => setSelectedRawDoc(null)} onDelete={isDemo ? undefined : handleDeleteDoc} />
       {showRedactionDrawer && (
         <RedactionDrawer
           globalRules={globalRules} setGlobalRules={setGlobalRules}
@@ -3030,4 +3100,10 @@ function CaseDetailView({ caseId, session, onBack, onOpenChat, onCaseLoaded, onC
   );
 }
 
-export default CaseDetailView;
+export default function CaseDetail(props: CaseDetailProps) {
+  return (
+    <ReadOnlyCase.Provider value={props.session === null}>
+      <CaseDetailView {...props} />
+    </ReadOnlyCase.Provider>
+  );
+}

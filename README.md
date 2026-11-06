@@ -7,6 +7,8 @@ Pocket Legal Triage (PLT) turns messy criminal-defense materials into a clean, s
 
 PLT is not an "AI lawyer." It is a case-control workspace. The lawyer stays in charge, verifies deadlines and citations, and treats generated output as draft material.
 
+Explore the fictional Caso Bianchi without an account in the [public Vercel demo](https://plt-phi.vercel.app/?demo=bianchi).
+
 ## Screenshots
 
 | Case overview | Legal analysis | Document upload |
