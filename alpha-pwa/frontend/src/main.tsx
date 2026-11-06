@@ -834,9 +834,7 @@ function App() {
   );
 }
 
-const route = new URLSearchParams(window.location.search);
-const isShowcaseHome = window.location.hostname === 'plt-phi.vercel.app' && window.location.pathname === '/';
-const isBianchiDemo = route.get('demo') === 'bianchi' || (isShowcaseHome && route.get('view') !== 'workspace');
+const isBianchiDemo = new URLSearchParams(window.location.search).get('demo') === 'bianchi';
 
 createRoot(document.getElementById('root')!).render(isBianchiDemo ? (
   <Suspense fallback={<main className="app-shell loading-shell"><Loader2 className="spin" size={40} /><p>Carico il caso demo…</p></main>}>

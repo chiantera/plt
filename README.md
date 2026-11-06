@@ -1,10 +1,8 @@
 # Pocket Legal Triage
 
-**[Open the live showcase](https://plt-phi.vercel.app/)** · No account required.
+**[Open the PLT workspace](https://plt-phi.vercel.app/)** · Sign in or create an account.
 
-Explore Caso Bianchi, a fictional Italian criminal-defense case. Follow the timeline, inspect source excerpts, review the legal analysis, try Aula mode, and download the sample brief.
-
-[Open the signed-in workspace](https://plt-phi.vercel.app/?view=workspace) to create cases, upload documents, and work with GiulIA.
+Create cases, upload documents, and work with GiulIA. The [read-only Caso Bianchi demo](https://plt-phi.vercel.app/?demo=bianchi) is also available without an account.
 
 ## What PLT does
 

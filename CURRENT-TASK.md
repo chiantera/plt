@@ -6,11 +6,11 @@ _Last updated: 2026-11-06 by Codex_
 
 ## Showcase homepage and repository layout (2026-11-06)
 
-The Vercel homepage opens Caso Bianchi. The workspace uses `?view=workspace`, and existing `?demo=bianchi` links still work. The numbered project documents now live under `docs/`.
+The Vercel homepage opens the workspace. Existing `?view=workspace` and `?demo=bianchi` links still work. The numbered project documents now live under `docs/`.
 
 ## Public Caso Bianchi demo (2026-11-06)
 
-The [Vercel demo link](https://plt-phi.vercel.app/) opens the fictional Bianchi fixture directly in the case viewer. Guests can explore the case, inspect sources, enter Aula mode, and export the sample brief. Editing, uploading, drafting, and AI chat stay in the signed-in workspace.
+The [Vercel demo link](https://plt-phi.vercel.app/?demo=bianchi) opens the fictional Bianchi fixture directly in the case viewer. Guests can explore the case, inspect sources, enter Aula mode, and export the sample brief. Editing, uploading, drafting, and AI chat stay in the signed-in workspace.
 
 ## Vercel showcase (2026-11-06)
 
